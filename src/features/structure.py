@@ -4,6 +4,18 @@ import numpy as np
 from src.core.types import SwingPoint, StructureState, StructureEventType, Trend
 
 
+def classify_fibo_zone(ratio: float) -> str:
+    if 0.382 <= ratio <= 0.500:
+        return "SHALLOW"
+    elif 0.500 < ratio < 0.618:
+        return "EQ"
+    elif 0.618 <= ratio <= 0.786:
+        return "OTE"
+    elif ratio > 0.786:
+        return "DEEP"
+    return "MINOR"
+
+
 def detect_swing_points(
     highs: np.ndarray,
     lows: np.ndarray,
@@ -66,6 +78,41 @@ def detect_swing_points(
             sl.label = "LL"
         else:
             sl.label = "EQL"
+
+    # Compute Fibo Retracement & Extension on Swings
+    for idx, sl in enumerate(swing_lows):
+        if idx > 0 and len(swing_highs) > 0:
+            # Find preceding swing high
+            prev_highs = [sh for sh in swing_highs if sh.index < sl.index]
+            if prev_highs:
+                prev_h = prev_highs[-1]
+                prev_l = swing_lows[idx - 1]
+                base_range = prev_h.price - prev_l.price
+                if base_range > 0:
+                    if sl.label == "HL":
+                        retrace = (prev_h.price - sl.price) / base_range
+                        sl.retrace_ratio = round(float(retrace), 4)
+                        sl.fibo_zone = classify_fibo_zone(sl.retrace_ratio)
+                    elif sl.label == "LL":
+                        ext = (prev_h.price - sl.price) / base_range
+                        sl.extension_ratio = round(float(ext), 4)
+
+    for idx, sh in enumerate(swing_highs):
+        if idx > 0 and len(swing_lows) > 0:
+            # Find preceding swing low
+            prev_lows = [sl for sl in swing_lows if sl.index < sh.index]
+            if prev_lows:
+                prev_l = prev_lows[-1]
+                prev_h = swing_highs[idx - 1]
+                base_range = prev_h.price - prev_l.price
+                if base_range > 0:
+                    if sh.label == "LH":
+                        retrace = (sh.price - prev_l.price) / base_range
+                        sh.retrace_ratio = round(float(retrace), 4)
+                        sh.fibo_zone = classify_fibo_zone(sh.retrace_ratio)
+                    elif sh.label == "HH":
+                        ext = (sh.price - prev_l.price) / base_range
+                        sh.extension_ratio = round(float(ext), 4)
 
     return swing_highs, swing_lows
 

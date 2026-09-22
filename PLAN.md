@@ -9,10 +9,10 @@
 
 ## 📊 Ringkasan Progress Proyek
 
-- **Total Tasks Terencana**: 23 tasks
-- **Tasks Selesai**: 10 tasks (43.5%)
+- **Total Tasks Terencana**: 22 tasks
+- **Tasks Selesai**: 10 tasks (45.5%)
 - **Tasks Sedang Berjalan**: 1 task (`INSP-01-STRUCTURE`)
-- **Tasks Antrian**: 12 tasks
+- **Tasks Antrian**: 11 tasks
 
 ---
 
@@ -45,17 +45,15 @@
 
 ---
 
-### 🔍 Fase Verifikasi: Eksplorasi 1 Per 1 (5 Master Inspectors) (Saat Ini)
+### 🔍 Fase Verifikasi: Eksplorasi 1 Per 1 (4 Master Inspectors) (Saat Ini)
 
-- [/] **INSP-01-STRUCTURE**: **Master Structure Inspector** (`Structure_Inspector.mq5`)  
-  *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), ZigZag wave lines, dan Strong vs Weak High/Low. *(Sedang Dieksplorasi di MT5)*
+- [/] **INSP-01-STRUCTURE**: **Master Structure & Fibonacci Inspector** (`Structure_Inspector.mq5`)  
+  *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), Strong vs Weak High/Low, Fibo Retracement (0.382-0.500 Shallow & 0.618-0.786 OTE), serta Fibo Extension Targets (1.272 & 1.618). *(Sedang Dieksplorasi di MT5)*
 - [ ] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
   *Isi Lengkap*: Fair Value Gap (Bullish & Bearish), Status Mitigasi (Dashed box), dan Inversion FVG (iFVG emas).
 - [ ] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
   *Isi Lengkap*: Order Block (OB), Continuation (RBR / DBD), Reversal (RBD / DBR), dan Breaker Block (BB).
-- [ ] **INSP-04-FIBO-EQUILIBRIUM**: **Master Fibonacci & Trading Plan Inspector** (`Fibonacci_OTE_Inspector.mq5`)  
-  *Isi Lengkap*: Fibonacci Retracement (Equilibrium 50%, OTE 0.618 - 0.786), Fibonacci Extension (-0.272, -0.618, 1.272, 1.618 TP targets), dan Equilibrium Area (Premium vs Discount).
-- [ ] **INSP-05-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
+- [ ] **INSP-04-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
   *Isi Lengkap*: Engulfing (Bull/Bear), Doji Variants, Morning/Evening Star, dan Momentum Displacement Candle (Marubozu).
 
 ---

@@ -4,10 +4,10 @@
   "last_updated": "2025-09-22T16:10:00",
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
-    "total_tasks": 23,
+    "total_tasks": 22,
     "completed_tasks": 10,
     "in_progress_tasks": 1,
-    "pending_tasks": 12
+    "pending_tasks": 11
   },
   "phases": [
     {
@@ -128,15 +128,15 @@
     },
     {
       "id": "phase-primitives-exploration",
-      "title": "Fase Verifikasi: Eksplorasi 1 Per 1 (5 Master Inspectors)",
+      "title": "Fase Verifikasi: Eksplorasi 1 Per 1 (4 Master Inspectors)",
       "status": "IN_PROGRESS",
       "tasks": [
         {
           "id": "INSP-01-STRUCTURE",
-          "title": "Master Structure Inspector (Swings, HH/HL/LH/LL, BOS, CHoCH, Strong/Weak)",
+          "title": "Master Structure & Fibonacci Inspector (Swings, HH/HL/LH/LL, BOS, CHoCH, Strong/Weak, Fibo Retracement & Extension)",
           "status": "IN_PROGRESS",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Unified di Structure_Inspector.mq5: Swings, label HH/HL/LH/LL, BOS, CHoCH, ZigZag wave, dan Strong/Weak high-low."
+          "notes": "Unified di Structure_Inspector.mq5: Swings, label HH/HL/LH/LL, BOS, CHoCH, Strong/Weak, Fibo Retrace (0.382-0.5 shallow & 0.618-0.786 OTE), serta Fibo Extension Targets (1.272 & 1.618)."
         },
         {
           "id": "INSP-02-FVG",
@@ -153,14 +153,7 @@
           "notes": "Unified di OrderBlock_Inspector.mq5: Zone OB unmitigated, continuation base, reversal base, dan breaker flip."
         },
         {
-          "id": "INSP-04-FIBO-EQUILIBRIUM",
-          "title": "Master Fibonacci & Plan Inspector (Retracement OTE, Extension, Premium/Discount)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Unified di Fibonacci_OTE_Inspector.mq5: Golden pocket 0.618-0.786, proyeksi TP extension, dan zona equilibrium."
-        },
-        {
-          "id": "INSP-05-CANDLE-PATTERNS",
+          "id": "INSP-04-CANDLE-PATTERNS",
           "title": "Master Candle Pattern Inspector (Engulfing, Doji, Star, Momentum Candle)",
           "status": "PENDING",
           "branch": "feat/poi-structure-matrix-subtasks",
@@ -277,6 +270,20 @@
     },
     {
       "id": "DEC-007",
+      "date": "2026-09-22",
+      "topic": "Test Note",
+      "summary": "This is an automated test note.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-008",
+      "date": "2026-09-22",
+      "topic": "Test Note",
+      "summary": "This is an automated test note.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-009",
       "date": "2026-09-22",
       "topic": "Test Note",
       "summary": "This is an automated test note.",

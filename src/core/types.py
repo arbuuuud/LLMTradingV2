@@ -38,6 +38,9 @@ class SwingPoint(BaseModel):
     confirmed: bool = True
     label: Optional[str] = None  # "HH", "HL", "LH", "LL", "EQH", "EQL"
     is_strong: bool = False      # Protected structural high/low
+    retrace_ratio: Optional[float] = None    # Retracement ratio (e.g. 0.618, 0.382)
+    extension_ratio: Optional[float] = None  # Expansion/Extension ratio (e.g. 1.272, 1.618)
+    fibo_zone: Optional[str] = None          # "SHALLOW" (0.382-0.5), "EQ" (0.5), "OTE" (0.618-0.786), "DEEP" (>0.786)
 
 
 class StructureState(BaseModel):
