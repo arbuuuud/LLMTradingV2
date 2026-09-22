@@ -2,17 +2,17 @@
 
 **Repository**: `https://github.com/arbuuuud/LLMTradingV2`  
 **Status**: Active Development  
-**Current Phase**: Fase Verifikasi Primitives (Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan)  
+**Current Phase**: Fase Verifikasi Primitives (Eksplorasi 1 Per 1 dengan 5 Master Inspectors)  
 **Single Source of Truth**: `PLAN.md` (Human Document) & `data/project_state.json` (Machine-readable Dashboard State)
 
 ---
 
 ## 📊 Ringkasan Progress Proyek
 
-- **Total Tasks Terencana**: 34 tasks
-- **Tasks Selesai**: 10 tasks (29.4%)
-- **Tasks Sedang Berjalan**: 1 task (`POI-OB`)
-- **Tasks Antrian**: 23 tasks
+- **Total Tasks Terencana**: 23 tasks
+- **Tasks Selesai**: 10 tasks (43.5%)
+- **Tasks Sedang Berjalan**: 1 task (`INSP-01-STRUCTURE`)
+- **Tasks Antrian**: 12 tasks
 
 ---
 
@@ -45,33 +45,18 @@
 
 ---
 
-### 🔍 Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan (Saat Ini)
+### 🔍 Fase Verifikasi: Eksplorasi 1 Per 1 (5 Master Inspectors) (Saat Ini)
 
-#### A. POI (Points of Interest)
-- [/] **POI-OB**: Order Block (OB) — Bullish & Bearish dengan tracking mitigasi harga. *(Sedang Dieksplorasi)*
-- [ ] **POI-RBR-DBD**: Supply & Demand Continuation (Rally-Base-Rally & Drop-Base-Drop).
-- [ ] **POI-FVG**: Fair Value Gap (FVG) — Deteksi celah harga 3-candle dan status mitigasi.
-- [ ] **POI-IFVG**: Inversion Fair Value Gap (iFVG) — Pembalikan peran FVG yang ditembus body candle.
-- [ ] **POI-BOS-CHOCH**: Break of Structure (BOS) & Change of Character (CHoCH).
-- [ ] **POI-BB** *(Optional)*: Breaker Block (BB) — Order block yang gagal menahan harga setelah menyapu likuiditas.
-- [ ] **POI-RBD-DBR** *(Optional)*: Supply & Demand Reversal (Rally-Base-Drop & Drop-Base-Rally).
-
-#### B. Structure
-- [ ] **STR-SWINGS**: Fractal Swing High & Swing Low points (window parametrik).
-- [ ] **STR-HH-HL-LH-LL**: Klasifikasi urutan tren (Higher High, Higher Low, Lower High, Lower Low).
-
-#### C. Fibonacci
-- [ ] **FIB-RETRACEMENT**: Fibonacci Retracement (Equilibrium 50%, Golden Pocket OTE 0.618, 0.705, 0.786).
-- [ ] **FIB-EXTENSION**: Fibonacci Extension (-0.272, -0.618, 1.272, 1.618 TP targets).
-
-#### D. Candle Pattern
-- [ ] **PAT-ENGULFING**: Bullish Engulfing & Bearish Engulfing.
-- [ ] **PAT-DOJI**: Varian Doji (Standard, Dragonfly, Gravestone, Long-Legged).
-- [ ] **PAT-STAR**: Formasi pembalikan 3-candle (Morning Star & Evening Star).
-- [ ] **PAT-MOMENTUM**: Momentum / Displacement Candle (Marubozu ekspansi institusional).
-
-#### E. Trading Plan
-- [ ] **PLN-EQUILIBRIUM**: Equilibrium Area Mapping (Beli hanya di Discount <50%, Jual hanya di Premium >50%).
+- [/] **INSP-01-STRUCTURE**: **Master Structure Inspector** (`Structure_Inspector.mq5`)  
+  *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), ZigZag wave lines, dan Strong vs Weak High/Low. *(Sedang Dieksplorasi di MT5)*
+- [ ] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
+  *Isi Lengkap*: Fair Value Gap (Bullish & Bearish), Status Mitigasi (Dashed box), dan Inversion FVG (iFVG emas).
+- [ ] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
+  *Isi Lengkap*: Order Block (OB), Continuation (RBR / DBD), Reversal (RBD / DBR), dan Breaker Block (BB).
+- [ ] **INSP-04-FIBO-EQUILIBRIUM**: **Master Fibonacci & Trading Plan Inspector** (`Fibonacci_OTE_Inspector.mq5`)  
+  *Isi Lengkap*: Fibonacci Retracement (Equilibrium 50%, OTE 0.618 - 0.786), Fibonacci Extension (-0.272, -0.618, 1.272, 1.618 TP targets), dan Equilibrium Area (Premium vs Discount).
+- [ ] **INSP-05-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
+  *Isi Lengkap*: Engulfing (Bull/Bear), Doji Variants, Morning/Evening Star, dan Momentum Displacement Candle (Marubozu).
 
 ---
 
@@ -99,4 +84,4 @@
 | **DEC-002** | 2025-09-22 | Two-Tier Hybrid Data Lake | Data Live dari MT5 EA memiliki Priority 1 (Ground Truth) dan menimpa data download (Priority 0) jika ada overlap timestamp. Data download bertindak sebagai fallback. | **CONFIRMED** |
 | **DEC-003** | 2025-09-22 | Multi-Broker Canonical Abstraction | Seluruh Agent internal hanya mengenal simbol `"XAUUSD"`. Penerjemahan ke `XAUUSD.u` / `XAUUSD.sc` dan kuantisasi lot step ditangani di boundary oleh `BrokerAdapter`. | **CONFIRMED** |
 | **DEC-004** | 2025-09-22 | Interactive PM Dashboard & Review SOP | Dibuatkan dashboard lokal interaktif untuk memonitor progress live, status checklist, dan catatan keputusan. Setiap kali step selesai, wajib konfirmasi ada/tidaknya catatan dari/ke pengguna. | **CONFIRMED** |
-| **DEC-005** | 2025-09-22 | 1-by-1 POI & Structure Exploration Matrix | Seluruh POI (OB, RBR/DBD, FVG, iFVG, BOS/CHoCH, BB, RBD/DBR), Structure (Swings, HH/HL/LH/LL), Fibo (Retracement & Extension), Candle Patterns (Engulfing, Doji, Star, Momentum), dan Trading Plan (Equilibrium) dipecah menjadi sub-task individual dan diverifikasi satu per satu langsung di chart MT5. | **CONFIRMED** |
+| **DEC-005** | 2025-09-22 | 5 Master Inspectors Alignment | Primitives dikelompokkan secara kohesif menjadi 5 Master Inspector (1 EA = 1 Subtask Domain) agar mudah dikontrol, diuji, dan diverifikasi di chart MT5. | **CONFIRMED** |

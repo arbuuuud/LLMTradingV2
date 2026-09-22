@@ -1,23 +1,35 @@
 //+------------------------------------------------------------------+
 //|                                       Structure_Inspector.mq5    |
-//|                 Visual Inspector for Swing Points, BOS & CHoCH   |
+//|    Comprehensive Market Structure: Swings, HH/HL/LH/LL, BOS & CHoCH|
 //|                                  LLMTradingV2 Institutional V2   |
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "1.00"
-#property description "Visualizes Fractal Swing Highs/Lows, Break of Structure (BOS), and Change of Character (CHoCH)"
+#property version   "2.00"
+#property description "Unified Market Structure Inspector: Swing Points, HH/HL/LH/LL Classification, BOS, CHoCH, and Strong/Weak Structure"
 
 //--- Inputs
-input group "=== Structure Settings ==="
+input group "=== Fractal Swing Settings ==="
 input int      InpSwingWindow       = 3;           // Fractal Window (Bars Left & Right)
 input int      InpMaxBars           = 300;         // Max Bars to Analyze
-input color    InpColorSwingHigh    = clrCyan;     // Swing High Color
-input color    InpColorSwingLow     = clrOrange;   // Swing Low Color
-input color    InpColorBOS          = clrLimeGreen;// BOS Line Color
-input color    InpColorCHoCH        = clrMagenta;  // CHoCH Line Color
+input bool     InpShowZigZagLines   = true;        // Draw Structure Wave Lines (High-Low)
+input color    InpColorZigZag       = C'71,85,105';// Structure Wave Line Color (Slate)
 
-//--- Prefix for chart objects
+input group "=== Swing Labels & Colors ==="
+input bool     InpShowHH_LL_Labels  = true;        // Classify HH, HL, LH, LL
+input color    InpColorHigherHigh   = C'34,197,94'; // Higher High (Green)
+input color    InpColorLowerHigh    = C'239,68,68'; // Lower High (Red/Orange)
+input color    InpColorHigherLow    = C'16,185,129';// Higher Low (Emerald)
+input color    InpColorLowerLow     = C'244,63,94'; // Lower Low (Rose)
+input int      InpLabelFontSize     = 8;           // Font Size for Labels
+
+input group "=== BOS & CHoCH Settings ==="
+input bool     InpShowBOS           = true;        // Show Break of Structure (BOS)
+input color    InpColorBOS          = C'59,130,246';// BOS Line Color (Blue)
+input bool     InpShowCHoCH         = true;        // Show Change of Character (CHoCH)
+input color    InpColorCHoCH        = C'217,70,239';// CHoCH Line Color (Fuchsia)
+input bool     InpShowStrongWeak    = true;        // Mark Strong Low / Strong High
+
 #define OBJ_PREFIX "STR_INSP_"
 
 enum ENUM_TREND
@@ -27,11 +39,18 @@ enum ENUM_TREND
    TREND_BEARISH = -1
 };
 
+struct SwingNode
+{
+   bool     is_high;
+   double   price;
+   datetime time;
+   int      bar_idx;
+   string   label;
+   color    clr;
+};
+
 datetime g_last_bar_time = 0;
 
-//+------------------------------------------------------------------+
-//| Expert initialization function                                   |
-//+------------------------------------------------------------------+
 int OnInit()
 {
    CleanObjects();
@@ -39,26 +58,17 @@ int OnInit()
    return(INIT_SUCCEEDED);
 }
 
-//+------------------------------------------------------------------+
-//| Expert deinitialization function                                 |
-//+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
    CleanObjects();
    ChartRedraw();
 }
 
-//+------------------------------------------------------------------+
-//| Remove all objects drawn by this inspector                       |
-//+------------------------------------------------------------------+
 void CleanObjects()
 {
    ObjectsDeleteAll(0, OBJ_PREFIX);
 }
 
-//+------------------------------------------------------------------+
-//| OnTick function                                                  |
-//+------------------------------------------------------------------+
 void OnTick()
 {
    datetime current_time = iTime(_Symbol, _Period, 0);
@@ -69,9 +79,6 @@ void OnTick()
    }
 }
 
-//+------------------------------------------------------------------+
-//| Core Structure Analysis & Drawing                                |
-//+------------------------------------------------------------------+
 void RedrawStructure()
 {
    CleanObjects();
@@ -84,110 +91,237 @@ void RedrawStructure()
    ArraySetAsSeries(rates, true);
    if(CopyRates(_Symbol, _Period, 0, bars_to_check, rates) < bars_to_check) return;
 
-   double last_sh_price = 0;
-   datetime last_sh_time = 0;
-   double last_sl_price = 0;
-   datetime last_sl_time = 0;
-   ENUM_TREND current_trend = TREND_RANGING;
+   // 1. Detect All Fractal Swings chronologically (from oldest to newest)
+   SwingNode swings[];
+   ArrayResize(swings, 0);
 
-   // Process from oldest to newest bar
+   double prev_sh_price = 0;
+   double prev_sl_price = 0;
+
    for(int i = bars_to_check - InpSwingWindow - 1; i >= InpSwingWindow; i--)
    {
-      // 1. Check Swing High
+      // Check Swing High
       bool is_sh = true;
       double h = rates[i].high;
       for(int w = 1; w <= InpSwingWindow; w++)
       {
-         if(rates[i - w].high >= h || rates[i + w].high >= h)
-         {
-            is_sh = false;
-            break;
-         }
+         if(rates[i - w].high >= h || rates[i + w].high >= h) { is_sh = false; break; }
       }
 
-      // 2. Check Swing Low
+      // Check Swing Low
       bool is_sl = true;
       double l = rates[i].low;
       for(int w = 1; w <= InpSwingWindow; w++)
       {
-         if(rates[i - w].low <= l || rates[i + w].low <= l)
-         {
-            is_sl = false;
-            break;
-         }
+         if(rates[i - w].low <= l || rates[i + w].low <= l) { is_sl = false; break; }
       }
 
       if(is_sh)
       {
-         last_sh_price = h;
-         last_sh_time = rates[i].time;
-         string obj_name = OBJ_PREFIX + "SH_" + IntegerToString(rates[i].time);
-         ObjectCreate(0, obj_name, OBJ_TEXT, 0, rates[i].time, h + 10 * _Point);
-         ObjectSetString(0, obj_name, OBJPROP_TEXT, "SH (" + DoubleToString(h, _Digits) + ")");
-         ObjectSetInteger(0, obj_name, OBJPROP_COLOR, InpColorSwingHigh);
-         ObjectSetInteger(0, obj_name, OBJPROP_FONTSIZE, 9);
-         ObjectSetInteger(0, obj_name, OBJPROP_ANCHOR, ANCHOR_LOWER);
+         int sz = ArraySize(swings);
+         ArrayResize(swings, sz + 1);
+         swings[sz].is_high = true;
+         swings[sz].price   = h;
+         swings[sz].time    = rates[i].time;
+         swings[sz].bar_idx = i;
+
+         if(prev_sh_price <= 0)
+         {
+            swings[sz].label = "SH";
+            swings[sz].clr   = InpColorHigherHigh;
+         }
+         else if(h > prev_sh_price)
+         {
+            swings[sz].label = "HH";
+            swings[sz].clr   = InpColorHigherHigh;
+         }
+         else if(h < prev_sh_price)
+         {
+            swings[sz].label = "LH";
+            swings[sz].clr   = InpColorLowerHigh;
+         }
+         else
+         {
+            swings[sz].label = "EQH";
+            swings[sz].clr   = clrYellow;
+         }
+         prev_sh_price = h;
       }
 
       if(is_sl)
       {
-         last_sl_price = l;
-         last_sl_time = rates[i].time;
-         string obj_name = OBJ_PREFIX + "SL_" + IntegerToString(rates[i].time);
-         ObjectCreate(0, obj_name, OBJ_TEXT, 0, rates[i].time, l - 10 * _Point);
-         ObjectSetString(0, obj_name, OBJPROP_TEXT, "SL (" + DoubleToString(l, _Digits) + ")");
-         ObjectSetInteger(0, obj_name, OBJPROP_COLOR, InpColorSwingLow);
-         ObjectSetInteger(0, obj_name, OBJPROP_FONTSIZE, 9);
-         ObjectSetInteger(0, obj_name, OBJPROP_ANCHOR, ANCHOR_UPPER);
+         int sz = ArraySize(swings);
+         ArrayResize(swings, sz + 1);
+         swings[sz].is_high = false;
+         swings[sz].price   = l;
+         swings[sz].time    = rates[i].time;
+         swings[sz].bar_idx = i;
+
+         if(prev_sl_price <= 0)
+         {
+            swings[sz].label = "SL";
+            swings[sz].clr   = InpColorHigherLow;
+         }
+         else if(l > prev_sl_price)
+         {
+            swings[sz].label = "HL";
+            swings[sz].clr   = InpColorHigherLow;
+         }
+         else if(l < prev_sl_price)
+         {
+            swings[sz].label = "LL";
+            swings[sz].clr   = InpColorLowerLow;
+         }
+         else
+         {
+            swings[sz].label = "EQL";
+            swings[sz].clr   = clrYellow;
+         }
+         prev_sl_price = l;
+      }
+   }
+
+   int total_swings = ArraySize(swings);
+   if(total_swings == 0) return;
+
+   // 2. Draw ZigZag Structure Lines connecting Highs & Lows
+   if(InpShowZigZagLines && total_swings > 1)
+   {
+      for(int s = 0; s < total_swings - 1; s++)
+      {
+         string zz_name = OBJ_PREFIX + "ZZ_" + IntegerToString(swings[s].time);
+         ObjectCreate(0, zz_name, OBJ_TREND, 0, swings[s].time, swings[s].price, swings[s + 1].time, swings[s + 1].price);
+         ObjectSetInteger(0, zz_name, OBJPROP_COLOR, InpColorZigZag);
+         ObjectSetInteger(0, zz_name, OBJPROP_STYLE, STYLE_DOT);
+         ObjectSetInteger(0, zz_name, OBJPROP_WIDTH, 1);
+         ObjectSetInteger(0, zz_name, OBJPROP_RAY_RIGHT, false);
+      }
+   }
+
+   // 3. Draw Swing Labels (HH, HL, LH, LL)
+   for(int s = 0; s < total_swings; s++)
+   {
+      string lbl_name = OBJ_PREFIX + "LBL_" + IntegerToString(swings[s].time);
+      double anchor_price = swings[s].is_high ? (swings[s].price + 8 * _Point) : (swings[s].price - 8 * _Point);
+      int anchor_pos      = swings[s].is_high ? ANCHOR_LOWER : ANCHOR_UPPER;
+
+      string display_text = InpShowHH_LL_Labels ? swings[s].label : (swings[s].is_high ? "SH" : "SL");
+      display_text += " (" + DoubleToString(swings[s].price, _Digits) + ")";
+
+      ObjectCreate(0, lbl_name, OBJ_TEXT, 0, swings[s].time, anchor_price);
+      ObjectSetString(0, lbl_name, OBJPROP_TEXT, display_text);
+      ObjectSetInteger(0, lbl_name, OBJPROP_COLOR, swings[s].clr);
+      ObjectSetInteger(0, lbl_name, OBJPROP_FONTSIZE, InpLabelFontSize);
+      ObjectSetInteger(0, lbl_name, OBJPROP_ANCHOR, anchor_pos);
+   }
+
+   // 4. Evaluate BOS & CHoCH Breakouts chronologically
+   ENUM_TREND current_trend = TREND_RANGING;
+   double active_sh_price = 0;
+   datetime active_sh_time = 0;
+   double active_sl_price = 0;
+   datetime active_sl_time = 0;
+
+   // Walk through historical candles and track when a swing is broken by candle close
+   int next_swing_idx = 0;
+
+   for(int i = bars_to_check - InpSwingWindow - 1; i >= 0; i--)
+   {
+      datetime bar_t = rates[i].time;
+      double close_p = rates[i].close;
+
+      // Register swings that formed up to this bar
+      while(next_swing_idx < total_swings && swings[next_swing_idx].bar_idx >= i)
+      {
+         if(swings[next_swing_idx].is_high)
+         {
+            active_sh_price = swings[next_swing_idx].price;
+            active_sh_time  = swings[next_swing_idx].time;
+         }
+         else
+         {
+            active_sl_price = swings[next_swing_idx].price;
+            active_sl_time  = swings[next_swing_idx].time;
+         }
+         next_swing_idx++;
       }
 
-      // 3. Evaluate BOS / CHoCH on candle close
-      double close_price = rates[i].close;
-      datetime bar_time = rates[i].time;
-
-      if(last_sh_price > 0 && close_price > last_sh_price)
+      // Check Bullish Breakout (close above active SH)
+      if(active_sh_price > 0 && close_p > active_sh_price)
       {
-         string event_type = (current_trend == TREND_BULLISH) ? "BOS" : "CHoCH";
-         color line_color = (current_trend == TREND_BULLISH) ? InpColorBOS : InpColorCHoCH;
+         bool is_bos = (current_trend == TREND_BULLISH);
+         string tag  = is_bos ? "BOS" : "CHoCH";
+         color line_c= is_bos ? InpColorBOS : InpColorCHoCH;
 
-         string line_name = OBJ_PREFIX + event_type + "_BULL_" + IntegerToString(bar_time);
-         ObjectCreate(0, line_name, OBJ_TREND, 0, last_sh_time, last_sh_price, bar_time, last_sh_price);
-         ObjectSetInteger(0, line_name, OBJPROP_COLOR, line_color);
-         ObjectSetInteger(0, line_name, OBJPROP_STYLE, (event_type == "BOS") ? STYLE_DASH : STYLE_SOLID);
-         ObjectSetInteger(0, line_name, OBJPROP_WIDTH, (event_type == "CHoCH") ? 2 : 1);
-         ObjectSetInteger(0, line_name, OBJPROP_RAY_RIGHT, false);
+         if((is_bos && InpShowBOS) || (!is_bos && InpShowCHoCH))
+         {
+            string line_id = OBJ_PREFIX + tag + "_UP_" + IntegerToString(bar_t);
+            ObjectCreate(0, line_id, OBJ_TREND, 0, active_sh_time, active_sh_price, bar_t, active_sh_price);
+            ObjectSetInteger(0, line_id, OBJPROP_COLOR, line_c);
+            ObjectSetInteger(0, line_id, OBJPROP_STYLE, is_bos ? STYLE_DASH : STYLE_SOLID);
+            ObjectSetInteger(0, line_id, OBJPROP_WIDTH, is_bos ? 1 : 2);
+            ObjectSetInteger(0, line_id, OBJPROP_RAY_RIGHT, false);
 
-         string text_name = OBJ_PREFIX + "TXT_" + line_name;
-         ObjectCreate(0, text_name, OBJ_TEXT, 0, bar_time, last_sh_price);
-         ObjectSetString(0, text_name, OBJPROP_TEXT, " " + event_type + " Bullish");
-         ObjectSetInteger(0, text_name, OBJPROP_COLOR, line_color);
-         ObjectSetInteger(0, text_name, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, text_name, OBJPROP_ANCHOR, ANCHOR_LEFT);
+            string txt_id = OBJ_PREFIX + "TXT_" + line_id;
+            ObjectCreate(0, txt_id, OBJ_TEXT, 0, bar_t, active_sh_price);
+            ObjectSetString(0, txt_id, OBJPROP_TEXT, " " + tag + " Bullish");
+            ObjectSetInteger(0, txt_id, OBJPROP_COLOR, line_c);
+            ObjectSetInteger(0, txt_id, OBJPROP_FONTSIZE, 8);
+            ObjectSetInteger(0, txt_id, OBJPROP_ANCHOR, ANCHOR_LEFT);
+
+            // Strong Low Marker: The low that pushed this high
+            if(InpShowStrongWeak && active_sl_time > 0)
+            {
+               string str_id = OBJ_PREFIX + "STRONG_LOW_" + IntegerToString(active_sl_time);
+               ObjectCreate(0, str_id, OBJ_TEXT, 0, active_sl_time, active_sl_price - 20 * _Point);
+               ObjectSetString(0, str_id, OBJPROP_TEXT, "[Strong Low]");
+               ObjectSetInteger(0, str_id, OBJPROP_COLOR, InpColorHigherLow);
+               ObjectSetInteger(0, str_id, OBJPROP_FONTSIZE, 8);
+               ObjectSetInteger(0, str_id, OBJPROP_ANCHOR, ANCHOR_UPPER);
+            }
+         }
 
          current_trend = TREND_BULLISH;
-         last_sh_price = 0; // consumed
+         active_sh_price = 0; // consumed
       }
-      else if(last_sl_price > 0 && close_price < last_sl_price)
+
+      // Check Bearish Breakout (close below active SL)
+      else if(active_sl_price > 0 && close_p < active_sl_price)
       {
-         string event_type = (current_trend == TREND_BEARISH) ? "BOS" : "CHoCH";
-         color line_color = (current_trend == TREND_BEARISH) ? InpColorBOS : InpColorCHoCH;
+         bool is_bos = (current_trend == TREND_BEARISH);
+         string tag  = is_bos ? "BOS" : "CHoCH";
+         color line_c= is_bos ? InpColorBOS : InpColorCHoCH;
 
-         string line_name = OBJ_PREFIX + event_type + "_BEAR_" + IntegerToString(bar_time);
-         ObjectCreate(0, line_name, OBJ_TREND, 0, last_sl_time, last_sl_price, bar_time, last_sl_price);
-         ObjectSetInteger(0, line_name, OBJPROP_COLOR, line_color);
-         ObjectSetInteger(0, line_name, OBJPROP_STYLE, (event_type == "BOS") ? STYLE_DASH : STYLE_SOLID);
-         ObjectSetInteger(0, line_name, OBJPROP_WIDTH, (event_type == "CHoCH") ? 2 : 1);
-         ObjectSetInteger(0, line_name, OBJPROP_RAY_RIGHT, false);
+         if((is_bos && InpShowBOS) || (!is_bos && InpShowCHoCH))
+         {
+            string line_id = OBJ_PREFIX + tag + "_DN_" + IntegerToString(bar_t);
+            ObjectCreate(0, line_id, OBJ_TREND, 0, active_sl_time, active_sl_price, bar_t, active_sl_price);
+            ObjectSetInteger(0, line_id, OBJPROP_COLOR, line_c);
+            ObjectSetInteger(0, line_id, OBJPROP_STYLE, is_bos ? STYLE_DASH : STYLE_SOLID);
+            ObjectSetInteger(0, line_id, OBJPROP_WIDTH, is_bos ? 1 : 2);
+            ObjectSetInteger(0, line_id, OBJPROP_RAY_RIGHT, false);
 
-         string text_name = OBJ_PREFIX + "TXT_" + line_name;
-         ObjectCreate(0, text_name, OBJ_TEXT, 0, bar_time, last_sl_price);
-         ObjectSetString(0, text_name, OBJPROP_TEXT, " " + event_type + " Bearish");
-         ObjectSetInteger(0, text_name, OBJPROP_COLOR, line_color);
-         ObjectSetInteger(0, text_name, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, text_name, OBJPROP_ANCHOR, ANCHOR_LEFT);
+            string txt_id = OBJ_PREFIX + "TXT_" + line_id;
+            ObjectCreate(0, txt_id, OBJ_TEXT, 0, bar_t, active_sl_price);
+            ObjectSetString(0, txt_id, OBJPROP_TEXT, " " + tag + " Bearish");
+            ObjectSetInteger(0, txt_id, OBJPROP_COLOR, line_c);
+            ObjectSetInteger(0, txt_id, OBJPROP_FONTSIZE, 8);
+            ObjectSetInteger(0, txt_id, OBJPROP_ANCHOR, ANCHOR_LEFT);
+
+            // Strong High Marker: The high that pushed this low
+            if(InpShowStrongWeak && active_sh_time > 0)
+            {
+               string str_id = OBJ_PREFIX + "STRONG_HIGH_" + IntegerToString(active_sh_time);
+               ObjectCreate(0, str_id, OBJ_TEXT, 0, active_sh_time, active_sh_price + 20 * _Point);
+               ObjectSetString(0, str_id, OBJPROP_TEXT, "[Strong High]");
+               ObjectSetInteger(0, str_id, OBJPROP_COLOR, InpColorLowerHigh);
+               ObjectSetInteger(0, str_id, OBJPROP_FONTSIZE, 8);
+               ObjectSetInteger(0, str_id, OBJPROP_ANCHOR, ANCHOR_LOWER);
+            }
+         }
 
          current_trend = TREND_BEARISH;
-         last_sl_price = 0; // consumed
+         active_sl_price = 0; // consumed
       }
    }
 

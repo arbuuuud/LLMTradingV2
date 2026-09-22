@@ -4,10 +4,10 @@
   "last_updated": "2025-09-22T16:10:00",
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
-    "total_tasks": 34,
+    "total_tasks": 23,
     "completed_tasks": 10,
     "in_progress_tasks": 1,
-    "pending_tasks": 23
+    "pending_tasks": 12
   },
   "phases": [
     {
@@ -128,120 +128,43 @@
     },
     {
       "id": "phase-primitives-exploration",
-      "title": "Fase Matrix: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
+      "title": "Fase Verifikasi: Eksplorasi 1 Per 1 (5 Master Inspectors)",
       "status": "IN_PROGRESS",
       "tasks": [
         {
-          "id": "POI-OB",
-          "title": "POI: Order Block (OB) - Bullish & Bearish dengan status mitigasi",
+          "id": "INSP-01-STRUCTURE",
+          "title": "Master Structure Inspector (Swings, HH/HL/LH/LL, BOS, CHoCH, Strong/Weak)",
           "status": "IN_PROGRESS",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Validasi box candle berlawanan sebelum displacement dan uji mitigasi saat disentuh harga."
+          "notes": "Unified di Structure_Inspector.mq5: Swings, label HH/HL/LH/LL, BOS, CHoCH, ZigZag wave, dan Strong/Weak high-low."
         },
         {
-          "id": "POI-RBR-DBD",
-          "title": "POI: Supply & Demand Continuation (Rally-Base-Rally & Drop-Base-Drop)",
+          "id": "INSP-02-FVG",
+          "title": "Master FVG Inspector (Bullish/Bearish FVG, Mitigation, Inversion iFVG)",
           "status": "PENDING",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Identifikasi base consolidation candle di tengah tren impulsif lanjutan."
+          "notes": "Unified di FVG_Inspector.mq5: Celah 3-candle, auto-extension, mitigasi dashed, dan flip inversion emas."
         },
         {
-          "id": "POI-FVG",
-          "title": "POI: Fair Value Gap (FVG) - Ketidakseimbangan 3-Candle",
+          "id": "INSP-03-SUPPLY-DEMAND",
+          "title": "Master OrderBlock & S&D Inspector (OB, RBR/DBD, RBD/DBR, Breaker Block)",
           "status": "PENDING",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Deteksi celah harga antara candle 1 dan 3 dengan tracking terisi (mitigated)."
+          "notes": "Unified di OrderBlock_Inspector.mq5: Zone OB unmitigated, continuation base, reversal base, dan breaker flip."
         },
         {
-          "id": "POI-IFVG",
-          "title": "POI: Inversion Fair Value Gap (iFVG) - Pembalikan Fungsi Celah",
+          "id": "INSP-04-FIBO-EQUILIBRIUM",
+          "title": "Master Fibonacci & Plan Inspector (Retracement OTE, Extension, Premium/Discount)",
           "status": "PENDING",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "FVG yang ditembus penuh candle body dan berbalik fungsi menjadi support/resistance baru."
+          "notes": "Unified di Fibonacci_OTE_Inspector.mq5: Golden pocket 0.618-0.786, proyeksi TP extension, dan zona equilibrium."
         },
         {
-          "id": "POI-BOS-CHOCH",
-          "title": "POI: Market Structure Breaks (BOS) & Trend Reversal (CHoCH)",
+          "id": "INSP-05-CANDLE-PATTERNS",
+          "title": "Master Candle Pattern Inspector (Engulfing, Doji, Star, Momentum Candle)",
           "status": "PENDING",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Penembusan swing point searah tren (BOS) vs penembusan pembalikan karakter tren (CHoCH)."
-        },
-        {
-          "id": "POI-BB",
-          "title": "POI (Optional): Breaker Block (BB) - Failed OB Flip",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Order block yang gagal menahan harga setelah menyapu likuiditas dan berbalik arah."
-        },
-        {
-          "id": "POI-RBD-DBR",
-          "title": "POI (Optional): Supply & Demand Reversal (Rally-Base-Drop & Drop-Base-Rally)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Pola pembalikan supply/demand setelah terbentuk base consolidation di pucuk/lembah."
-        },
-        {
-          "id": "STR-SWINGS",
-          "title": "Structure: Fractal Swing High & Swing Low Points",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Kalkulasi titik puncak dan lembah fraktal simetris N-candle kiri dan kanan."
-        },
-        {
-          "id": "STR-HH-HL-LH-LL",
-          "title": "Structure: Klasifikasi Urutan Tren (HH, HL, LH, LL)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Penentuan status Higher High, Higher Low, Lower High, dan Lower Low secara runut."
-        },
-        {
-          "id": "FIB-RETRACEMENT",
-          "title": "Fibo: Retracement (Equilibrium 50%, OTE 0.618 - 0.786)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Level pantulan institusional dan golden pocket pada leg swing aktif."
-        },
-        {
-          "id": "FIB-EXTENSION",
-          "title": "Fibo: Extension Targets (-0.272, -0.618, 1.272, 1.618)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Target proyeksi Take Profit berbasis ekspansi Fibonacci."
-        },
-        {
-          "id": "PAT-ENGULFING",
-          "title": "Candle Pattern: Bullish & Bearish Engulfing",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Candle pembalikan yang menelan penuh rentang body candle sebelumnya."
-        },
-        {
-          "id": "PAT-DOJI",
-          "title": "Candle Pattern: Doji Variants (Standard, Dragonfly, Gravestone, Long-Legged)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Deteksi candle keraguan pasar dengan body tipis dan wick panjang."
-        },
-        {
-          "id": "PAT-STAR",
-          "title": "Candle Pattern: Morning Star & Evening Star",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Formasi pembalikan 3-candle di area support atau resistance."
-        },
-        {
-          "id": "PAT-MOMENTUM",
-          "title": "Candle Pattern: Momentum / Displacement Candle (Marubozu)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Candle impulsif berekor sangat minim yang mengindikasikan kehadiran order institusi."
-        },
-        {
-          "id": "PLN-EQUILIBRIUM",
-          "title": "Trading Plan: Equilibrium Area (Premium vs Discount Zones)",
-          "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Aturan beli hanya di Discount (<50%) dan jual hanya di Premium (>50%)."
+          "notes": "Unified di CandlePattern_Inspector.mq5: Konfirmasi rejection dan displacement momentum candle."
         }
       ]
     },
@@ -347,6 +270,13 @@
     },
     {
       "id": "DEC-006",
+      "date": "2026-09-22",
+      "topic": "Test Note",
+      "summary": "This is an automated test note.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-007",
       "date": "2026-09-22",
       "topic": "Test Note",
       "summary": "This is an automated test note.",

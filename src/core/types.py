@@ -36,6 +36,8 @@ class SwingPoint(BaseModel):
     price: float
     timestamp: datetime
     confirmed: bool = True
+    label: Optional[str] = None  # "HH", "HL", "LH", "LL", "EQH", "EQL"
+    is_strong: bool = False      # Protected structural high/low
 
 
 class StructureState(BaseModel):

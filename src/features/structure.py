@@ -46,6 +46,27 @@ def detect_swing_points(
                 SwingPoint(index=i, price=float(current_low), timestamp=timestamps[i])
             )
 
+    # Assign classification labels (HH, LH, EQH / HL, LL, EQL)
+    for idx, sh in enumerate(swing_highs):
+        if idx == 0:
+            sh.label = "SH"
+        elif sh.price > swing_highs[idx - 1].price:
+            sh.label = "HH"
+        elif sh.price < swing_highs[idx - 1].price:
+            sh.label = "LH"
+        else:
+            sh.label = "EQH"
+
+    for idx, sl in enumerate(swing_lows):
+        if idx == 0:
+            sl.label = "SL"
+        elif sl.price > swing_lows[idx - 1].price:
+            sl.label = "HL"
+        elif sl.price < swing_lows[idx - 1].price:
+            sl.label = "LL"
+        else:
+            sl.label = "EQL"
+
     return swing_highs, swing_lows
 
 
