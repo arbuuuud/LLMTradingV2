@@ -84,3 +84,29 @@ def test_fvg_inversion_distinct_object_and_confluence():
     assert conf.overlap_top == 102.0 # min(103, 102)
     assert conf.overlap_bottom == 101.0 # max(101, 100)
     assert conf.probability_score >= 8.0
+
+
+def test_fvg_touch_count_deeper_penetration_only():
+    # Bullish FVG with top=110, bottom=100
+    highs = np.array([100.0, 115.0, 120.0])
+    lows = np.array([90.0, 108.0, 110.0])
+    times = [datetime(2025, 1, 1, 10, i) for i in range(3)]
+    fvgs = detect_fvgs(highs, lows, times)
+
+    assert fvgs[0].touch_count == 0
+    assert fvgs[0].is_touched is False
+
+    # Candle 1: dips to low 108 (enters gap, top is 110) -> touch_count = 1
+    update_fvg_mitigation(fvgs, latest_high=115.0, latest_low=108.0, latest_close=112.0)
+    assert fvgs[0].touch_count == 1
+    assert fvgs[0].deepest_touch_price == 108.0
+
+    # Candle 2: dips to low 109 (doesn't penetrate deeper than 108) -> touch_count STILL 1!
+    update_fvg_mitigation(fvgs, latest_high=114.0, latest_low=109.0, latest_close=111.0)
+    assert fvgs[0].touch_count == 1
+    assert fvgs[0].deepest_touch_price == 108.0
+
+    # Candle 3: penetrates deeper to low 104 -> ngambil harga baru, touch_count becomes 2!
+    update_fvg_mitigation(fvgs, latest_high=112.0, latest_low=104.0, latest_close=111.0)
+    assert fvgs[0].touch_count == 2
+    assert fvgs[0].deepest_touch_price == 104.0

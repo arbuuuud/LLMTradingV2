@@ -60,6 +60,9 @@ class FairValueGap(BaseModel):
     timestamp: datetime
     bar_index: int
     is_inversion: bool = False
+    is_touched: bool = False     # Kesenggol (wick/body entered gap)
+    touch_count: int = 0         # Increments only when price penetrates deeper than previous touch
+    deepest_touch_price: Optional[float] = None # Extreme price reached so far inside gap
     is_mitigated: bool = False   # Body closed inside or through gap
     is_fully_used: bool = False  # Orders 100% consumed by wick/body (swept to opposite boundary)
     tested_count: int = 0
@@ -76,6 +79,9 @@ class InversionFVG(BaseModel):
     invert_time: datetime
     breached_with_counter_fvg: bool = False
     counter_fvg_id: Optional[str] = None
+    is_touched: bool = False     # Kesenggol setelah invert
+    touch_count: int = 0         # Increments only when price penetrates deeper than previous touch
+    deepest_touch_price: Optional[float] = None
     is_mitigated: bool = False   # Body closed inside or through gap
     is_fully_used: bool = False  # Orders 100% consumed by wick/body
     tested_count: int = 0

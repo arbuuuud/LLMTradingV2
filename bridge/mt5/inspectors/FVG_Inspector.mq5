@@ -1,23 +1,24 @@
 //+------------------------------------------------------------------+
 //|                                            FVG_Inspector.mq5     |
 //|  Nearest 2 Above, 2 Below + 1 Inside (STRICTLY UNMITIGATED ONLY) |
-//|        Distinguishes: Mitigated (Body Close) vs Fully Used (All) |
+//|     Touch Increments ONLY When Price Penetrates Deeper (+1)      |
 //|                                  LLMTradingV2 Institutional V2   |
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.40"
-#property description "Displays ONLY Fresh Active Zones: Mitigated (Body Close) and Fully Used (Wick/Body 100% Orders Consumed) are strictly excluded"
+#property version   "2.60"
+#property description "Deep Liquidity Touch Counter: touch_count increments (+1) ONLY when price penetrates deeper than previous touch"
 
 //--- Inputs
 input group "=== Proximity Display Settings ==="
 input int                  InpMaxZonesAbove     = 2;                    // Max Nearest Zones Above Price
 input int                  InpMaxZonesBelow     = 2;                    // Max Nearest Zones Below Price
-input int                  InpMaxBars           = 500;                  // Max Bars to Scan for Fresh Gaps
+input int                  InpMaxBars           = 500;                  // Max Bars to Scan for Active Gaps
 input double               InpMinGapPoints      = 10.0;                 // Minimum Gap Size (Points)
 input bool                 InpExtendToCurrent   = true;                 // Extend Zones to Current Candle
 
-input group "=== Strict Lifecycle Exclusion Filters ==="
+input group "=== Touch & Mitigation Lifecycle Filters ==="
+input bool                 InpStrictVirginOnly  = false;                // Show ONLY Virgin (0 Touch). False = Allow Touched but unmitigated
 input bool                 InpExcludeMitigated  = true;                 // Exclude Mitigated (Candle Body Closed Inside)
 input bool                 InpExcludeFullyUsed  = true;                 // Exclude Fully Used (Wick/Body Consumed All Orders)
 
@@ -53,11 +54,17 @@ struct FVGNode
    double   ce_price;
    datetime time;
    int      bar_idx;
-   bool     is_mitigated;   // Body closed inside or through gap
-   bool     is_fully_used;  // Wick or body took all orders to opposite boundary
+   bool     is_touched;
+   int      touch_count;          // Increments ONLY when penetrating deeper than previous touch price
+   double   deepest_touch_price;  // Extreme price reached inside the gap
+   bool     is_mitigated;         // Body closed inside or through gap
+   bool     is_fully_used;        // Wick or body took all orders to opposite boundary
    bool     is_inverted;
    datetime invert_time;
    int      invert_bar_idx;
+   bool     is_ifvg_touched;
+   int      ifvg_touch_count;
+   double   ifvg_deepest_price;
    bool     is_ifvg_mitigated;
    bool     is_ifvg_fully_used;
    bool     inverted_with_counter_fvg;
@@ -75,6 +82,9 @@ struct CandidateZone
    double   bottom;
    double   ce_price;
    datetime start_time;
+   bool     is_touched;
+   int      touch_count;
+   double   deepest_touch_price;
    bool     is_mitigated;
    bool     is_fully_used;
    bool     has_counter_fvg;
@@ -152,10 +162,16 @@ void RedrawFVGSystem()
       all_fvgs[sz].ce_price      = (all_fvgs[sz].top + all_fvgs[sz].bottom) / 2.0;
       all_fvgs[sz].time          = gap_t;
       all_fvgs[sz].bar_idx       = i;
+      all_fvgs[sz].is_touched    = false;
+      all_fvgs[sz].touch_count   = 0;
+      all_fvgs[sz].deepest_touch_price = is_bull ? all_fvgs[sz].top : all_fvgs[sz].bottom;
       all_fvgs[sz].is_mitigated  = false;
       all_fvgs[sz].is_fully_used = false;
       all_fvgs[sz].is_inverted   = false;
       all_fvgs[sz].invert_bar_idx = -1;
+      all_fvgs[sz].is_ifvg_touched = false;
+      all_fvgs[sz].ifvg_touch_count = 0;
+      all_fvgs[sz].ifvg_deepest_price = is_bull ? all_fvgs[sz].bottom : all_fvgs[sz].top;
       all_fvgs[sz].is_ifvg_mitigated = false;
       all_fvgs[sz].is_ifvg_fully_used = false;
       all_fvgs[sz].inverted_with_counter_fvg = false;
@@ -165,7 +181,7 @@ void RedrawFVGSystem()
    int total_fvg_count = ArraySize(all_fvgs);
    if(total_fvg_count == 0) return;
 
-   // 2. Track Lifecycle: Mitigated (Body Close) vs Fully Used (All Orders Taken) vs Inverted
+   // 2. Track Lifecycle: Deeper Penetration (+1), Mitigated (Body Close), Fully Used (All Orders Taken)
    for(int f = 0; f < total_fvg_count; f++)
    {
       int start_bar = all_fvgs[f].bar_idx - 1;
@@ -174,12 +190,28 @@ void RedrawFVGSystem()
       {
          if(all_fvgs[f].is_bullish)
          {
-            // Fully Used: Wick or body reached all the way to bottom (100% orders consumed)
+            // Touch check: wick or body enters gap
+            if(rates[k].low <= all_fvgs[f].top && rates[k].high >= all_fvgs[f].bottom)
+            {
+               all_fvgs[f].is_touched = true;
+               if(all_fvgs[f].touch_count == 0)
+               {
+                  all_fvgs[f].touch_count = 1;
+                  all_fvgs[f].deepest_touch_price = rates[k].low;
+               }
+               // Increment (+1) ONLY if price penetrates DEEPER than previous touch!
+               else if(rates[k].low < all_fvgs[f].deepest_touch_price)
+               {
+                  all_fvgs[f].touch_count++;
+                  all_fvgs[f].deepest_touch_price = rates[k].low;
+               }
+            }
+            // Fully Used: reached all the way to bottom
             if(rates[k].low <= all_fvgs[f].bottom)
             {
                all_fvgs[f].is_fully_used = true;
             }
-            // Mitigated: Candle body closed inside the gap (close <= top)
+            // Mitigated: Candle body closed inside the gap
             if(rates[k].close <= all_fvgs[f].top)
             {
                all_fvgs[f].is_mitigated = true;
@@ -201,9 +233,23 @@ void RedrawFVGSystem()
                   }
                }
             }
-            // If already inverted to Resistance, track subsequent lifecycle:
+            // Inverted Resistance lifecycle:
             else if(all_fvgs[f].is_inverted && k < all_fvgs[f].invert_bar_idx)
             {
+               if(rates[k].high >= all_fvgs[f].bottom && rates[k].low <= all_fvgs[f].top)
+               {
+                  all_fvgs[f].is_ifvg_touched = true;
+                  if(all_fvgs[f].ifvg_touch_count == 0)
+                  {
+                     all_fvgs[f].ifvg_touch_count = 1;
+                     all_fvgs[f].ifvg_deepest_price = rates[k].high;
+                  }
+                  else if(rates[k].high > all_fvgs[f].ifvg_deepest_price)
+                  {
+                     all_fvgs[f].ifvg_touch_count++;
+                     all_fvgs[f].ifvg_deepest_price = rates[k].high;
+                  }
+               }
                if(rates[k].high >= all_fvgs[f].top)
                {
                   all_fvgs[f].is_ifvg_fully_used = true;
@@ -216,12 +262,28 @@ void RedrawFVGSystem()
          }
          else // bearish fvg
          {
-            // Fully Used: Wick or body reached all the way to top (100% orders consumed)
+            // Touch check: wick or body enters gap
+            if(rates[k].high >= all_fvgs[f].bottom && rates[k].low <= all_fvgs[f].top)
+            {
+               all_fvgs[f].is_touched = true;
+               if(all_fvgs[f].touch_count == 0)
+               {
+                  all_fvgs[f].touch_count = 1;
+                  all_fvgs[f].deepest_touch_price = rates[k].high;
+               }
+               // Increment (+1) ONLY if price penetrates DEEPER (higher) than previous touch!
+               else if(rates[k].high > all_fvgs[f].deepest_touch_price)
+               {
+                  all_fvgs[f].touch_count++;
+                  all_fvgs[f].deepest_touch_price = rates[k].high;
+               }
+            }
+            // Fully Used: reached all the way to top
             if(rates[k].high >= all_fvgs[f].top)
             {
                all_fvgs[f].is_fully_used = true;
             }
-            // Mitigated: Candle body closed inside the gap (close >= bottom)
+            // Mitigated: Candle body closed inside the gap
             if(rates[k].close >= all_fvgs[f].bottom)
             {
                all_fvgs[f].is_mitigated = true;
@@ -243,9 +305,23 @@ void RedrawFVGSystem()
                   }
                }
             }
-            // If already inverted to Support, track subsequent lifecycle:
+            // Inverted Support lifecycle:
             else if(all_fvgs[f].is_inverted && k < all_fvgs[f].invert_bar_idx)
             {
+               if(rates[k].low <= all_fvgs[f].top && rates[k].high >= all_fvgs[f].bottom)
+               {
+                  all_fvgs[f].is_ifvg_touched = true;
+                  if(all_fvgs[f].ifvg_touch_count == 0)
+                  {
+                     all_fvgs[f].ifvg_touch_count = 1;
+                     all_fvgs[f].ifvg_deepest_price = rates[k].low;
+                  }
+                  else if(rates[k].low < all_fvgs[f].ifvg_deepest_price)
+                  {
+                     all_fvgs[f].ifvg_touch_count++;
+                     all_fvgs[f].ifvg_deepest_price = rates[k].low;
+                  }
+               }
                if(rates[k].low <= all_fvgs[f].bottom)
                {
                   all_fvgs[f].is_ifvg_fully_used = true;
@@ -259,7 +335,7 @@ void RedrawFVGSystem()
       }
    }
 
-   // 3. Collect Candidate Zones (Applying Strict Lifecycle Filters)
+   // 3. Collect Candidate Zones
    CandidateZone candidates[];
    ArrayResize(candidates, 0);
 
@@ -273,12 +349,14 @@ void RedrawFVGSystem()
       if(all_fvgs[f].is_inverted) continue;
       if(InpExcludeMitigated && all_fvgs[f].is_mitigated) continue;
       if(InpExcludeFullyUsed && all_fvgs[f].is_fully_used) continue;
+      if(InpStrictVirginOnly && all_fvgs[f].touch_count > 0) continue;
 
       for(int k = 0; k < total_fvg_count; k++)
       {
          if(!all_fvgs[k].is_inverted) continue;
          if(InpExcludeMitigated && all_fvgs[k].is_ifvg_mitigated) continue;
          if(InpExcludeFullyUsed && all_fvgs[k].is_ifvg_fully_used) continue;
+         if(InpStrictVirginOnly && all_fvgs[k].ifvg_touch_count > 0) continue;
 
          double overlap_top = MathMin(all_fvgs[f].top, all_fvgs[k].top);
          double overlap_btm = MathMax(all_fvgs[f].bottom, all_fvgs[k].bottom);
@@ -298,12 +376,19 @@ void RedrawFVGSystem()
             candidates[c_sz].start_time        = MathMax(all_fvgs[f].time, all_fvgs[k].invert_time);
             candidates[c_sz].box_color         = InpColorCombined;
             candidates[c_sz].is_bullish        = all_fvgs[f].is_bullish;
+            candidates[c_sz].is_touched        = (all_fvgs[f].touch_count > 0 || all_fvgs[k].ifvg_touch_count > 0);
+            candidates[c_sz].touch_count       = all_fvgs[f].touch_count + all_fvgs[k].ifvg_touch_count;
+            candidates[c_sz].deepest_touch_price = all_fvgs[f].deepest_touch_price;
             candidates[c_sz].is_mitigated      = false;
             candidates[c_sz].is_fully_used     = false;
             candidates[c_sz].has_counter_fvg   = all_fvgs[k].inverted_with_counter_fvg;
 
             double pts = (overlap_top - overlap_btm) / _Point;
-            candidates[c_sz].display_label     = StringFormat(" ★ [COMBINED FVG+iFVG] (%.0f pts)", pts);
+            string t_tag = (candidates[c_sz].touch_count == 0) 
+               ? "[Virgin]" 
+               : StringFormat("[Touched x%d @ %.2f]", candidates[c_sz].touch_count, candidates[c_sz].deepest_touch_price);
+
+            candidates[c_sz].display_label     = StringFormat(" ★ [COMBINED FVG+iFVG] %s (%.0f pts)", t_tag, pts);
          }
       }
    }
@@ -314,6 +399,7 @@ void RedrawFVGSystem()
       if(!all_fvgs[f].is_inverted) continue;
       if(InpExcludeMitigated && all_fvgs[f].is_ifvg_mitigated) continue;
       if(InpExcludeFullyUsed && all_fvgs[f].is_ifvg_fully_used) continue;
+      if(InpStrictVirginOnly && all_fvgs[f].ifvg_touch_count > 0) continue;
       if(fvg_in_confluence[f]) continue;
 
       int c_sz = ArraySize(candidates);
@@ -326,6 +412,9 @@ void RedrawFVGSystem()
       candidates[c_sz].start_time        = all_fvgs[f].invert_time;
       candidates[c_sz].box_color         = all_fvgs[f].inverted_with_counter_fvg ? InpColorInversionPwr : InpColorInversion;
       candidates[c_sz].is_bullish        = !all_fvgs[f].is_bullish;
+      candidates[c_sz].is_touched        = (all_fvgs[f].ifvg_touch_count > 0);
+      candidates[c_sz].touch_count       = all_fvgs[f].ifvg_touch_count;
+      candidates[c_sz].deepest_touch_price = all_fvgs[f].ifvg_deepest_price;
       candidates[c_sz].is_mitigated      = all_fvgs[f].is_ifvg_mitigated;
       candidates[c_sz].is_fully_used     = all_fvgs[f].is_ifvg_fully_used;
       candidates[c_sz].has_counter_fvg   = all_fvgs[f].inverted_with_counter_fvg;
@@ -333,7 +422,12 @@ void RedrawFVGSystem()
       double pts = (all_fvgs[f].top - all_fvgs[f].bottom) / _Point;
       string role = candidates[c_sz].is_bullish ? "iFVG Support" : "iFVG Resistance";
       if(all_fvgs[f].inverted_with_counter_fvg) role += " [Counter-FVG!]";
-      candidates[c_sz].display_label     = StringFormat(" %s (%.0f pts)", role, pts);
+
+      string t_tag = (candidates[c_sz].touch_count == 0) 
+         ? "[Virgin]" 
+         : StringFormat("[Touched x%d @ %.2f]", candidates[c_sz].touch_count, candidates[c_sz].deepest_touch_price);
+
+      candidates[c_sz].display_label     = StringFormat(" %s %s (%.0f pts)", role, t_tag, pts);
    }
 
    // C. Regular Active FVGs
@@ -342,6 +436,7 @@ void RedrawFVGSystem()
       if(all_fvgs[f].is_inverted) continue;
       if(InpExcludeMitigated && all_fvgs[f].is_mitigated) continue;
       if(InpExcludeFullyUsed && all_fvgs[f].is_fully_used) continue;
+      if(InpStrictVirginOnly && all_fvgs[f].touch_count > 0) continue;
       if(fvg_in_confluence[f]) continue;
 
       int c_sz = ArraySize(candidates);
@@ -354,13 +449,20 @@ void RedrawFVGSystem()
       candidates[c_sz].start_time        = all_fvgs[f].time;
       candidates[c_sz].box_color         = all_fvgs[f].is_bullish ? InpColorBullFVG : InpColorBearFVG;
       candidates[c_sz].is_bullish        = all_fvgs[f].is_bullish;
+      candidates[c_sz].is_touched        = (all_fvgs[f].touch_count > 0);
+      candidates[c_sz].touch_count       = all_fvgs[f].touch_count;
+      candidates[c_sz].deepest_touch_price = all_fvgs[f].deepest_touch_price;
       candidates[c_sz].is_mitigated      = all_fvgs[f].is_mitigated;
       candidates[c_sz].is_fully_used     = all_fvgs[f].is_fully_used;
       candidates[c_sz].has_counter_fvg   = false;
 
       double pts = (all_fvgs[f].top - all_fvgs[f].bottom) / _Point;
-      candidates[c_sz].display_label     = StringFormat(" %s (%.0f pts) CE: %.2f",
-         all_fvgs[f].is_bullish ? "Bull FVG" : "Bear FVG", pts, all_fvgs[f].ce_price);
+      string t_tag = (candidates[c_sz].touch_count == 0) 
+         ? "[Virgin]" 
+         : StringFormat("[Touched x%d @ %.2f]", candidates[c_sz].touch_count, candidates[c_sz].deepest_touch_price);
+
+      candidates[c_sz].display_label     = StringFormat(" %s %s (%.0f pts) CE: %.2f",
+         all_fvgs[f].is_bullish ? "Bull FVG" : "Bear FVG", t_tag, pts, all_fvgs[f].ce_price);
    }
 
    // 4. Classify Proximity: 2 Nearest Above, 2 Nearest Below, and 1 Current Inside
@@ -373,7 +475,6 @@ void RedrawFVGSystem()
 
    for(int i = 0; i < ArraySize(candidates); i++)
    {
-      // Inside current price range
       if(cur_price >= candidates[i].bottom && cur_price <= candidates[i].top)
       {
          int in_sz = ArraySize(inside_zones);
@@ -381,7 +482,6 @@ void RedrawFVGSystem()
          candidates[i].distance_to_price = 0.0;
          inside_zones[in_sz] = candidates[i];
       }
-      // Strictly Above price
       else if(candidates[i].bottom > cur_price)
       {
          int a_sz = ArraySize(above_zones);
@@ -389,7 +489,6 @@ void RedrawFVGSystem()
          candidates[i].distance_to_price = candidates[i].bottom - cur_price;
          above_zones[a_sz] = candidates[i];
       }
-      // Strictly Below price
       else if(candidates[i].top < cur_price)
       {
          int b_sz = ArraySize(below_zones);
@@ -399,7 +498,6 @@ void RedrawFVGSystem()
       }
    }
 
-   // Sort strictly by distance to current price (closest first)
    SortZonesByProximity(above_zones);
    SortZonesByProximity(below_zones);
 
@@ -419,7 +517,7 @@ void RedrawFVGSystem()
       DrawZoneObject(below_zones[i], rank_prefix, current_t, false);
    }
 
-   // 7. Render Current Inside Zone (if price is currently inside a gap)
+   // 7. Render Current Inside Zone (if any)
    if(ArraySize(inside_zones) > 0)
    {
       DrawZoneObject(inside_zones[0], "⚡ [CURRENT INSIDE ZONE] ", current_t, true);
@@ -467,7 +565,7 @@ void DrawZoneObject(const CandidateZone &zone, string rank_tag, datetime current
       ObjectSetInteger(0, ce_id, OBJPROP_RAY_RIGHT, false);
    }
 
-   // Label
+   // Label with Virgin / Deep Touch Counter
    string lbl_id = OBJ_PREFIX + "LBL_" + zone.id;
    string full_text = rank_tag + zone.display_label;
 

@@ -73,8 +73,18 @@ def update_fvg_mitigation(
     """
     for fvg in fvgs:
         if fvg.direction == Direction.BUY:
-            if latest_low <= fvg.top:
-                fvg.tested_count += 1
+            # Touched: wick or body enters gap
+            # Increments only when penetrating deeper than previous touch price
+            if latest_low <= fvg.top and latest_high >= fvg.bottom:
+                fvg.is_touched = True
+                if fvg.deepest_touch_price is None:
+                    fvg.touch_count = 1
+                    fvg.deepest_touch_price = float(latest_low)
+                elif latest_low < fvg.deepest_touch_price:
+                    fvg.touch_count += 1
+                    fvg.deepest_touch_price = float(latest_low)
+                fvg.tested_count = fvg.touch_count
+
             # Mitigated: body close inside or below top
             if latest_close <= fvg.top:
                 fvg.is_mitigated = True
@@ -86,8 +96,18 @@ def update_fvg_mitigation(
                 fvg.is_inversion = True
 
         elif fvg.direction == Direction.SELL:
-            if latest_high >= fvg.bottom:
-                fvg.tested_count += 1
+            # Touched: wick or body enters gap
+            # Increments only when penetrating deeper than previous touch price
+            if latest_high >= fvg.bottom and latest_low <= fvg.top:
+                fvg.is_touched = True
+                if fvg.deepest_touch_price is None:
+                    fvg.touch_count = 1
+                    fvg.deepest_touch_price = float(latest_high)
+                elif latest_high > fvg.deepest_touch_price:
+                    fvg.touch_count += 1
+                    fvg.deepest_touch_price = float(latest_high)
+                fvg.tested_count = fvg.touch_count
+
             # Mitigated: body close inside or above bottom
             if latest_close >= fvg.bottom:
                 fvg.is_mitigated = True
@@ -110,7 +130,8 @@ def process_fvg_inversions(
     existing_ifvgs: Optional[List[InversionFVG]] = None
 ) -> Tuple[List[FairValueGap], List[InversionFVG]]:
     """
-    Tracks mitigation, full order consumption, and breaches of FVGs, spawning distinct InversionFVG objects.
+    Tracks touches, mitigation, full order consumption, and breaches of FVGs, spawning distinct InversionFVG objects.
+    - Touched: increments only when price penetrates deeper than previous touch price
     - Mitigated: body close inside
     - Fully used: orders 100% consumed by wick/body
     - If candle close breaches opposite boundary, FVG becomes an iFVG.
@@ -120,8 +141,16 @@ def process_fvg_inversions(
 
     for fvg in fvgs:
         if fvg.direction == Direction.BUY:
-            if latest_low <= fvg.top:
-                fvg.tested_count += 1
+            if latest_low <= fvg.top and latest_high >= fvg.bottom:
+                fvg.is_touched = True
+                if fvg.deepest_touch_price is None:
+                    fvg.touch_count = 1
+                    fvg.deepest_touch_price = float(latest_low)
+                elif latest_low < fvg.deepest_touch_price:
+                    fvg.touch_count += 1
+                    fvg.deepest_touch_price = float(latest_low)
+                fvg.tested_count = fvg.touch_count
+
             if latest_close <= fvg.top:
                 fvg.is_mitigated = True
             if latest_low <= fvg.bottom:
@@ -149,8 +178,16 @@ def process_fvg_inversions(
             else:
                 active_regular_fvgs.append(fvg)
         else: # Bearish FVG
-            if latest_high >= fvg.bottom:
-                fvg.tested_count += 1
+            if latest_high >= fvg.bottom and latest_low <= fvg.top:
+                fvg.is_touched = True
+                if fvg.deepest_touch_price is None:
+                    fvg.touch_count = 1
+                    fvg.deepest_touch_price = float(latest_high)
+                elif latest_high > fvg.deepest_touch_price:
+                    fvg.touch_count += 1
+                    fvg.deepest_touch_price = float(latest_high)
+                fvg.tested_count = fvg.touch_count
+
             if latest_close >= fvg.bottom:
                 fvg.is_mitigated = True
             if latest_high >= fvg.top:
