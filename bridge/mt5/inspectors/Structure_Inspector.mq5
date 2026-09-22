@@ -1,12 +1,13 @@
 //+------------------------------------------------------------------+
 //|                                       Structure_Inspector.mq5    |
 //|  Unified Market Structure: Swings, HH/HL/LH/LL, BOS, CHoCH & Fibo|
+//|                    Dual Fibo: Active Leg & Previous Completed Leg|
 //|                                  LLMTradingV2 Institutional V2   |
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.10"
-#property description "Unified Market Structure & Fibonacci: Swings, HH/HL/LH/LL, BOS, CHoCH, Swing Retracement (0.382-0.5 & 0.618-0.786 OTE), and Extension Targets"
+#property version   "2.20"
+#property description "Unified Market Structure & Dual Fibo: Swings, HH/HL/LH/LL, BOS, CHoCH, and DUAL FIBO (Active Leg + Previous Completed Leg TP Targets)"
 
 //--- Inputs
 input group "=== Fractal Swing Settings ==="
@@ -27,12 +28,18 @@ input group "=== Fibonacci on Swings ==="
 input bool     InpShowFiboRetrace      = true;        // Show Retracement % on Swings (HL/LH)
 input bool     InpShowFiboExtension    = true;        // Show Extension % on Swings (HH/LL)
 
-input group "=== Active Leg Live Fibo Zones ==="
-input bool     InpShowActiveFiboZones  = true;        // Draw Dynamic Zones for Active In-Progress Leg
-input color    InpColorShallowZone     = C'30,58,138';// 38.2% - 50.0% Shallow Zone (Dark Blue Fill)
-input color    InpColorOTEZone         = C'6,78,59';  // 61.8% - 78.6% Golden OTE Zone (Dark Emerald Fill)
-input color    InpColorEquilibrium     = clrYellow;   // 50.0% Equilibrium Line Color
-input color    InpColorExtTarget       = C'168,85,247';// Extension Target Lines (Purple)
+input group "=== 1. Active Leg Live Fibo (In-Progress) ==="
+input bool     InpShowActiveFibo       = true;        // Show Active In-Progress Leg Zones
+input color    InpColorActiveShallow   = C'30,58,138';// Active 38.2% - 50.0% Zone (Dark Blue Fill)
+input color    InpColorActiveOTE       = C'6,78,59';  // Active 61.8% - 78.6% Golden OTE Zone (Dark Emerald Fill)
+input color    InpColorActiveEQ        = clrYellow;   // Active 50.0% Equilibrium Line
+input color    InpColorActiveExt       = C'168,85,247';// Active Extension Target Lines (Purple)
+
+input group "=== 2. Previous Completed Leg Fibo (TP Tracker) ==="
+input bool     InpShowPrevFibo         = true;        // Show Previous Completed Leg Fibo Targets
+input color    InpColorPrevExt1272     = clrGold;     // Previous Leg TP1 (1.272 Ext) Line
+input color    InpColorPrevExt1618     = C'249,115,22';// Previous Leg TP2 (1.618 Golden Ext) Line
+input color    InpColorPrevOTE         = C'100,116,139';// Previous Leg OTE Boundary (Slate)
 
 input group "=== BOS & CHoCH Settings ==="
 input bool     InpShowBOS              = true;        // Show Break of Structure (BOS)
@@ -174,7 +181,6 @@ void RedrawStructure()
             swings[s].label = "HH";
             swings[s].clr   = InpColorHigherHigh;
 
-            // Calculate Extension from prior low
             if(InpShowFiboExtension)
             {
                int prev_l_idx = FindPrevSwing(swings, s, false);
@@ -194,7 +200,6 @@ void RedrawStructure()
             swings[s].label = "LH";
             swings[s].clr   = InpColorLowerHigh;
 
-            // Calculate Retracement from prior down leg
             if(InpShowFiboRetrace)
             {
                int prev_l_idx = FindPrevSwing(swings, s, false);
@@ -229,7 +234,6 @@ void RedrawStructure()
             swings[s].label = "HL";
             swings[s].clr   = InpColorHigherLow;
 
-            // Calculate Retracement from prior up leg
             if(InpShowFiboRetrace)
             {
                int prev_h_idx = FindPrevSwing(swings, s, true);
@@ -249,7 +253,6 @@ void RedrawStructure()
             swings[s].label = "LL";
             swings[s].clr   = InpColorLowerLow;
 
-            // Calculate Extension from prior high
             if(InpShowFiboExtension)
             {
                int prev_h_idx = FindPrevSwing(swings, s, true);
@@ -410,10 +413,20 @@ void RedrawStructure()
       }
    }
 
-   // 6. Draw Active In-Progress Fibo Zones for the Most Recent Leg
-   if(InpShowActiveFiboZones && total_swings >= 2)
+   // 6. Draw Dual Fibo: Active In-Progress Leg + Previous Completed Leg
+   if(total_swings >= 2)
    {
-      DrawActiveFiboZones(swings, rates[0].time);
+      // A. Previous Completed Leg (TP Targets Tracker)
+      if(InpShowPrevFibo)
+      {
+         DrawPreviousLegFibo(swings, rates, rates[0].time);
+      }
+
+      // B. Active In-Progress Leg
+      if(InpShowActiveFibo)
+      {
+         DrawActiveFiboZones(swings, rates[0].time);
+      }
    }
 
    ChartRedraw();
@@ -450,13 +463,15 @@ string FormatRetraceTag(double ratio)
    return StringFormat(" [%.1f%%]", pct);
 }
 
+//+------------------------------------------------------------------+
+//| 1. Active In-Progress Leg Fibo Drawer                            |
+//+------------------------------------------------------------------+
 void DrawActiveFiboZones(const SwingNode &swings[], datetime current_candle_t)
 {
    int last_idx = ArraySize(swings) - 1;
    int prev_idx = last_idx - 1;
    if(swings[last_idx].is_high == swings[prev_idx].is_high)
    {
-      // If two consecutive highs, find preceding low
       prev_idx = FindPrevSwing(swings, last_idx, !swings[last_idx].is_high);
       if(prev_idx < 0) return;
    }
@@ -469,7 +484,7 @@ void DrawActiveFiboZones(const SwingNode &swings[], datetime current_candle_t)
    double range = high_p - low_p;
    if(range <= 0) return;
 
-   bool is_bullish_leg = swings[last_idx].is_high; // Low -> High leg just completed, now retracing down
+   bool is_bullish_leg = swings[last_idx].is_high;
 
    double shallow_top, shallow_btm;
    double ote_top, ote_btm;
@@ -478,7 +493,6 @@ void DrawActiveFiboZones(const SwingNode &swings[], datetime current_candle_t)
 
    if(is_bullish_leg)
    {
-      // Pulling back downward into discount
       shallow_top = high_p - 0.382 * range;
       shallow_btm = high_p - 0.500 * range;
       ote_top     = high_p - 0.618 * range;
@@ -489,7 +503,6 @@ void DrawActiveFiboZones(const SwingNode &swings[], datetime current_candle_t)
    }
    else
    {
-      // Pulling back upward into premium
       shallow_btm = low_p + 0.382 * range;
       shallow_top = low_p + 0.500 * range;
       ote_btm     = low_p + 0.618 * range;
@@ -500,60 +513,128 @@ void DrawActiveFiboZones(const SwingNode &swings[], datetime current_candle_t)
    }
 
    // 1. Draw Shallow Zone (0.382 - 0.500)
-   string shallow_box = OBJ_PREFIX + "ZONE_SHALLOW";
+   string shallow_box = OBJ_PREFIX + "ACT_ZONE_SHALLOW";
    ObjectCreate(0, shallow_box, OBJ_RECTANGLE, 0, start_t, shallow_top, end_t, shallow_btm);
-   ObjectSetInteger(0, shallow_box, OBJPROP_COLOR, InpColorShallowZone);
+   ObjectSetInteger(0, shallow_box, OBJPROP_COLOR, InpColorActiveShallow);
    ObjectSetInteger(0, shallow_box, OBJPROP_BACK, true);
    ObjectSetInteger(0, shallow_box, OBJPROP_FILL, true);
 
-   string txt_shallow = OBJ_PREFIX + "TXT_SHALLOW";
+   string txt_shallow = OBJ_PREFIX + "ACT_TXT_SHALLOW";
    ObjectCreate(0, txt_shallow, OBJ_TEXT, 0, end_t, (shallow_top + shallow_btm) / 2.0);
-   ObjectSetString(0, txt_shallow, OBJPROP_TEXT, " 38.2% - 50% Shallow Zone");
-   ObjectSetInteger(0, txt_shallow, OBJPROP_COLOR, C'147,197,253'); // Light Blue
+   ObjectSetString(0, txt_shallow, OBJPROP_TEXT, " [Active] 38.2% - 50% Shallow Zone");
+   ObjectSetInteger(0, txt_shallow, OBJPROP_COLOR, C'147,197,253');
    ObjectSetInteger(0, txt_shallow, OBJPROP_FONTSIZE, 8);
    ObjectSetInteger(0, txt_shallow, OBJPROP_ANCHOR, ANCHOR_LEFT);
 
    // 2. Draw Golden OTE Zone (0.618 - 0.786)
-   string ote_box = OBJ_PREFIX + "ZONE_OTE";
+   string ote_box = OBJ_PREFIX + "ACT_ZONE_OTE";
    ObjectCreate(0, ote_box, OBJ_RECTANGLE, 0, start_t, ote_top, end_t, ote_btm);
-   ObjectSetInteger(0, ote_box, OBJPROP_COLOR, InpColorOTEZone);
+   ObjectSetInteger(0, ote_box, OBJPROP_COLOR, InpColorActiveOTE);
    ObjectSetInteger(0, ote_box, OBJPROP_BACK, true);
    ObjectSetInteger(0, ote_box, OBJPROP_FILL, true);
 
-   string txt_ote = OBJ_PREFIX + "TXT_OTE";
+   string txt_ote = OBJ_PREFIX + "ACT_TXT_OTE";
    ObjectCreate(0, txt_ote, OBJ_TEXT, 0, end_t, (ote_top + ote_btm) / 2.0);
-   ObjectSetString(0, txt_ote, OBJPROP_TEXT, " 61.8% - 78.6% Golden OTE Zone");
-   ObjectSetInteger(0, txt_ote, OBJPROP_COLOR, C'110,231,183'); // Light Emerald
+   ObjectSetString(0, txt_ote, OBJPROP_TEXT, " [Active] 61.8% - 78.6% Golden OTE Zone");
+   ObjectSetInteger(0, txt_ote, OBJPROP_COLOR, C'110,231,183');
    ObjectSetInteger(0, txt_ote, OBJPROP_FONTSIZE, 8);
    ObjectSetInteger(0, txt_ote, OBJPROP_ANCHOR, ANCHOR_LEFT);
 
    // 3. Draw 50% Equilibrium Line
-   string eq_line = OBJ_PREFIX + "LINE_EQ";
+   string eq_line = OBJ_PREFIX + "ACT_LINE_EQ";
    ObjectCreate(0, eq_line, OBJ_TREND, 0, start_t, eq_500, end_t, eq_500);
-   ObjectSetInteger(0, eq_line, OBJPROP_COLOR, InpColorEquilibrium);
+   ObjectSetInteger(0, eq_line, OBJPROP_COLOR, InpColorActiveEQ);
    ObjectSetInteger(0, eq_line, OBJPROP_STYLE, STYLE_DASH);
    ObjectSetInteger(0, eq_line, OBJPROP_WIDTH, 1);
    ObjectSetInteger(0, eq_line, OBJPROP_RAY_RIGHT, false);
 
-   string txt_eq = OBJ_PREFIX + "TXT_EQ";
+   string txt_eq = OBJ_PREFIX + "ACT_TXT_EQ";
    ObjectCreate(0, txt_eq, OBJ_TEXT, 0, end_t, eq_500);
-   ObjectSetString(0, txt_eq, OBJPROP_TEXT, " 50.0% EQ");
-   ObjectSetInteger(0, txt_eq, OBJPROP_COLOR, InpColorEquilibrium);
+   ObjectSetString(0, txt_eq, OBJPROP_TEXT, " [Active] 50.0% EQ (" + DoubleToString(eq_500, _Digits) + ")");
+   ObjectSetInteger(0, txt_eq, OBJPROP_COLOR, InpColorActiveEQ);
    ObjectSetInteger(0, txt_eq, OBJPROP_FONTSIZE, 8);
    ObjectSetInteger(0, txt_eq, OBJPROP_ANCHOR, ANCHOR_LEFT);
 
-   // 4. Draw Extension Projections (1.272 & 1.618 TP Targets)
-   DrawExtLine("EXT_1272", start_t, end_t, ext_1272, "TP Target 1 (1.272 Ext)", InpColorExtTarget);
-   DrawExtLine("EXT_1618", start_t, end_t, ext_1618, "TP Target 2 (1.618 Golden Ext)", InpColorExtTarget);
+   // 4. Draw Extension Projections (Active Leg Targets)
+   DrawFiboLine("ACT_EXT_1272", start_t, end_t, ext_1272, "[Active] TP1 (1.272 Ext)", InpColorActiveExt, STYLE_DOT);
+   DrawFiboLine("ACT_EXT_1618", start_t, end_t, ext_1618, "[Active] TP2 (1.618 Golden Ext)", InpColorActiveExt, STYLE_DOT);
 }
 
-void DrawExtLine(string key, datetime t1, datetime t2, double price, string label, color clr)
+//+------------------------------------------------------------------+
+//| 2. Previous Completed Leg Fibo & TP Targets Drawer               |
+//+------------------------------------------------------------------+
+void DrawPreviousLegFibo(const SwingNode &swings[], const MqlRates &rates[], datetime current_candle_t)
+{
+   int total_swings = ArraySize(swings);
+   if(total_swings < 3) return;
+
+   int last_idx = total_swings - 1;
+   int prev_idx = FindPrevSwing(swings, last_idx, !swings[last_idx].is_high);
+   if(prev_idx < 0) return;
+
+   int prev_prev_idx = FindPrevSwing(swings, prev_idx, !swings[prev_idx].is_high);
+   if(prev_prev_idx < 0) return;
+
+   // Previous completed leg is from prev_prev_idx to prev_idx
+   double p_high = swings[prev_idx].is_high ? swings[prev_idx].price : swings[prev_prev_idx].price;
+   double p_low  = swings[prev_idx].is_high ? swings[prev_prev_idx].price : swings[prev_idx].price;
+   datetime start_t = MathMin(swings[prev_idx].time, swings[prev_prev_idx].time);
+   datetime end_t   = current_candle_t;
+
+   double p_range = p_high - p_low;
+   if(p_range <= 0) return;
+
+   bool was_bullish = swings[prev_idx].is_high; // Was an upward impulse leg
+   double prev_tp1_ext = 0;
+   double prev_tp2_ext = 0;
+
+   if(was_bullish)
+   {
+      prev_tp1_ext = p_low + 1.272 * p_range;
+      prev_tp2_ext = p_low + 1.618 * p_range;
+   }
+   else
+   {
+      prev_tp1_ext = p_high - 1.272 * p_range;
+      prev_tp2_ext = p_high - 1.618 * p_range;
+   }
+
+   // Check if subsequent bars touched/hit TP1 or TP2
+   bool tp1_hit = false;
+   bool tp2_hit = false;
+   int check_start_bar = swings[prev_idx].bar_idx;
+
+   for(int k = check_start_bar; k >= 0; k--)
+   {
+      if(was_bullish)
+      {
+         if(rates[k].high >= prev_tp1_ext) tp1_hit = true;
+         if(rates[k].high >= prev_tp2_ext) tp2_hit = true;
+      }
+      else
+      {
+         if(rates[k].low <= prev_tp1_ext) tp1_hit = true;
+         if(rates[k].low <= prev_tp2_ext) tp2_hit = true;
+      }
+   }
+
+   string tp1_label = "[Prev Leg] TP1 (1.272 Ext)" + (tp1_hit ? " [HIT]" : " [Pending]");
+   string tp2_label = "[Prev Leg] TP2 (1.618 Ext)" + (tp2_hit ? " [HIT]" : " [Pending]");
+
+   color tp1_color = tp1_hit ? C'34,197,94' : InpColorPrevExt1272;
+   color tp2_color = tp2_hit ? C'34,197,94' : InpColorPrevExt1618;
+
+   DrawFiboLine("PREV_EXT_1272", start_t, end_t, prev_tp1_ext, tp1_label, tp1_color, STYLE_SOLID);
+   DrawFiboLine("PREV_EXT_1618", start_t, end_t, prev_tp2_ext, tp2_label, tp2_color, STYLE_SOLID);
+}
+
+void DrawFiboLine(string key, datetime t1, datetime t2, double price, string label, color clr, ENUM_LINE_STYLE style)
 {
    string line_name = OBJ_PREFIX + "LINE_" + key;
    ObjectCreate(0, line_name, OBJ_TREND, 0, t1, price, t2, price);
    ObjectSetInteger(0, line_name, OBJPROP_COLOR, clr);
-   ObjectSetInteger(0, line_name, OBJPROP_STYLE, STYLE_DOT);
-   ObjectSetInteger(0, line_name, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, line_name, OBJPROP_STYLE, style);
+   ObjectSetInteger(0, line_name, OBJPROP_WIDTH, (style == STYLE_SOLID) ? 2 : 1);
    ObjectSetInteger(0, line_name, OBJPROP_RAY_RIGHT, false);
 
    string text_name = OBJ_PREFIX + "TXT_" + key;
