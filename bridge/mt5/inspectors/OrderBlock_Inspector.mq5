@@ -265,7 +265,7 @@ string ExtractJsonString(const string &json_chunk, const string &key)
    return StringSubstr(json_chunk, q1 + 1, q2 - q1 - 1);
 }
 
-bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count)
+bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count, double current_price)
 {
    string filename = InpSnapshotFile;
    int handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_SHARE_READ);
@@ -283,6 +283,13 @@ bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count)
    FileClose(handle);
 
    if(StringLen(json) < 20) return false;
+
+   // Verify snapshot price aligns with current chart price (prevents mismatched synthetic data)
+   double snap_bid = ExtractJsonDouble(json, "\"bid\":");
+   if(snap_bid > 0.0 && current_price > 0.0 && MathAbs(snap_bid - current_price) > 150.0)
+   {
+      return false; // Snapshot price is from a different time range, fall back to chart scanning
+   }
 
    int obs_start = StringFind(json, "\"active_obs\":");
    if(obs_start < 0) return false;
@@ -460,7 +467,6 @@ void ScanZonesFromRates(const MqlRates &rates[], int bars_to_check, ENUM_TIMEFRA
          }
          else
          {
-            if(base_count > InpMaxBaseCandles || imp_ratio < InpMinImpulseRatio) continue;
             zone.kind = ZONE_CONTINUATION_RBR;
             zone.id = "SD_RBR_" + IntegerToString(origin_idx);
          }
@@ -477,7 +483,6 @@ void ScanZonesFromRates(const MqlRates &rates[], int bars_to_check, ENUM_TIMEFRA
          }
          else
          {
-            if(base_count > InpMaxBaseCandles || imp_ratio < InpMinImpulseRatio) continue;
             zone.kind = ZONE_CONTINUATION_DBD;
             zone.id = "SD_DBD_" + IntegerToString(origin_idx);
          }
@@ -574,7 +579,7 @@ void RedrawZones()
    {
       ZoneItem snapshot_zones[];
       int snap_count = 0;
-      if(LoadSnapshotFromDisk(snapshot_zones, snap_count))
+      if(LoadSnapshotFromDisk(snapshot_zones, snap_count, current_price))
       {
          ProcessAndRenderCandidates(snapshot_zones, snap_count, current_price, current_candle_time, "[DataLake]");
          ChartRedraw();
@@ -589,7 +594,9 @@ void RedrawZones()
 
    MqlRates rates[];
    ArraySetAsSeries(rates, true);
-   if(CopyRates(_Symbol, _Period, 0, bars_to_check, rates) < bars_to_check) return;
+   int copied = CopyRates(_Symbol, _Period, 0, bars_to_check, rates);
+   if(copied < 6) return;
+   bars_to_check = copied;
 
    current_candle_time = rates[0].time;
    current_price = rates[0].close;
@@ -637,38 +644,34 @@ void RedrawZones()
    {
       if(local_below < InpMaxZonesBelow || local_above < InpMaxZonesAbove)
       {
-         int htf_total = iBars(_Symbol, PERIOD_H1);
-         int htf_check = MathMin(1000, htf_total - 5);
-         if(htf_check >= 6)
+         MqlRates htf_rates[];
+         ArraySetAsSeries(htf_rates, true);
+         int htf_copied = CopyRates(_Symbol, PERIOD_H1, 0, 1000, htf_rates);
+         if(htf_copied >= 6)
          {
-            MqlRates htf_rates[];
-            ArraySetAsSeries(htf_rates, true);
-            if(CopyRates(_Symbol, PERIOD_H1, 0, htf_check, htf_rates) >= htf_check)
+            ZoneItem htf_raw[];
+            int htf_count = 0;
+            ScanZonesFromRates(htf_rates, htf_copied, PERIOD_H1, "[H1 HTF]", htf_raw, htf_count);
+
+            for(int h = 0; h < htf_count; h++)
             {
-               ZoneItem htf_raw[];
-               int htf_count = 0;
-               ScanZonesFromRates(htf_rates, htf_check, PERIOD_H1, "[H1 HTF]", htf_raw, htf_count);
+               if(htf_raw[h].is_fully_used) continue;
 
-               for(int h = 0; h < htf_count; h++)
+               // If we need floors, add unmitigated H1 demand below current price
+               if(local_below < InpMaxZonesBelow && htf_raw[h].is_bullish && htf_raw[h].top < current_price)
                {
-                  if(htf_raw[h].is_fully_used) continue;
-
-                  // If we need floors, add unmitigated H1 demand below current price
-                  if(local_below < InpMaxZonesBelow && htf_raw[h].is_bullish && htf_raw[h].top < current_price)
-                  {
-                     ArrayResize(candidates, cand_count + 1);
-                     candidates[cand_count] = htf_raw[h];
-                     cand_count++;
-                     local_below++;
-                  }
-                  // If we need roofs, add unmitigated H1 supply above current price
-                  else if(local_above < InpMaxZonesAbove && !htf_raw[h].is_bullish && htf_raw[h].bottom > current_price)
-                  {
-                     ArrayResize(candidates, cand_count + 1);
-                     candidates[cand_count] = htf_raw[h];
-                     cand_count++;
-                     local_above++;
-                  }
+                  ArrayResize(candidates, cand_count + 1);
+                  candidates[cand_count] = htf_raw[h];
+                  cand_count++;
+                  local_below++;
+               }
+               // If we need roofs, add unmitigated H1 supply above current price
+               else if(local_above < InpMaxZonesAbove && !htf_raw[h].is_bullish && htf_raw[h].bottom > current_price)
+               {
+                  ArrayResize(candidates, cand_count + 1);
+                  candidates[cand_count] = htf_raw[h];
+                  cand_count++;
+                  local_above++;
                }
             }
          }
