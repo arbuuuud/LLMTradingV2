@@ -1,7 +1,14 @@
 from typing import List, Tuple, Optional
 from datetime import datetime
 import numpy as np
-from src.core.types import FairValueGap, InversionFVG, FVGConfluenceZone, OrderBlock, Direction
+from src.core.types import (
+    FairValueGap,
+    InversionFVG,
+    FVGConfluenceZone,
+    OrderBlock,
+    OrderBlockType,
+    Direction
+)
 
 
 def detect_fvgs(
@@ -263,44 +270,170 @@ def detect_order_blocks(
     fvgs: List[FairValueGap]
 ) -> List[OrderBlock]:
     """
-    Detects Order Blocks:
-    The last opposite-colored candle prior to a displacement candle that generated an FVG.
+    Detects Institutional Order Blocks and S&D Patterns:
+    - Reversals: DBR (Drop-Base-Rally) & RBD (Rally-Base-Drop)
+    - Continuations: RBR (Rally-Base-Rally) & DBD (Drop-Base-Drop)
+    - Validates with FVG displacement, calculates 50% Mean Threshold, and checks liquidity sweep.
     """
     obs: List[OrderBlock] = []
     fvg_indices = {fvg.bar_index: fvg for fvg in fvgs}
 
     for idx, fvg in fvg_indices.items():
-        # Look back 1 or 2 bars for the origin candle
-        origin_idx = idx - 1
+        # In a 3-bar FVG at index `idx`:
+        # bar idx - 2: left candle before displacement
+        # bar idx - 1: strong displacement candle
+        # bar idx: confirming candle
+        # The Order Block base is typically at idx - 2, or the last opposite candle prior to displacement.
+        origin_idx = idx - 2 if idx >= 2 else idx - 1
+        if fvg.direction == Direction.BUY:
+            # Look for down candle at idx - 2, or prior
+            if origin_idx >= 0 and closes[origin_idx] > opens[origin_idx]:
+                # If idx - 2 was up, check if idx - 1 or idx - 3 was down
+                if idx - 1 >= 0 and closes[idx - 1] < opens[idx - 1]:
+                    origin_idx = idx - 1
+                elif idx - 3 >= 0 and closes[idx - 3] < opens[idx - 3]:
+                    origin_idx = idx - 3
+        elif fvg.direction == Direction.SELL:
+            # Look for up candle at idx - 2, or prior
+            if origin_idx >= 0 and closes[origin_idx] < opens[origin_idx]:
+                if idx - 1 >= 0 and closes[idx - 1] > opens[idx - 1]:
+                    origin_idx = idx - 1
+                elif idx - 3 >= 0 and closes[idx - 3] > opens[idx - 3]:
+                    origin_idx = idx - 3
+
         if origin_idx < 0:
             continue
 
-        is_bearish_candle = closes[origin_idx] < opens[origin_idx]
-        is_bullish_candle = closes[origin_idx] > opens[origin_idx]
+        is_bearish_base = closes[origin_idx] < opens[origin_idx]
+        is_bullish_base = closes[origin_idx] > opens[origin_idx]
+        prior_idx = origin_idx - 1
+        is_prior_bearish = (closes[prior_idx] < opens[prior_idx]) if prior_idx >= 0 else False
+        is_prior_bullish = (closes[prior_idx] > opens[prior_idx]) if prior_idx >= 0 else False
 
-        if fvg.direction == Direction.BUY and is_bearish_candle:
-            # Bullish OB: Last down candle before strong rally
-            obs.append(
-                OrderBlock(
-                    id=f"OB-BULL-{origin_idx}",
-                    direction=Direction.BUY,
-                    top=float(highs[origin_idx]),
-                    bottom=float(lows[origin_idx]),
-                    timestamp=timestamps[origin_idx],
-                    bar_index=origin_idx
+        top = float(highs[origin_idx])
+        bottom = float(lows[origin_idx])
+        mt = (top + bottom) / 2.0
+
+        if fvg.direction == Direction.BUY:
+            # Bullish OB (+OB)
+            # Check if origin or prior was a down candle
+            if is_bearish_base or is_prior_bearish:
+                # Prior move: Drop -> DBR (Reversal), else RBR (Continuation)
+                ob_type = OrderBlockType.REVERSAL_DBR if is_prior_bearish else OrderBlockType.CONTINUATION_RBR
+                swept = bool(lows[origin_idx] < lows[prior_idx])
+                obs.append(
+                    OrderBlock(
+                        id=f"OB-BULL-{origin_idx}",
+                        direction=Direction.BUY,
+                        ob_type=ob_type,
+                        top=top,
+                        bottom=bottom,
+                        mean_threshold=mt,
+                        timestamp=timestamps[origin_idx],
+                        bar_index=origin_idx,
+                        has_fvg=True,
+                        fvg_id=fvg.id,
+                        has_swept_liquidity=swept
+                    )
                 )
-            )
-        elif fvg.direction == Direction.SELL and is_bullish_candle:
-            # Bearish OB: Last up candle before strong drop
-            obs.append(
-                OrderBlock(
-                    id=f"OB-BEAR-{origin_idx}",
-                    direction=Direction.SELL,
-                    top=float(highs[origin_idx]),
-                    bottom=float(lows[origin_idx]),
-                    timestamp=timestamps[origin_idx],
-                    bar_index=origin_idx
+        elif fvg.direction == Direction.SELL:
+            # Bearish OB (-OB)
+            if is_bullish_base or is_prior_bullish:
+                # Prior move: Rally -> RBD (Reversal), else DBD (Continuation)
+                ob_type = OrderBlockType.REVERSAL_RBD if is_prior_bullish else OrderBlockType.CONTINUATION_DBD
+                swept = bool(highs[origin_idx] > highs[prior_idx])
+                obs.append(
+                    OrderBlock(
+                        id=f"OB-BEAR-{origin_idx}",
+                        direction=Direction.SELL,
+                        ob_type=ob_type,
+                        top=top,
+                        bottom=bottom,
+                        mean_threshold=mt,
+                        timestamp=timestamps[origin_idx],
+                        bar_index=origin_idx,
+                        has_fvg=True,
+                        fvg_id=fvg.id,
+                        has_swept_liquidity=swept
+                    )
                 )
-            )
 
     return obs
+
+
+def process_order_block_lifecycle(
+    obs: List[OrderBlock],
+    latest_high: float,
+    latest_low: float,
+    latest_close: float,
+    current_time: datetime
+) -> Tuple[List[OrderBlock], List[OrderBlock]]:
+    """
+    Updates Order Block lifecycle:
+    - Touches: deeper penetration increment (+1)
+    - Mitigated: candle closed inside the OB body/range
+    - Fully Used: orders 100% consumed through opposite boundary
+    - Breaker Block Flip: candle body closed beyond opposite boundary
+    Returns (active_obs, active_breakers).
+    """
+    active_obs: List[OrderBlock] = []
+    active_breakers: List[OrderBlock] = []
+
+    for ob in obs:
+        if ob.direction == Direction.BUY:
+            # Touched
+            if latest_low <= ob.top and latest_high >= ob.bottom:
+                ob.is_touched = True
+                if ob.deepest_touch_price is None:
+                    ob.touch_count = 1
+                    ob.deepest_touch_price = float(latest_low)
+                elif latest_low < ob.deepest_touch_price:
+                    ob.touch_count += 1
+                    ob.deepest_touch_price = float(latest_low)
+
+            # Mitigated (closed inside)
+            if latest_close <= ob.top and latest_close >= ob.bottom:
+                ob.is_mitigated = True
+            # Fully used (swept 100% through bottom)
+            if latest_low <= ob.bottom:
+                ob.is_fully_used = True
+
+            # Breaker flip: closed below bottom -> Bearish Breaker Resistance
+            if latest_close < ob.bottom:
+                ob.is_breaker = True
+                ob.direction = Direction.SELL
+                ob.ob_type = OrderBlockType.BREAKER_BEARISH
+                ob.breaker_time = current_time
+                active_breakers.append(ob)
+            else:
+                active_obs.append(ob)
+
+        elif ob.direction == Direction.SELL:
+            # Touched
+            if latest_high >= ob.bottom and latest_low <= ob.top:
+                ob.is_touched = True
+                if ob.deepest_touch_price is None:
+                    ob.touch_count = 1
+                    ob.deepest_touch_price = float(latest_high)
+                elif latest_high > ob.deepest_touch_price:
+                    ob.touch_count += 1
+                    ob.deepest_touch_price = float(latest_high)
+
+            # Mitigated (closed inside)
+            if latest_close >= ob.bottom and latest_close <= ob.top:
+                ob.is_mitigated = True
+            # Fully used (swept 100% through top)
+            if latest_high >= ob.top:
+                ob.is_fully_used = True
+
+            # Breaker flip: closed above top -> Bullish Breaker Support
+            if latest_close > ob.top:
+                ob.is_breaker = True
+                ob.direction = Direction.BUY
+                ob.ob_type = OrderBlockType.BREAKER_BULLISH
+                ob.breaker_time = current_time
+                active_breakers.append(ob)
+            else:
+                active_obs.append(ob)
+
+    return active_obs, active_breakers

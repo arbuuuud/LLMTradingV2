@@ -11,8 +11,8 @@
 
 - **Total Tasks Terencana**: 22 tasks
 - **Tasks Selesai**: 12 tasks (54.5%)
-- **Tasks Sedang Berjalan**: 0 task
-- **Tasks Antrian**: 10 tasks
+- **Tasks Sedang Berjalan**: 1 task (`INSP-03-SUPPLY-DEMAND`)
+- **Tasks Antrian**: 9 tasks
 
 ---
 
@@ -51,8 +51,8 @@
   *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), Strong vs Weak High/Low, Fibo Retracement (0.382-0.500 Shallow & 0.618-0.786 OTE), serta Fibo Extension Targets (1.272 & 1.618 dengan status HIT tracker). *(VERIFIED & PASSED)*
 - [x] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
   *Isi Lengkap*: Pemisahan FVG & iFVG (dengan deteksi breach counter-FVG), Confluence Zone (Cyan), Proximity Model (2 Above, 2 Below, 1 Inside terlindungi), Counter Sentuhan (+1 hanya jika menembus lebih dalam), serta pemisahan tegas Mitigated (body close) vs Fully Used (order 100% tersapu). *(VERIFIED & PASSED)*
-- [ ] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
-  *Isi Lengkap*: Order Block (OB), Continuation (RBR / DBD), Reversal (RBD / DBR), dan Breaker Block (BB). *(Antrian Berikutnya)*
+- [/] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
+  *Isi Lengkap*: Order Block (OB), Continuation (RBR / DBD), Reversal (RBD / DBR), Breaker Block (BB / Failed OB Flip), 50% Mean Threshold (MT), Liquidity Sweep check, serta Proximity Filtering (2 Above, 2 Below, 1 Inside). *(Sedang Diverifikasi di MT5)*
 - [ ] **INSP-04-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
   *Isi Lengkap*: Engulfing (Bull/Bear), Doji Variants, Morning/Evening Star, dan Momentum Displacement Candle (Marubozu).
 

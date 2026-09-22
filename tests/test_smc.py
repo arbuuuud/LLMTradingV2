@@ -110,3 +110,108 @@ def test_fvg_touch_count_deeper_penetration_only():
     update_fvg_mitigation(fvgs, latest_high=112.0, latest_low=104.0, latest_close=111.0)
     assert fvgs[0].touch_count == 2
     assert fvgs[0].deepest_touch_price == 104.0
+
+
+def test_order_block_dbr_and_breaker_flip():
+    from src.features.smc import detect_order_blocks, process_order_block_lifecycle
+    from src.core.types import OrderBlockType
+
+    # Pattern:
+    # bar 0: Down candle (Drop)
+    # bar 1: Down candle (Base - OB) sweeping bar 0's low
+    # bar 2: Big Up candle (Rally with FVG)
+    # bar 3: Candle establishing FVG low > bar 1 high
+    opens = np.array([105.0, 100.0, 96.0, 115.0])
+    closes = np.array([100.0, 95.0, 112.0, 120.0])
+    highs = np.array([106.0, 101.0, 114.0, 122.0])
+    lows = np.array([99.0, 94.0, 95.0, 110.0])
+    times = [datetime(2025, 1, 1, 10, i) for i in range(4)]
+
+    # Detect FVG first (bar 3 low 110 > bar 1 high 101)
+    fvgs = detect_fvgs(highs, lows, times)
+    assert len(fvgs) >= 1
+
+    # Detect OB
+    obs = detect_order_blocks(opens, highs, lows, closes, times, fvgs)
+    assert len(obs) == 1
+    ob = obs[0]
+    assert ob.direction == Direction.BUY
+    assert ob.ob_type == OrderBlockType.REVERSAL_DBR
+    assert ob.top == 101.0
+    assert ob.bottom == 94.0
+    assert ob.mean_threshold == 97.5
+    assert ob.has_swept_liquidity is True  # low 94 < prior low 99
+
+    # Test touch & mitigation lifecycle
+    # Candle dips to 98 (inside OB)
+    active, breakers = process_order_block_lifecycle(
+        [ob], latest_high=105.0, latest_low=98.0, latest_close=100.0, current_time=times[3]
+    )
+    assert len(active) == 1
+    assert active[0].touch_count == 1
+    assert active[0].is_touched is True
+    assert active[0].deepest_touch_price == 98.0
+    assert active[0].is_mitigated is True  # closed at 100 inside 94-101
+
+    # Now price drops heavily and closes below bottom (e.g. close at 90 < 94) -> Breaker Flip!
+    active_post_breach, breakers = process_order_block_lifecycle(
+        active, latest_high=95.0, latest_low=89.0, latest_close=90.0, current_time=times[3]
+    )
+    assert len(active_post_breach) == 0  # no longer a standard active OB
+    assert len(breakers) == 1
+    bb = breakers[0]
+    assert bb.is_breaker is True
+    assert bb.direction == Direction.SELL  # Flipped to Resistance
+    assert bb.ob_type == OrderBlockType.BREAKER_BEARISH
+
+
+def test_order_block_rbd_and_deeper_touch():
+    from src.features.smc import detect_order_blocks, process_order_block_lifecycle
+    from src.core.types import OrderBlockType
+
+    # Pattern:
+    # bar 0: Up candle (Rally)
+    # bar 1: Up candle (Base - OB) sweeping bar 0's high
+    # bar 2: Big Down candle (Drop with FVG)
+    # bar 3: Candle establishing Bearish FVG (high 90 < bar 1 low 100)
+    opens = np.array([90.0, 95.0, 103.0, 85.0])
+    closes = np.array([95.0, 102.0, 88.0, 80.0])
+    highs = np.array([96.0, 105.0, 103.0, 89.0])
+    lows = np.array([89.0, 94.0, 86.0, 78.0])
+    times = [datetime(2025, 1, 1, 11, i) for i in range(4)]
+
+    # Bearish FVG: highs[3] (89) < lows[1] (94) -> gap 89 to 94
+    fvgs = detect_fvgs(highs, lows, times)
+    assert len(fvgs) >= 1
+
+    obs = detect_order_blocks(opens, highs, lows, closes, times, fvgs)
+    assert len(obs) == 1
+    ob = obs[0]
+    assert ob.direction == Direction.SELL
+    assert ob.ob_type == OrderBlockType.REVERSAL_RBD
+    assert ob.top == 105.0
+    assert ob.bottom == 94.0
+    assert ob.has_swept_liquidity is True  # highs[1] (105) > highs[0] (96)
+
+    # Touch test:
+    # Candle 1 taps to 96 (inside 94-105)
+    active, _ = process_order_block_lifecycle(
+        [ob], latest_high=96.0, latest_low=85.0, latest_close=86.0, current_time=times[3]
+    )
+    assert active[0].touch_count == 1
+    assert active[0].deepest_touch_price == 96.0
+
+    # Candle 2 taps to 95.5 (does not exceed 96.0 deeper into sell zone) -> touch_count stays 1
+    active, _ = process_order_block_lifecycle(
+        active, latest_high=95.5, latest_low=84.0, latest_close=85.0, current_time=times[3]
+    )
+    assert active[0].touch_count == 1
+    assert active[0].deepest_touch_price == 96.0
+
+    # Candle 3 pushes deeper to 100.0 -> increments touch_count to 2!
+    active, _ = process_order_block_lifecycle(
+        active, latest_high=100.0, latest_low=88.0, latest_close=89.0, current_time=times[3]
+    )
+    assert active[0].touch_count == 2
+    assert active[0].deepest_touch_price == 100.0
+

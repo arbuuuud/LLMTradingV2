@@ -22,6 +22,7 @@ from src.features.smc import (
     detect_fvgs,
     update_fvg_mitigation,
     detect_order_blocks,
+    process_order_block_lifecycle,
     process_fvg_inversions,
     detect_fvg_confluences
 )
@@ -66,6 +67,7 @@ class LiveDataFeedGenerator:
         self.active_ifvgs: List[InversionFVG] = []
         self.fvg_confluences: List[FVGConfluenceZone] = []
         self.active_obs: List[OrderBlock] = []
+        self.active_breakers: List[OrderBlock] = []
         self.current_trend: Trend = Trend.RANGING
         self.last_snapshot: Optional[MarketStateSnapshot] = None
 
@@ -153,9 +155,24 @@ class LiveDataFeedGenerator:
         self.active_ifvgs = updated_ifvgs
         self.fvg_confluences = detect_fvg_confluences(self.active_fvgs, self.active_ifvgs)
 
-        # Order Blocks
-        obs = detect_order_blocks(np_opens, np_highs, np_lows, np_closes, self.timestamps, self.active_fvgs)
-        self.active_obs = obs
+        # Order Blocks & Breakers
+        new_obs = detect_order_blocks(np_opens, np_highs, np_lows, np_closes, self.timestamps, self.active_fvgs)
+        existing_ob_ids = {ob.id for ob in self.active_obs} | {bb.id for bb in self.active_breakers}
+        for ob in new_obs:
+            if ob.id not in existing_ob_ids:
+                self.active_obs.append(ob)
+
+        active_obs, new_breakers = process_order_block_lifecycle(
+            self.active_obs,
+            latest_high=float(self.highs[-1]),
+            latest_low=float(self.lows[-1]),
+            latest_close=float(self.closes[-1]),
+            current_time=now
+        )
+        self.active_obs = active_obs
+        for bb in new_breakers:
+            if not any(item.id == bb.id for item in self.active_breakers):
+                self.active_breakers.append(bb)
 
         # 3. Fibonacci OTE & Equilibrium
         fibo_ote: Optional[FibonacciOTE] = None
@@ -195,6 +212,7 @@ class LiveDataFeedGenerator:
             active_ifvgs=self.active_ifvgs[-10:],
             fvg_confluences=self.fvg_confluences[-5:],
             active_obs=self.active_obs[-5:],     # Retain top 5 most recent
+            active_breakers=self.active_breakers[-5:],
             fibonacci=fibo_ote,
             liquidity=liq_state
         )

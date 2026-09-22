@@ -99,14 +99,34 @@ class FVGConfluenceZone(BaseModel):
     probability_score: float = 8.5  # Boosted confidence weight
 
 
+class OrderBlockType(str, Enum):
+    REVERSAL_DBR = "REVERSAL_DBR"         # Drop-Base-Rally (+OB Reversal)
+    REVERSAL_RBD = "REVERSAL_RBD"         # Rally-Base-Drop (-OB Reversal)
+    CONTINUATION_RBR = "CONTINUATION_RBR" # Rally-Base-Rally (+OB Continuation)
+    CONTINUATION_DBD = "CONTINUATION_DBD" # Drop-Base-Drop (-OB Continuation)
+    BREAKER_BULLISH = "BREAKER_BULLISH"   # Breaker Block Support (Flipped from -OB)
+    BREAKER_BEARISH = "BREAKER_BEARISH"   # Breaker Block Resistance (Flipped from +OB)
+
+
 class OrderBlock(BaseModel):
     id: str
     direction: Direction
+    ob_type: OrderBlockType = OrderBlockType.REVERSAL_DBR
     top: float
     bottom: float
+    mean_threshold: float = 0.0  # 50% Mean Threshold
     timestamp: datetime
     bar_index: int
+    has_fvg: bool = True
+    fvg_id: Optional[str] = None
+    has_swept_liquidity: bool = False
+    is_breaker: bool = False
+    breaker_time: Optional[datetime] = None
+    is_touched: bool = False
+    touch_count: int = 0
+    deepest_touch_price: Optional[float] = None
     is_mitigated: bool = False
+    is_fully_used: bool = False
 
 
 class FibonacciOTE(BaseModel):
@@ -145,6 +165,7 @@ class MarketStateSnapshot(BaseModel):
     active_ifvgs: List[InversionFVG] = Field(default_factory=list)
     fvg_confluences: List[FVGConfluenceZone] = Field(default_factory=list)
     active_obs: List[OrderBlock] = Field(default_factory=list)
+    active_breakers: List[OrderBlock] = Field(default_factory=list)
     fibonacci: Optional[FibonacciOTE] = None
     liquidity: LiquidityState = Field(default_factory=LiquidityState)
 

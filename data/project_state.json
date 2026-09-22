@@ -6,8 +6,8 @@
   "stats": {
     "total_tasks": 22,
     "completed_tasks": 12,
-    "in_progress_tasks": 0,
-    "pending_tasks": 10
+    "in_progress_tasks": 1,
+    "pending_tasks": 9
   },
   "phases": [
     {
@@ -148,9 +148,9 @@
         {
           "id": "INSP-03-SUPPLY-DEMAND",
           "title": "Master OrderBlock & S&D Inspector (OB, RBR/DBD, RBD/DBR, Breaker Block)",
-          "status": "PENDING",
+          "status": "IN_PROGRESS",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Unified di OrderBlock_Inspector.mq5: Zone OB unmitigated, continuation base, reversal base, dan breaker flip."
+          "notes": "Unified di OrderBlock_Inspector.mq5: Reversal (DBR/RBD), Continuation (RBR/DBD), Breaker Block (BB flip), 50% Mean Threshold (MT), Swept Liquidity check, dan Proximity 2 Above/Below + 1 Inside."
         },
         {
           "id": "INSP-04-CANDLE-PATTERNS",
