@@ -1,0 +1,227 @@
+{
+  "project_name": "LLMTradingV2",
+  "version": "0.1.0",
+  "last_updated": "2025-09-22T10:45:00",
+  "current_phase": "Phase 2: Data Pipeline & Live Feed",
+  "stats": {
+    "total_tasks": 16,
+    "completed_tasks": 7,
+    "in_progress_tasks": 1,
+    "pending_tasks": 8
+  },
+  "phases": [
+    {
+      "id": "phase-0",
+      "title": "Fase 0: Git & Master Architecture Foundation",
+      "status": "COMPLETED",
+      "tasks": [
+        {
+          "id": "T0-1",
+          "title": "Inisialisasi Git & .gitignore bersih",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
+          "branch": "main / feat/initial-architecture",
+          "notes": "Repo remote dihubungkan ke https://github.com/arbuuuud/LLMTradingV2"
+        },
+        {
+          "id": "T0-2",
+          "title": "Penyusunan Master BLUEPRINT.md & Core Workflows Specs",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
+          "branch": "feat/initial-architecture",
+          "notes": "Prinsip pemisahan tegas Math Deterministic vs LLM Cognitive Layer."
+        },
+        {
+          "id": "T0-3",
+          "title": "Definisi Pydantic Data Contracts (src/core/types.py)",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
+          "branch": "feat/initial-architecture",
+          "notes": "Menjamin pertukaran data terstruktur tanpa halusinasi LLM."
+        },
+        {
+          "id": "T0-4",
+          "title": "Deterministic Primitives (SMC, Structure, OTE, Checklist, ForceClose)",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
+          "branch": "feat/initial-architecture",
+          "notes": "8 unit tests lolos dengan Pytest."
+        }
+      ]
+    },
+    {
+      "id": "phase-1",
+      "title": "Fase 1: Hybrid Data Lake & Multi-Broker Normalization",
+      "status": "COMPLETED",
+      "tasks": [
+        {
+          "id": "T1-1",
+          "title": "Two-Tier Hybrid Data Lake (Base Cold + Live Hot Overlay)",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/data-pipeline-normalization",
+          "branch": "feat/data-pipeline-normalization",
+          "notes": "Live data MT5 EA otomatis menimpa (overwrite) data download pada timestamp overlap."
+        },
+        {
+          "id": "T1-2",
+          "title": "Canonical Asset & Multi-Broker Adapter",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/data-pipeline-normalization",
+          "branch": "feat/data-pipeline-normalization",
+          "notes": "Normalisasi simbol (XAUUSD.u / XAUUSD.sc) dan kuantisasi lot step (0.01 / 0.1)."
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "title": "Fase 2: Live Data Feed Generation & MT5 Bridge (Workflow 1)",
+      "status": "COMPLETED",
+      "tasks": [
+        {
+          "id": "T2-1",
+          "title": "MT5 TCP Bridge Server (Asyncio) & MQL5 Client EA",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/live-data-feed-mt5-bridge",
+          "branch": "feat/live-data-feed-mt5-bridge",
+          "notes": "Socket JSON non-blocking 127.0.0.1:5555 dengan auto-reconnect dan auto-handshake broker specs."
+        },
+        {
+          "id": "T2-2",
+          "title": "Live Data Feed Generator & Atomic Disk Caching",
+          "status": "COMPLETED",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/live-data-feed-mt5-bridge",
+          "branch": "feat/live-data-feed-mt5-bridge",
+          "notes": "Memproduksi live_snapshot_xauusd.json setiap candle M1 close."
+        }
+      ]
+    },
+    {
+      "id": "phase-devops",
+      "title": "Fase PM: Live Project Management Dashboard & Dev Protocol",
+      "status": "IN_PROGRESS",
+      "tasks": [
+        {
+          "id": "TPM-1",
+          "title": "Master Roadmap & Live State File (PLAN.md & project_state.json)",
+          "status": "IN_PROGRESS",
+          "branch": "feat/pm-dashboard-dev-workflow",
+          "notes": "Single source of truth pelacakan langkah kerja dan log catatan keputusan."
+        },
+        {
+          "id": "TPM-2",
+          "title": "Live Web PM Dashboard (HTML/Tailwind + Local Server)",
+          "status": "IN_PROGRESS",
+          "branch": "feat/pm-dashboard-dev-workflow",
+          "notes": "Dashboard visual dengan progress bar, checklist live, dan tab status data feed."
+        },
+        {
+          "id": "TPM-3",
+          "title": "Development & Feedback Workflow Protocol",
+          "status": "IN_PROGRESS",
+          "branch": "feat/pm-dashboard-dev-workflow",
+          "notes": "SOP tanya catatan & konfirmasi user setelah tiap step selesai."
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "title": "Fase 3: Backtest & Kage Bunshin Shadow Clone Matrix (Workflow 2)",
+      "status": "PENDING",
+      "tasks": [
+        {
+          "id": "T3-1",
+          "title": "Vectorized / Event-Driven Bar Backtest Engine",
+          "status": "PENDING",
+          "notes": "Engine evaluasi eksekusi bar/tick berkecepatan tinggi dengan Polars."
+        },
+        {
+          "id": "T3-2",
+          "title": "Kage Bunshin Shadow Clone Matrix Runner",
+          "status": "PENDING",
+          "notes": "Multi-process generator penguji puluhan variasi checklist secara simultan."
+        },
+        {
+          "id": "T3-3",
+          "title": "ForceClose Benchmark & Saved-R Analytics",
+          "status": "PENDING",
+          "notes": "Kalkulasi matematis penghematan kerugian dibanding Fixed SL."
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "title": "Fase 4: Forward Test Staging & Live Trading Engine (Workflow 4 & 3)",
+      "status": "PENDING",
+      "tasks": [
+        {
+          "id": "T4-1",
+          "title": "Incubation Staging Gate (Demo/Paper Validator)",
+          "status": "PENDING",
+          "notes": "Filter kelayakan promosi strategi (50 trade / slippage audit)."
+        },
+        {
+          "id": "T4-2",
+          "title": "Live Execution Pipeline & Independent Circuit Breaker Sentinel",
+          "status": "PENDING",
+          "notes": "Tactician -> Risk Governor Veto -> Bridge -> ForceClose Guardian."
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "title": "Fase 5: Brainstorming Strategy Registry & Automated Post-Mortem (Workflow 5 & 7)",
+      "status": "PENDING",
+      "tasks": [
+        {
+          "id": "T5-1",
+          "title": "Strategy Registry CLI & Experiment Generator",
+          "status": "PENDING",
+          "notes": "Alat otomatis pencatat ide strategi baru ke YAML dan log eksperimen."
+        },
+        {
+          "id": "T5-2",
+          "title": "Auditor Agent Post-Mortem & Memory Refinement",
+          "status": "PENDING",
+          "notes": "Review mingguan jurnal trade dan kalibrasi checklist otomatis."
+        }
+      ]
+    }
+  ],
+  "decisions_and_notes": [
+    {
+      "id": "DEC-001",
+      "date": "2025-09-22",
+      "topic": "Separation of Math & Cognition",
+      "summary": "LLM sama sekali tidak menghitung geometri teknikal (SMC/Structure/Fibo). Semua dihitung secara deterministik (Polars/NumPy). LLM hanya menerima MarketStateSnapshot JSON.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-002",
+      "date": "2025-09-22",
+      "topic": "Two-Tier Hybrid Data Lake Priority",
+      "summary": "Data live dari MT5 EA memiliki prioritas mutlak (Priority 1) dan menimpa (overwrite) data historis download (Priority 0) saat ada timestamp yang bertabrakan.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-003",
+      "date": "2025-09-22",
+      "topic": "Canonical Multi-Broker Abstraction",
+      "summary": "Semua modul internal hanya mengenal 'XAUUSD'. Perbedaan simbol (XAUUSD.u / XAUUSD.sc) dan kuantisasi lot broker diurus oleh BrokerAdapter di boundary.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-004",
+      "date": "2025-09-22",
+      "topic": "Interactive PM Dashboard & Step-by-Step Review",
+      "summary": "Setiap selesai step, sistem wajib mengonfirmasi catatan/notulen ke pengguna dan mengupdate status checklist di dashboard serta PLAN.md.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-005",
+      "date": "2026-09-22",
+      "topic": "Test Note",
+      "summary": "This is an automated test note.",
+      "status": "CONFIRMED"
+    }
+  ]
+}
