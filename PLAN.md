@@ -10,9 +10,9 @@
 ## 📊 Ringkasan Progress Proyek
 
 - **Total Tasks Terencana**: 22 tasks
-- **Tasks Selesai**: 10 tasks (45.5%)
-- **Tasks Sedang Berjalan**: 1 task (`INSP-01-STRUCTURE`)
-- **Tasks Antrian**: 11 tasks
+- **Tasks Selesai**: 11 tasks (50.0%)
+- **Tasks Sedang Berjalan**: 1 task (`INSP-02-FVG`)
+- **Tasks Antrian**: 10 tasks
 
 ---
 
@@ -47,10 +47,10 @@
 
 ### 🔍 Fase Verifikasi: Eksplorasi 1 Per 1 (4 Master Inspectors) (Saat Ini)
 
-- [/] **INSP-01-STRUCTURE**: **Master Structure & Fibonacci Inspector** (`Structure_Inspector.mq5`)  
-  *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), Strong vs Weak High/Low, Fibo Retracement (0.382-0.500 Shallow & 0.618-0.786 OTE), serta Fibo Extension Targets (1.272 & 1.618). *(Sedang Dieksplorasi di MT5)*
-- [ ] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
-  *Isi Lengkap*: Fair Value Gap (Bullish & Bearish), Status Mitigasi (Dashed box), dan Inversion FVG (iFVG emas).
+- [x] **INSP-01-STRUCTURE**: **Master Structure & Fibonacci Inspector** (`Structure_Inspector.mq5`)  
+  *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), Strong vs Weak High/Low, Fibo Retracement (0.382-0.500 Shallow & 0.618-0.786 OTE), serta Fibo Extension Targets (1.272 & 1.618 dengan status HIT tracker). *(VERIFIED & PASSED)*
+- [/] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
+  *Isi Lengkap*: Fair Value Gap (Bullish & Bearish), Status Mitigasi (Dashed box), dan Inversion FVG (iFVG emas). *(Sedang Dieksplorasi)*
 - [ ] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
   *Isi Lengkap*: Order Block (OB), Continuation (RBR / DBD), Reversal (RBD / DBR), dan Breaker Block (BB).
 - [ ] **INSP-04-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
