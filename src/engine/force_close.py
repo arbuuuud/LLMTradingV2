@@ -49,7 +49,9 @@ class ForceCloseGuardianEngine:
 
         # 2. Inversion FVG Invalidation
         if direction == Direction.BUY:
-            violated_ifvgs = [f for f in current_snapshot.active_fvgs if f.direction == Direction.BUY and f.is_inversion]
+            # Violated if an active iFVG resistance exists against BUY
+            violated_ifvgs = [f for f in current_snapshot.active_fvgs if f.direction == Direction.BUY and f.is_inversion] + \
+                             [f for f in current_snapshot.active_ifvgs if f.direction == Direction.SELL]
             if violated_ifvgs:
                 return ForceCloseTrigger(
                     position_id=position_id,
@@ -59,7 +61,9 @@ class ForceCloseGuardianEngine:
                     timestamp=now
                 )
         elif direction == Direction.SELL:
-            violated_ifvgs = [f for f in current_snapshot.active_fvgs if f.direction == Direction.SELL and f.is_inversion]
+            # Violated if an active iFVG support exists against SELL
+            violated_ifvgs = [f for f in current_snapshot.active_fvgs if f.direction == Direction.SELL and f.is_inversion] + \
+                             [f for f in current_snapshot.active_ifvgs if f.direction == Direction.BUY]
             if violated_ifvgs:
                 return ForceCloseTrigger(
                     position_id=position_id,

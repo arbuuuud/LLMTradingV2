@@ -85,8 +85,8 @@ def update_fvg_mitigation(
                     fvg.deepest_touch_price = float(latest_low)
                 fvg.tested_count = fvg.touch_count
 
-            # Mitigated: body close inside or below top
-            if latest_close <= fvg.top:
+            # Mitigated: body close inside the gap
+            if latest_close <= fvg.top and latest_close >= fvg.bottom:
                 fvg.is_mitigated = True
             # Fully Used: wick or body penetrated all the way to bottom
             if latest_low <= fvg.bottom:
@@ -108,8 +108,8 @@ def update_fvg_mitigation(
                     fvg.deepest_touch_price = float(latest_high)
                 fvg.tested_count = fvg.touch_count
 
-            # Mitigated: body close inside or above bottom
-            if latest_close >= fvg.bottom:
+            # Mitigated: body close inside the gap
+            if latest_close >= fvg.bottom and latest_close <= fvg.top:
                 fvg.is_mitigated = True
             # Fully Used: wick or body penetrated all the way to top
             if latest_high >= fvg.top:

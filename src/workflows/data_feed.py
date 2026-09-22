@@ -12,11 +12,19 @@ from src.core.types import (
     LiquidityState,
     Direction,
     FairValueGap,
+    InversionFVG,
+    FVGConfluenceZone,
     OrderBlock,
     FibonacciOTE
 )
 from src.features.structure import detect_swing_points, evaluate_market_structure
-from src.features.smc import detect_fvgs, update_fvg_mitigation, detect_order_blocks
+from src.features.smc import (
+    detect_fvgs,
+    update_fvg_mitigation,
+    detect_order_blocks,
+    process_fvg_inversions,
+    detect_fvg_confluences
+)
 from src.features.fibonacci import calculate_fibonacci_ote
 from src.data.adapter import BrokerAdapter
 
@@ -55,6 +63,8 @@ class LiveDataFeedGenerator:
 
         # State tracking
         self.active_fvgs: List[FairValueGap] = []
+        self.active_ifvgs: List[InversionFVG] = []
+        self.fvg_confluences: List[FVGConfluenceZone] = []
         self.active_obs: List[OrderBlock] = []
         self.current_trend: Trend = Trend.RANGING
         self.last_snapshot: Optional[MarketStateSnapshot] = None
@@ -130,6 +140,19 @@ class LiveDataFeedGenerator:
             latest_close=float(self.closes[-1])
         )
 
+        # Process Inversions and Confluences
+        active_regs, updated_ifvgs = process_fvg_inversions(
+            self.active_fvgs,
+            latest_high=float(self.highs[-1]),
+            latest_low=float(self.lows[-1]),
+            latest_close=float(self.closes[-1]),
+            current_time=now,
+            existing_ifvgs=self.active_ifvgs
+        )
+        self.active_fvgs = active_regs
+        self.active_ifvgs = updated_ifvgs
+        self.fvg_confluences = detect_fvg_confluences(self.active_fvgs, self.active_ifvgs)
+
         # Order Blocks
         obs = detect_order_blocks(np_opens, np_highs, np_lows, np_closes, self.timestamps, self.active_fvgs)
         self.active_obs = obs
@@ -169,6 +192,8 @@ class LiveDataFeedGenerator:
             htf_trend=self.current_trend,
             structure=struct_state,
             active_fvgs=self.active_fvgs[-10:],  # Retain top 10 most recent
+            active_ifvgs=self.active_ifvgs[-10:],
+            fvg_confluences=self.fvg_confluences[-5:],
             active_obs=self.active_obs[-5:],     # Retain top 5 most recent
             fibonacci=fibo_ote,
             liquidity=liq_state
