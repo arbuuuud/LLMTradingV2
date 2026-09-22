@@ -469,3 +469,61 @@ def process_order_block_lifecycle(
                 active_obs.append(ob)
 
     return active_obs, active_breakers
+
+
+def cluster_order_blocks(obs: List[OrderBlock]) -> List[OrderBlock]:
+    """
+    Smart Confluence Merging (Option 1):
+    Merges overlapping zones of the same direction into a single high-probability confluence cluster.
+    Prevents flickering, avoids slot depletion, and calculates consolidated boundaries.
+    """
+    clusters: List[OrderBlock] = [ob.model_copy() for ob in obs]
+    merged_any = True
+
+    while merged_any and len(clusters) > 1:
+        merged_any = False
+        n = len(clusters)
+        for i in range(n - 1):
+            for j in range(i + 1, n):
+                a = clusters[i]
+                b = clusters[j]
+                if a.direction != b.direction:
+                    continue
+
+                overlap_top = min(a.top, b.top)
+                overlap_btm = max(a.bottom, b.bottom)
+                if overlap_top > overlap_btm:
+                    # Overlap found! Merge b into a
+                    a.top = max(a.top, b.top)
+                    a.bottom = min(a.bottom, b.bottom)
+                    a.mean_threshold = (a.top + a.bottom) / 2.0
+                    a.timestamp = min(a.timestamp, b.timestamp)
+                    a.is_confluence = True
+
+                    desc_a = a.confluence_desc or a.ob_type.value
+                    desc_b = b.confluence_desc or b.ob_type.value
+                    if desc_b not in desc_a:
+                        a.confluence_desc = f"{desc_a} + {desc_b}"
+                    else:
+                        a.confluence_desc = desc_a
+
+                    a.has_swept_liquidity = a.has_swept_liquidity or b.has_swept_liquidity
+                    a.is_touched = a.is_touched or b.is_touched
+                    a.touch_count = max(a.touch_count, b.touch_count)
+                    if a.deepest_touch_price is not None and b.deepest_touch_price is not None:
+                        a.deepest_touch_price = (
+                            min(a.deepest_touch_price, b.deepest_touch_price)
+                            if a.direction == Direction.BUY
+                            else max(a.deepest_touch_price, b.deepest_touch_price)
+                        )
+                    elif b.deepest_touch_price is not None:
+                        a.deepest_touch_price = b.deepest_touch_price
+                    a.is_mitigated = a.is_mitigated or b.is_mitigated
+
+                    clusters.pop(j)
+                    merged_any = True
+                    break
+            if merged_any:
+                break
+
+    return clusters

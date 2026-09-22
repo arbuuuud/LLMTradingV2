@@ -23,6 +23,7 @@ from src.features.smc import (
     update_fvg_mitigation,
     detect_order_blocks,
     process_order_block_lifecycle,
+    cluster_order_blocks,
     process_fvg_inversions,
     detect_fvg_confluences
 )
@@ -211,7 +212,7 @@ class LiveDataFeedGenerator:
             active_fvgs=self.active_fvgs[-10:],  # Retain top 10 most recent
             active_ifvgs=self.active_ifvgs[-10:],
             fvg_confluences=self.fvg_confluences[-5:],
-            active_obs=self.active_obs[-5:],     # Retain top 5 most recent
+            active_obs=cluster_order_blocks(self.active_obs)[-5:],     # Retain top 5 most recent consolidated clusters
             active_breakers=self.active_breakers[-5:],
             fibonacci=fibo_ote,
             liquidity=liq_state

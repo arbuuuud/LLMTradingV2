@@ -29,6 +29,8 @@ input color    InpColorBullOB          = C'30,144,255';     // [REVERSAL] +OB (D
 input color    InpColorBearOB          = C'220,20,60';      // [REVERSAL] -OB (RBD) - Crimson Red
 input color    InpColorContDemand      = C'46,139,87';      // [CONTINUATION] +Demand (RBR) - SeaGreen Teal
 input color    InpColorContSupply      = C'218,165,32';     // [CONTINUATION] -Supply (DBD) - Goldenrod Amber
+input color    InpColorConfDemand      = C'0,206,209';      // [CONFLUENCE] Demand Cluster - DarkTurquoise
+input color    InpColorConfSupply      = C'218,112,214';    // [CONFLUENCE] Supply Cluster - Orchid Magenta
 input color    InpColorBreakerBull     = C'0,235,235';      // [BREAKER FLIP] Bullish Support - Bright Cyan
 input color    InpColorBreakerBear     = C'255,99,71';      // [BREAKER FLIP] Bearish Resistance - Tomato Orange
 input color    InpColorInside          = C'255,255,255';    // [CURRENT INSIDE ZONE] Active Highlight - White
@@ -66,6 +68,8 @@ struct ZoneItem
    bool              is_mitigated;        // Closed inside
    bool              is_fully_used;       // Swept 100%
    bool              is_inside;
+   bool              is_confluence;       // Merged from overlapping zones
+   string            confluence_desc;     // e.g. "OB(DBR) + SD(RBR)"
    double            distance;
 };
 
@@ -353,24 +357,20 @@ void RedrawZones()
       }
 
       ArrayResize(raw_zones, raw_count + 1);
+      zone.is_confluence = false;
+      zone.confluence_desc = "";
       raw_zones[raw_count] = zone;
       raw_count++;
    }
 
-   // 6. Proximity Filtering & Category Toggles
-   int above_indices[];
-   double above_dists[];
-   int above_count = 0;
-
-   int below_indices[];
-   double below_dists[];
-   int below_count = 0;
-
-   int inside_idx = -1;
+   // 6. Filter candidate active zones by Category Switches & Liveness
+   ZoneItem candidates[];
+   int cand_count = 0;
 
    for(int m = 0; m < raw_count; m++)
    {
-      // Category Switches
+      if(raw_zones[m].is_fully_used) continue;
+
       if(raw_zones[m].is_breaker)
       {
          if(!InpShowBreakers) continue;
@@ -384,31 +384,122 @@ void RedrawZones()
          if(!InpShowContinuationSD) continue;
       }
 
-      // Check if price is inside
-      bool is_inside = (current_price >= raw_zones[m].bottom && current_price <= raw_zones[m].top);
-      raw_zones[m].is_inside = is_inside;
+      ArrayResize(candidates, cand_count + 1);
+      candidates[cand_count] = raw_zones[m];
+      cand_count++;
+   }
+
+   // 7. SMART CONFLUENCE CLUSTER MERGING (Option 1)
+   // Iteratively merge overlapping zones of the same side (both Demand/Support or both Supply/Resistance)
+   bool merged_any = true;
+   while(merged_any && cand_count > 1)
+   {
+      merged_any = false;
+      for(int a = 0; a < cand_count - 1; a++)
+      {
+         for(int b = a + 1; b < cand_count; b++)
+         {
+            if(candidates[a].is_bullish != candidates[b].is_bullish) continue;
+
+            double overlap_top = MathMin(candidates[a].top, candidates[b].top);
+            double overlap_btm = MathMax(candidates[a].bottom, candidates[b].bottom);
+
+            if(overlap_top > overlap_btm)
+            {
+               // Overlap found! Merge b into a
+               candidates[a].top = MathMax(candidates[a].top, candidates[b].top);
+               candidates[a].bottom = MathMin(candidates[a].bottom, candidates[b].bottom);
+               candidates[a].mean_threshold = (candidates[a].top + candidates[a].bottom) / 2.0;
+               candidates[a].time = MathMin(candidates[a].time, candidates[b].time);
+               candidates[a].is_confluence = true;
+
+               string descA = candidates[a].confluence_desc;
+               if(descA == "")
+               {
+                  if(candidates[a].kind == ZONE_REVERSAL_DBR) descA = "OB(DBR)";
+                  else if(candidates[a].kind == ZONE_REVERSAL_RBD) descA = "OB(RBD)";
+                  else if(candidates[a].kind == ZONE_CONTINUATION_RBR) descA = "SD(RBR)";
+                  else if(candidates[a].kind == ZONE_CONTINUATION_DBD) descA = "SD(DBD)";
+                  else descA = "Zone";
+               }
+
+               string descB = "";
+               if(candidates[b].kind == ZONE_REVERSAL_DBR) descB = "OB(DBR)";
+               else if(candidates[b].kind == ZONE_REVERSAL_RBD) descB = "OB(RBD)";
+               else if(candidates[b].kind == ZONE_CONTINUATION_RBR) descB = "SD(RBR)";
+               else if(candidates[b].kind == ZONE_CONTINUATION_DBD) descB = "SD(DBD)";
+               else descB = "Zone";
+
+               if(StringFind(descA, descB) < 0)
+                  candidates[a].confluence_desc = descA + " + " + descB;
+               else
+                  candidates[a].confluence_desc = descA;
+
+               candidates[a].has_swept_liq = candidates[a].has_swept_liq || candidates[b].has_swept_liq;
+               candidates[a].is_touched = candidates[a].is_touched || candidates[b].is_touched;
+               candidates[a].touch_count = MathMax(candidates[a].touch_count, candidates[b].touch_count);
+               if(candidates[a].is_bullish)
+               {
+                  double dtA = candidates[a].deepest_touch_price > 0 ? candidates[a].deepest_touch_price : candidates[a].top;
+                  double dtB = candidates[b].deepest_touch_price > 0 ? candidates[b].deepest_touch_price : candidates[b].top;
+                  candidates[a].deepest_touch_price = MathMin(dtA, dtB);
+               }
+               else
+               {
+                  candidates[a].deepest_touch_price = MathMax(candidates[a].deepest_touch_price, candidates[b].deepest_touch_price);
+               }
+               candidates[a].is_mitigated = candidates[a].is_mitigated || candidates[b].is_mitigated;
+
+               // Remove element b
+               for(int r = b; r < cand_count - 1; r++)
+               {
+                  candidates[r] = candidates[r + 1];
+               }
+               cand_count--;
+               ArrayResize(candidates, cand_count);
+
+               merged_any = true;
+               break;
+            }
+         }
+         if(merged_any) break;
+      }
+   }
+
+   // 8. Proximity Sorting on Distinct Consolidated Zones
+   int above_indices[];
+   double above_dists[];
+   int above_count = 0;
+
+   int below_indices[];
+   double below_dists[];
+   int below_count = 0;
+
+   int inside_idx = -1;
+
+   for(int m = 0; m < cand_count; m++)
+   {
+      bool is_inside = (current_price >= candidates[m].bottom && current_price <= candidates[m].top);
+      candidates[m].is_inside = is_inside;
 
       if(is_inside)
       {
          inside_idx = m;
-         continue; // Protected
+         continue; // Protected as inside zone
       }
 
-      // Exclude dead zones that have been broken by body close past boundary
-      if(raw_zones[m].is_fully_used) continue;
-
-      if(raw_zones[m].bottom > current_price)
+      if(candidates[m].bottom > current_price)
       {
-         double d = raw_zones[m].bottom - current_price;
+         double d = candidates[m].bottom - current_price;
          ArrayResize(above_indices, above_count + 1);
          ArrayResize(above_dists, above_count + 1);
          above_indices[above_count] = m;
          above_dists[above_count] = d;
          above_count++;
       }
-      else if(raw_zones[m].top < current_price)
+      else if(candidates[m].top < current_price)
       {
-         double d = current_price - raw_zones[m].top;
+         double d = current_price - candidates[m].top;
          ArrayResize(below_indices, below_count + 1);
          ArrayResize(below_dists, below_count + 1);
          below_indices[below_count] = m;
@@ -417,7 +508,7 @@ void RedrawZones()
       }
    }
 
-   // Sort Above
+   // Sort Above candidates by ascending distance
    for(int a = 0; a < above_count - 1; a++)
    {
       for(int b = a + 1; b < above_count; b++)
@@ -430,7 +521,7 @@ void RedrawZones()
       }
    }
 
-   // Sort Below
+   // Sort Below candidates by ascending distance
    for(int a = 0; a < below_count - 1; a++)
    {
       for(int b = a + 1; b < below_count; b++)
@@ -443,22 +534,22 @@ void RedrawZones()
       }
    }
 
-   // 7. Draw Rendered Zones
+   // 9. Draw Rendered Zones (Consolidated & Anti-Flicker)
    if(inside_idx >= 0)
    {
-      DrawZone(raw_zones[inside_idx], current_candle_time, "⚡ [CURRENT INSIDE ZONE]");
+      DrawZone(candidates[inside_idx], current_candle_time, "⚡ [CURRENT INSIDE ZONE]");
    }
 
    int render_above = MathMin(InpMaxZonesAbove, above_count);
    for(int a = 0; a < render_above; a++)
    {
-      DrawZone(raw_zones[above_indices[a]], current_candle_time, "[Above #" + IntegerToString(a + 1) + "]");
+      DrawZone(candidates[above_indices[a]], current_candle_time, "[Above #" + IntegerToString(a + 1) + "]");
    }
 
    int render_below = MathMin(InpMaxZonesBelow, below_count);
    for(int b = 0; b < render_below; b++)
    {
-      DrawZone(raw_zones[below_indices[b]], current_candle_time, "[Below #" + IntegerToString(b + 1) + "]");
+      DrawZone(candidates[below_indices[b]], current_candle_time, "[Below #" + IntegerToString(b + 1) + "]");
    }
 
    ChartRedraw();
@@ -477,36 +568,44 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    color zone_color;
    string badge = "";
 
-   switch(zone.kind)
+   if(zone.is_confluence)
    {
-      case ZONE_REVERSAL_DBR:
-         zone_color = InpColorBullOB;
-         badge = "[REVERSAL OB] +OB (DBR)";
-         break;
-      case ZONE_REVERSAL_RBD:
-         zone_color = InpColorBearOB;
-         badge = "[REVERSAL OB] -OB (RBD)";
-         break;
-      case ZONE_CONTINUATION_RBR:
-         zone_color = InpColorContDemand;
-         badge = "[CONTINUATION] +Demand (RBR)";
-         break;
-      case ZONE_CONTINUATION_DBD:
-         zone_color = InpColorContSupply;
-         badge = "[CONTINUATION] -Supply (DBD)";
-         break;
-      case ZONE_BREAKER_BULLISH:
-         zone_color = InpColorBreakerBull;
-         badge = "⚡ [BREAKER FLIP] Support";
-         break;
-      case ZONE_BREAKER_BEARISH:
-         zone_color = InpColorBreakerBear;
-         badge = "⚡ [BREAKER FLIP] Resistance";
-         break;
-      default:
-         zone_color = InpColorBullOB;
-         badge = "[ZONE]";
-         break;
+      zone_color = zone.is_bullish ? InpColorConfDemand : InpColorConfSupply;
+      badge = "★ [CONFLUENCE: " + zone.confluence_desc + "]";
+   }
+   else
+   {
+      switch(zone.kind)
+      {
+         case ZONE_REVERSAL_DBR:
+            zone_color = InpColorBullOB;
+            badge = "[REVERSAL OB] +OB (DBR)";
+            break;
+         case ZONE_REVERSAL_RBD:
+            zone_color = InpColorBearOB;
+            badge = "[REVERSAL OB] -OB (RBD)";
+            break;
+         case ZONE_CONTINUATION_RBR:
+            zone_color = InpColorContDemand;
+            badge = "[CONTINUATION] +Demand (RBR)";
+            break;
+         case ZONE_CONTINUATION_DBD:
+            zone_color = InpColorContSupply;
+            badge = "[CONTINUATION] -Supply (DBD)";
+            break;
+         case ZONE_BREAKER_BULLISH:
+            zone_color = InpColorBreakerBull;
+            badge = "⚡ [BREAKER FLIP] Support";
+            break;
+         case ZONE_BREAKER_BEARISH:
+            zone_color = InpColorBreakerBear;
+            badge = "⚡ [BREAKER FLIP] Resistance";
+            break;
+         default:
+            zone_color = InpColorBullOB;
+            badge = "[ZONE]";
+            break;
+      }
    }
 
    datetime start_time = zone.is_breaker ? zone.breaker_time : zone.time;
@@ -534,7 +633,7 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    // 3. Informative Tag Label
    string label = prefix_tag + " " + badge;
 
-   if(zone.kind == ZONE_CONTINUATION_RBR || zone.kind == ZONE_CONTINUATION_DBD)
+   if(!zone.is_confluence && (zone.kind == ZONE_CONTINUATION_RBR || zone.kind == ZONE_CONTINUATION_DBD))
    {
       label += " Base:" + IntegerToString(zone.base_count) + "c Imp:" + DoubleToString(zone.impulse_ratio, 1) + "x";
    }

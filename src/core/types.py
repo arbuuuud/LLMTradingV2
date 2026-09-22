@@ -122,6 +122,8 @@ class OrderBlock(BaseModel):
     has_swept_liquidity: bool = False
     base_candle_count: int = 1   # Number of base candles (1-3 for valid S&D)
     impulse_ratio: float = 1.0   # Leg-Out Range / Base Range
+    is_confluence: bool = False  # True if merged from overlapping OB + S&D
+    confluence_desc: Optional[str] = None
     is_breaker: bool = False
     breaker_time: Optional[datetime] = None
     is_touched: bool = False

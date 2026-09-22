@@ -215,3 +215,66 @@ def test_order_block_rbd_and_deeper_touch():
     assert active[0].touch_count == 2
     assert active[0].deepest_touch_price == 100.0
 
+
+def test_order_block_confluence_clustering():
+    from src.features.smc import cluster_order_blocks
+    from src.core.types import OrderBlock, OrderBlockType
+
+    now = datetime(2025, 1, 1, 12, 0)
+    # Zone 1: Reversal OB at 2620 - 2626
+    ob1 = OrderBlock(
+        id="OB1",
+        direction=Direction.SELL,
+        ob_type=OrderBlockType.REVERSAL_RBD,
+        top=2626.0,
+        bottom=2620.0,
+        mean_threshold=2623.0,
+        timestamp=now,
+        bar_index=10,
+        touch_count=1,
+        deepest_touch_price=2622.0
+    )
+    # Zone 2: Continuation DBD at 2623 - 2628 (Overlaps with Zone 1!)
+    ob2 = OrderBlock(
+        id="OB2",
+        direction=Direction.SELL,
+        ob_type=OrderBlockType.CONTINUATION_DBD,
+        top=2628.0,
+        bottom=2623.0,
+        mean_threshold=2625.5,
+        timestamp=now,
+        bar_index=15,
+        touch_count=2,
+        deepest_touch_price=2625.0
+    )
+    # Zone 3: Independent higher supply at 2640 - 2645 (No overlap)
+    ob3 = OrderBlock(
+        id="OB3",
+        direction=Direction.SELL,
+        ob_type=OrderBlockType.REVERSAL_RBD,
+        top=2645.0,
+        bottom=2640.0,
+        mean_threshold=2642.5,
+        timestamp=now,
+        bar_index=20
+    )
+
+    clusters = cluster_order_blocks([ob1, ob2, ob3])
+    # ob1 and ob2 should merge into 1 cluster, leaving ob3 as 2nd cluster!
+    assert len(clusters) == 2
+
+    c1 = clusters[0]
+    assert c1.is_confluence is True
+    assert c1.top == 2628.0  # max(2626, 2628)
+    assert c1.bottom == 2620.0  # min(2620, 2623)
+    assert c1.mean_threshold == 2624.0  # (2628 + 2620) / 2
+    assert "REVERSAL_RBD" in c1.confluence_desc
+    assert "CONTINUATION_DBD" in c1.confluence_desc
+    assert c1.touch_count == 2
+    assert c1.deepest_touch_price == 2625.0
+
+    c2 = clusters[1]
+    assert c2.id == "OB3"
+    assert c2.is_confluence is False
+
+
