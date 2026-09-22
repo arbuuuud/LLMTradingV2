@@ -267,12 +267,14 @@ def detect_order_blocks(
     lows: np.ndarray,
     closes: np.ndarray,
     timestamps: List[datetime],
-    fvgs: List[FairValueGap]
+    fvgs: List[FairValueGap],
+    max_base_candles: int = 3,
+    min_impulse_ratio: float = 1.5
 ) -> List[OrderBlock]:
     """
     Detects Institutional Order Blocks and S&D Patterns:
-    - Reversals: DBR (Drop-Base-Rally) & RBD (Rally-Base-Drop)
-    - Continuations: RBR (Rally-Base-Rally) & DBD (Drop-Base-Drop)
+    - Reversals: DBR (Drop-Base-Rally) & RBD (Rally-Base-Drop) at swing extrema
+    - Continuations: RBR (Rally-Base-Rally) & DBD (Drop-Base-Drop) with strict Leg-In, Base (1-3c), and Leg-Out rules
     - Validates with FVG displacement, calculates 50% Mean Threshold, and checks liquidity sweep.
     """
     obs: List[OrderBlock] = []
@@ -281,20 +283,16 @@ def detect_order_blocks(
     for idx, fvg in fvg_indices.items():
         # In a 3-bar FVG at index `idx`:
         # bar idx - 2: left candle before displacement
-        # bar idx - 1: strong displacement candle
+        # bar idx - 1: strong displacement candle (Leg-Out)
         # bar idx: confirming candle
-        # The Order Block base is typically at idx - 2, or the last opposite candle prior to displacement.
         origin_idx = idx - 2 if idx >= 2 else idx - 1
         if fvg.direction == Direction.BUY:
-            # Look for down candle at idx - 2, or prior
             if origin_idx >= 0 and closes[origin_idx] > opens[origin_idx]:
-                # If idx - 2 was up, check if idx - 1 or idx - 3 was down
                 if idx - 1 >= 0 and closes[idx - 1] < opens[idx - 1]:
                     origin_idx = idx - 1
                 elif idx - 3 >= 0 and closes[idx - 3] < opens[idx - 3]:
                     origin_idx = idx - 3
         elif fvg.direction == Direction.SELL:
-            # Look for up candle at idx - 2, or prior
             if origin_idx >= 0 and closes[origin_idx] < opens[origin_idx]:
                 if idx - 1 >= 0 and closes[idx - 1] > opens[idx - 1]:
                     origin_idx = idx - 1
@@ -304,59 +302,97 @@ def detect_order_blocks(
         if origin_idx < 0:
             continue
 
-        is_bearish_base = closes[origin_idx] < opens[origin_idx]
-        is_bullish_base = closes[origin_idx] > opens[origin_idx]
-        prior_idx = origin_idx - 1
-        is_prior_bearish = (closes[prior_idx] < opens[prior_idx]) if prior_idx >= 0 else False
-        is_prior_bullish = (closes[prior_idx] > opens[prior_idx]) if prior_idx >= 0 else False
+        # Count base candles prior to displacement (up to max_base_candles)
+        base_count = 1
+        base_high = float(highs[origin_idx])
+        base_low = float(lows[origin_idx])
+        
+        # Check if previous bars are also part of a tight base (boring candles with body <= 45% of range)
+        for b in range(1, max_base_candles):
+            check_b = origin_idx - b
+            if check_b < 0:
+                break
+            b_range = highs[check_b] - lows[check_b]
+            b_body = abs(closes[check_b] - opens[check_b])
+            # True base candle: body <= 45% of candle range (tight consolidation / doji / spinning top)
+            if b_range > 0 and (b_body / b_range <= 0.45):
+                base_count += 1
+                base_high = max(base_high, float(highs[check_b]))
+                base_low = min(base_low, float(lows[check_b]))
+            else:
+                break
 
-        top = float(highs[origin_idx])
-        bottom = float(lows[origin_idx])
+        # Leg-Out displacement strength
+        leg_out_idx = idx - 1
+        leg_out_range = float(highs[leg_out_idx] - lows[leg_out_idx])
+        base_range = max(base_high - base_low, 1e-5)
+        imp_ratio = leg_out_range / base_range
+
+        prior_idx = origin_idx - base_count
+        is_prior_bearish = (closes[prior_idx] < opens[prior_idx]) if prior_idx >= 0 else (closes[origin_idx] < opens[origin_idx])
+        is_prior_bullish = (closes[prior_idx] > opens[prior_idx]) if prior_idx >= 0 else (closes[origin_idx] > opens[origin_idx])
+
+        top = base_high
+        bottom = base_low
         mt = (top + bottom) / 2.0
 
         if fvg.direction == Direction.BUY:
-            # Bullish OB (+OB)
-            # Check if origin or prior was a down candle
-            if is_bearish_base or is_prior_bearish:
-                # Prior move: Drop -> DBR (Reversal), else RBR (Continuation)
-                ob_type = OrderBlockType.REVERSAL_DBR if is_prior_bearish else OrderBlockType.CONTINUATION_RBR
-                swept = bool(lows[origin_idx] < lows[prior_idx])
-                obs.append(
-                    OrderBlock(
-                        id=f"OB-BULL-{origin_idx}",
-                        direction=Direction.BUY,
-                        ob_type=ob_type,
-                        top=top,
-                        bottom=bottom,
-                        mean_threshold=mt,
-                        timestamp=timestamps[origin_idx],
-                        bar_index=origin_idx,
-                        has_fvg=True,
-                        fvg_id=fvg.id,
-                        has_swept_liquidity=swept
-                    )
+            # Bullish (+OB)
+            # Prior move: Drop -> DBR (Reversal), else RBR (Continuation)
+            if is_prior_bearish:
+                ob_type = OrderBlockType.REVERSAL_DBR
+            else:
+                # Continuation RBR requires base <= max_base_candles and good impulse ratio
+                if base_count > max_base_candles or imp_ratio < min_impulse_ratio:
+                    continue
+                ob_type = OrderBlockType.CONTINUATION_RBR
+
+            swept = bool(prior_idx >= 0 and lows[origin_idx] < lows[prior_idx])
+            obs.append(
+                OrderBlock(
+                    id=f"OB-BULL-{origin_idx}",
+                    direction=Direction.BUY,
+                    ob_type=ob_type,
+                    top=top,
+                    bottom=bottom,
+                    mean_threshold=mt,
+                    timestamp=timestamps[origin_idx],
+                    bar_index=origin_idx,
+                    has_fvg=True,
+                    fvg_id=fvg.id,
+                    has_swept_liquidity=swept,
+                    base_candle_count=base_count,
+                    impulse_ratio=round(imp_ratio, 2)
                 )
+            )
         elif fvg.direction == Direction.SELL:
-            # Bearish OB (-OB)
-            if is_bullish_base or is_prior_bullish:
-                # Prior move: Rally -> RBD (Reversal), else DBD (Continuation)
-                ob_type = OrderBlockType.REVERSAL_RBD if is_prior_bullish else OrderBlockType.CONTINUATION_DBD
-                swept = bool(highs[origin_idx] > highs[prior_idx])
-                obs.append(
-                    OrderBlock(
-                        id=f"OB-BEAR-{origin_idx}",
-                        direction=Direction.SELL,
-                        ob_type=ob_type,
-                        top=top,
-                        bottom=bottom,
-                        mean_threshold=mt,
-                        timestamp=timestamps[origin_idx],
-                        bar_index=origin_idx,
-                        has_fvg=True,
-                        fvg_id=fvg.id,
-                        has_swept_liquidity=swept
-                    )
+            # Bearish (-OB)
+            if is_prior_bullish:
+                ob_type = OrderBlockType.REVERSAL_RBD
+            else:
+                # Continuation DBD requires base <= max_base_candles and good impulse ratio
+                if base_count > max_base_candles or imp_ratio < min_impulse_ratio:
+                    continue
+                ob_type = OrderBlockType.CONTINUATION_DBD
+
+            swept = bool(prior_idx >= 0 and highs[origin_idx] > highs[prior_idx])
+            obs.append(
+                OrderBlock(
+                    id=f"OB-BEAR-{origin_idx}",
+                    direction=Direction.SELL,
+                    ob_type=ob_type,
+                    top=top,
+                    bottom=bottom,
+                    mean_threshold=mt,
+                    timestamp=timestamps[origin_idx],
+                    bar_index=origin_idx,
+                    has_fvg=True,
+                    fvg_id=fvg.id,
+                    has_swept_liquidity=swept,
+                    base_candle_count=base_count,
+                    impulse_ratio=round(imp_ratio, 2)
                 )
+            )
 
     return obs
 
