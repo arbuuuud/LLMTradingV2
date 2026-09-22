@@ -1,36 +1,43 @@
 //+------------------------------------------------------------------+
 //|                                            FVG_Inspector.mq5     |
-//|      Institutional FVG, Inversion FVG (iFVG), and Confluence     |
+//|    Nearest 2 Above, 2 Below + 1 Current Inside Zone Proximity    |
 //|                                  LLMTradingV2 Institutional V2   |
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.00"
-#property description "Visualizes Distinct FVGs, Inversion FVGs (iFVG with Counter-FVG Breach Detection), and FVG+iFVG Confluence Zones"
+#property version   "2.20"
+#property description "Displays ONLY 2 Nearest Zones Above, 2 Nearest Zones Below, plus 1 Current Inside Zone if price is within a gap"
 
 //--- Inputs
-input group "=== 1. Regular FVG Settings ==="
+input group "=== Proximity Display Settings ==="
+input int      InpMaxZonesAbove        = 2;                 // Max Nearest Zones Above Price (Overhead)
+input int      InpMaxZonesBelow        = 2;                 // Max Nearest Zones Below Price (Underlying)
 input int      InpMaxBars              = 300;               // Max Bars to Analyze
 input double   InpMinGapPoints         = 10.0;              // Minimum Gap Size (Points)
-input bool     InpShowRegularFVG       = true;              // Draw Regular FVGs
+input bool     InpExtendToCurrent      = true;              // Extend Zones to Current Candle
+
+input group "=== Regular FVG Colors ==="
 input color    InpColorBullFVG         = C'16,185,129';     // Bullish FVG Box Color (Emerald)
 input color    InpColorBearFVG         = C'239,68,68';      // Bearish FVG Box Color (Rose)
 input bool     InpShowCE50             = true;              // Show 50% Consequent Encroachment (CE) Line
 input color    InpColorCE              = C'250,204,21';     // CE 50% Line Color (Yellow)
-input bool     InpShowMitigated        = false;             // Show Fully Filled Gaps
 
-input group "=== 2. Inversion FVG (iFVG) Settings ==="
-input bool     InpShowInversionFVG     = true;              // Draw Inversion FVGs (iFVG) as Distinct Objects
+input group "=== Inversion FVG (iFVG) Colors ==="
 input color    InpColorInversionClean  = clrGold;           // Standard iFVG Box Color (Gold)
 input color    InpColorInversionPower  = C'249,115,22';     // Powerful iFVG Breached WITH Counter-FVG (Orange)
-input bool     InpExtendToCurrent      = true;              // Extend Active Zones to Current Candle
 
-input group "=== 3. FVG + iFVG Confluence Zone (High Probability) ==="
-input bool     InpShowConfluenceZones  = true;              // Highlight Overlapping / Same-Swing FVG + iFVG
-input color    InpColorConfluence      = C'6,182,212';      // Confluence Zone Highlight (Cyan / Neon)
-input int      InpSwingWindow          = 3;                 // Swing Window for Same-Swing Verification
+input group "=== Combined FVG + iFVG Confluence Colors ==="
+input color    InpColorCombined        = C'6,182,212';      // Combined Confluence Highlight (Cyan/Neon)
+input color    InpColorInsideZone      = clrWhite;          // Highlight Border for Current Inside Zone
 
 #define OBJ_PREFIX "FVG_INSP_"
+
+enum ENUM_ZONE_TYPE
+{
+   ZONE_REGULAR_FVG,
+   ZONE_INVERSION_FVG,
+   ZONE_COMBINED_CONFLUENCE
+};
 
 struct FVGNode
 {
@@ -46,6 +53,22 @@ struct FVGNode
    datetime invert_time;
    bool     inverted_with_counter_fvg;
    string   counter_fvg_id;
+};
+
+struct CandidateZone
+{
+   ENUM_ZONE_TYPE type;
+   string   id;
+   string   display_label;
+   color    box_color;
+   bool     is_bullish;
+   double   top;
+   double   bottom;
+   double   ce_price;
+   datetime start_time;
+   bool     is_mitigated;
+   bool     has_counter_fvg;
+   double   distance_to_price;
 };
 
 datetime g_last_bar_time = 0;
@@ -91,6 +114,7 @@ void RedrawFVGSystem()
    if(CopyRates(_Symbol, _Period, 0, bars_to_check, rates) < bars_to_check) return;
 
    datetime current_t = rates[0].time;
+   double cur_price = rates[0].close;
 
    // 1. Detect All FVGs Chronologically
    FVGNode all_fvgs[];
@@ -98,8 +122,6 @@ void RedrawFVGSystem()
 
    for(int i = bars_to_check - 3; i >= 1; i--)
    {
-      // 3-bar pattern:
-      // i+2 is first candle, i+1 is middle displacement, i is third candle
       double c1_high = rates[i + 2].high;
       double c1_low  = rates[i + 2].low;
       double c3_high = rates[i].high;
@@ -137,18 +159,15 @@ void RedrawFVGSystem()
       {
          if(all_fvgs[f].is_bullish)
          {
-            // Touched gap
             if(rates[k].low <= all_fvgs[f].top)
             {
                all_fvgs[f].is_mitigated = true;
             }
-            // Closed below gap bottom -> Inverted to Resistance!
             if(rates[k].close < all_fvgs[f].bottom)
             {
                all_fvgs[f].is_inverted = true;
                all_fvgs[f].invert_time = rates[k].time;
 
-               // Check if the breach formed a Counter Bearish FVG around bar k!
                for(int cf = 0; cf < total_fvg_count; cf++)
                {
                   if(!all_fvgs[cf].is_bullish && MathAbs(all_fvgs[cf].bar_idx - k) <= 2)
@@ -163,18 +182,15 @@ void RedrawFVGSystem()
          }
          else // bearish fvg
          {
-            // Touched gap
             if(rates[k].high >= all_fvgs[f].bottom)
             {
                all_fvgs[f].is_mitigated = true;
             }
-            // Closed above gap top -> Inverted to Support!
             if(rates[k].close > all_fvgs[f].top)
             {
                all_fvgs[f].is_inverted = true;
                all_fvgs[f].invert_time = rates[k].time;
 
-               // Check if the breach formed a Counter Bullish FVG around bar k!
                for(int cf = 0; cf < total_fvg_count; cf++)
                {
                   if(all_fvgs[cf].is_bullish && MathAbs(all_fvgs[cf].bar_idx - k) <= 2)
@@ -190,120 +206,212 @@ void RedrawFVGSystem()
       }
    }
 
-   // 3. Render Distinct Objects:
-   // Object 1: Regular Active FVGs
-   if(InpShowRegularFVG)
+   // 3. Collect Candidate Zones
+   CandidateZone candidates[];
+   ArrayResize(candidates, 0);
+
+   // A. Combined Confluences (FVG + iFVG Overlap)
+   bool fvg_in_confluence[];
+   ArrayResize(fvg_in_confluence, total_fvg_count);
+   ArrayInitialize(fvg_in_confluence, false);
+
+   for(int f = 0; f < total_fvg_count; f++)
    {
-      for(int f = 0; f < total_fvg_count; f++)
+      if(all_fvgs[f].is_inverted) continue;
+
+      for(int k = 0; k < total_fvg_count; k++)
       {
-         if(all_fvgs[f].is_inverted) continue; // Inversions drawn separately
-         if(all_fvgs[f].is_mitigated && !InpShowMitigated) continue;
+         if(!all_fvgs[k].is_inverted) continue;
 
-         double gap_pts = (all_fvgs[f].top - all_fvgs[f].bottom) / _Point;
-         datetime end_t = InpExtendToCurrent ? current_t : rates[0].time;
-         color box_c = all_fvgs[f].is_bullish ? InpColorBullFVG : InpColorBearFVG;
+         double overlap_top = MathMin(all_fvgs[f].top, all_fvgs[k].top);
+         double overlap_btm = MathMax(all_fvgs[f].bottom, all_fvgs[k].bottom);
 
-         string box_id = OBJ_PREFIX + "REG_" + all_fvgs[f].id;
-         ObjectCreate(0, box_id, OBJ_RECTANGLE, 0, all_fvgs[f].time, all_fvgs[f].top, end_t, all_fvgs[f].bottom);
-         ObjectSetInteger(0, box_id, OBJPROP_COLOR, box_c);
-         ObjectSetInteger(0, box_id, OBJPROP_STYLE, all_fvgs[f].is_mitigated ? STYLE_DASH : STYLE_SOLID);
-         ObjectSetInteger(0, box_id, OBJPROP_BACK, true);
-         ObjectSetInteger(0, box_id, OBJPROP_FILL, true);
-
-         // Consequent Encroachment (CE 50%)
-         if(InpShowCE50)
+         if(overlap_top > overlap_btm)
          {
-            string ce_id = OBJ_PREFIX + "CE_" + all_fvgs[f].id;
-            ObjectCreate(0, ce_id, OBJ_TREND, 0, all_fvgs[f].time, all_fvgs[f].ce_price, end_t, all_fvgs[f].ce_price);
-            ObjectSetInteger(0, ce_id, OBJPROP_COLOR, InpColorCE);
-            ObjectSetInteger(0, ce_id, OBJPROP_STYLE, STYLE_DOT);
-            ObjectSetInteger(0, ce_id, OBJPROP_RAY_RIGHT, false);
+            fvg_in_confluence[f] = true;
+            fvg_in_confluence[k] = true;
+
+            int c_sz = ArraySize(candidates);
+            ArrayResize(candidates, c_sz + 1);
+            candidates[c_sz].type              = ZONE_COMBINED_CONFLUENCE;
+            candidates[c_sz].id                = "COMB_" + all_fvgs[f].id + "_" + all_fvgs[k].id;
+            candidates[c_sz].top               = overlap_top;
+            candidates[c_sz].bottom            = overlap_btm;
+            candidates[c_sz].ce_price          = (overlap_top + overlap_btm) / 2.0;
+            candidates[c_sz].start_time        = MathMax(all_fvgs[f].time, all_fvgs[k].invert_time);
+            candidates[c_sz].box_color         = InpColorCombined;
+            candidates[c_sz].is_bullish        = all_fvgs[f].is_bullish;
+            candidates[c_sz].is_mitigated      = false;
+            candidates[c_sz].has_counter_fvg   = all_fvgs[k].inverted_with_counter_fvg;
+
+            double pts = (overlap_top - overlap_btm) / _Point;
+            candidates[c_sz].display_label     = StringFormat(" ★ [COMBINED: FVG + iFVG] (%.0f pts)", pts);
          }
-
-         // Label
-         string lbl_id = OBJ_PREFIX + "LBL_" + all_fvgs[f].id;
-         string txt = StringFormat(" %s (%.0f pts) CE: %.2f",
-            all_fvgs[f].is_bullish ? "Bull FVG" : "Bear FVG", gap_pts, all_fvgs[f].ce_price);
-         if(all_fvgs[f].is_mitigated) txt += " [Mitigated]";
-
-         ObjectCreate(0, lbl_id, OBJ_TEXT, 0, all_fvgs[f].time, all_fvgs[f].top);
-         ObjectSetString(0, lbl_id, OBJPROP_TEXT, txt);
-         ObjectSetInteger(0, lbl_id, OBJPROP_COLOR, box_c);
-         ObjectSetInteger(0, lbl_id, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, lbl_id, OBJPROP_ANCHOR, ANCHOR_LOWER);
       }
    }
 
-   // Object 2: Inversion FVGs (iFVG) - Distinct Object
-   if(InpShowInversionFVG)
+   // B. Inversion FVGs (iFVG)
+   for(int f = 0; f < total_fvg_count; f++)
    {
-      for(int f = 0; f < total_fvg_count; f++)
+      if(!all_fvgs[f].is_inverted) continue;
+      if(fvg_in_confluence[f]) continue;
+
+      int c_sz = ArraySize(candidates);
+      ArrayResize(candidates, c_sz + 1);
+      candidates[c_sz].type              = ZONE_INVERSION_FVG;
+      candidates[c_sz].id                = "IFVG_" + all_fvgs[f].id;
+      candidates[c_sz].top               = all_fvgs[f].top;
+      candidates[c_sz].bottom            = all_fvgs[f].bottom;
+      candidates[c_sz].ce_price          = all_fvgs[f].ce_price;
+      candidates[c_sz].start_time        = all_fvgs[f].invert_time;
+      candidates[c_sz].box_color         = all_fvgs[f].inverted_with_counter_fvg ? InpColorInversionPower : InpColorInversionClean;
+      candidates[c_sz].is_bullish        = !all_fvgs[f].is_bullish;
+      candidates[c_sz].is_mitigated      = false;
+      candidates[c_sz].has_counter_fvg   = all_fvgs[f].inverted_with_counter_fvg;
+
+      double pts = (all_fvgs[f].top - all_fvgs[f].bottom) / _Point;
+      string role = candidates[c_sz].is_bullish ? "iFVG Support" : "iFVG Resistance";
+      if(all_fvgs[f].inverted_with_counter_fvg) role += " [Counter-FVG!]";
+      candidates[c_sz].display_label     = StringFormat(" %s (%.0f pts)", role, pts);
+   }
+
+   // C. Regular Active FVGs
+   for(int f = 0; f < total_fvg_count; f++)
+   {
+      if(all_fvgs[f].is_inverted) continue;
+      if(fvg_in_confluence[f]) continue;
+
+      int c_sz = ArraySize(candidates);
+      ArrayResize(candidates, c_sz + 1);
+      candidates[c_sz].type              = ZONE_REGULAR_FVG;
+      candidates[c_sz].id                = "REG_" + all_fvgs[f].id;
+      candidates[c_sz].top               = all_fvgs[f].top;
+      candidates[c_sz].bottom            = all_fvgs[f].bottom;
+      candidates[c_sz].ce_price          = all_fvgs[f].ce_price;
+      candidates[c_sz].start_time        = all_fvgs[f].time;
+      candidates[c_sz].box_color         = all_fvgs[f].is_bullish ? InpColorBullFVG : InpColorBearFVG;
+      candidates[c_sz].is_bullish        = all_fvgs[f].is_bullish;
+      candidates[c_sz].is_mitigated      = all_fvgs[f].is_mitigated;
+      candidates[c_sz].has_counter_fvg   = false;
+
+      double pts = (all_fvgs[f].top - all_fvgs[f].bottom) / _Point;
+      string m_tag = all_fvgs[f].is_mitigated ? " [Mit]" : " [Fresh]";
+      candidates[c_sz].display_label     = StringFormat(" %s (%.0f pts)%s CE: %.2f",
+         all_fvgs[f].is_bullish ? "Bull FVG" : "Bear FVG", pts, m_tag, all_fvgs[f].ce_price);
+   }
+
+   // 4. Classify Zones: Strictly Above, Strictly Below, and Current Inside Zone
+   CandidateZone above_zones[];
+   CandidateZone below_zones[];
+   CandidateZone inside_zones[];
+   ArrayResize(above_zones, 0);
+   ArrayResize(below_zones, 0);
+   ArrayResize(inside_zones, 0);
+
+   for(int i = 0; i < ArraySize(candidates); i++)
+   {
+      // A. Check if price is INSIDE this zone
+      if(cur_price >= candidates[i].bottom && cur_price <= candidates[i].top)
       {
-         if(!all_fvgs[f].is_inverted) continue;
-
-         datetime end_t = InpExtendToCurrent ? current_t : rates[0].time;
-         color ifvg_c = all_fvgs[f].inverted_with_counter_fvg ? InpColorInversionPower : InpColorInversionClean;
-
-         string ifvg_box_id = OBJ_PREFIX + "IFVG_" + all_fvgs[f].id;
-         ObjectCreate(0, ifvg_box_id, OBJ_RECTANGLE, 0, all_fvgs[f].invert_time, all_fvgs[f].top, end_t, all_fvgs[f].bottom);
-         ObjectSetInteger(0, ifvg_box_id, OBJPROP_COLOR, ifvg_c);
-         ObjectSetInteger(0, ifvg_box_id, OBJPROP_STYLE, STYLE_SOLID);
-         ObjectSetInteger(0, ifvg_box_id, OBJPROP_WIDTH, all_fvgs[f].inverted_with_counter_fvg ? 2 : 1);
-         ObjectSetInteger(0, ifvg_box_id, OBJPROP_BACK, true);
-         ObjectSetInteger(0, ifvg_box_id, OBJPROP_FILL, true);
-
-         // Label for iFVG
-         string ifvg_lbl_id = OBJ_PREFIX + "LBL_IFVG_" + all_fvgs[f].id;
-         string role_text = all_fvgs[f].is_bullish ? "iFVG Resistance" : "iFVG Support";
-         string power_tag = all_fvgs[f].inverted_with_counter_fvg ? " [Breached WITH Counter-FVG!]" : " [Breach Flip]";
-
-         ObjectCreate(0, ifvg_lbl_id, OBJ_TEXT, 0, all_fvgs[f].invert_time, all_fvgs[f].bottom);
-         ObjectSetString(0, ifvg_lbl_id, OBJPROP_TEXT, " " + role_text + power_tag);
-         ObjectSetInteger(0, ifvg_lbl_id, OBJPROP_COLOR, ifvg_c);
-         ObjectSetInteger(0, ifvg_lbl_id, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, ifvg_lbl_id, OBJPROP_ANCHOR, ANCHOR_UPPER);
+         int in_sz = ArraySize(inside_zones);
+         ArrayResize(inside_zones, in_sz + 1);
+         candidates[i].distance_to_price = 0.0;
+         inside_zones[in_sz] = candidates[i];
+      }
+      // B. Strictly Above (bottom > cur_price)
+      else if(candidates[i].bottom > cur_price)
+      {
+         int a_sz = ArraySize(above_zones);
+         ArrayResize(above_zones, a_sz + 1);
+         candidates[i].distance_to_price = candidates[i].bottom - cur_price;
+         above_zones[a_sz] = candidates[i];
+      }
+      // C. Strictly Below (top < cur_price)
+      else if(candidates[i].top < cur_price)
+      {
+         int b_sz = ArraySize(below_zones);
+         ArrayResize(below_zones, b_sz + 1);
+         candidates[i].distance_to_price = cur_price - candidates[i].top;
+         below_zones[b_sz] = candidates[i];
       }
    }
 
-   // Object 3: FVG + iFVG Confluence Zone (Nested / Overlapping in Same Range)
-   if(InpShowConfluenceZones)
+   // Sort strictly by distance to price (closest first)
+   SortZonesByProximity(above_zones);
+   SortZonesByProximity(below_zones);
+
+   // 5. Render Nearest Above Zones (at most 2)
+   int num_above = MathMin(InpMaxZonesAbove, ArraySize(above_zones));
+   for(int i = 0; i < num_above; i++)
    {
-      for(int f = 0; f < total_fvg_count; f++)
-      {
-         if(all_fvgs[f].is_inverted) continue; // Must be an active regular FVG
+      string rank_prefix = StringFormat("[Above #%d] ", i + 1);
+      DrawZoneObject(above_zones[i], rank_prefix, current_t, false);
+   }
 
-         for(int k = 0; k < total_fvg_count; k++)
-         {
-            if(!all_fvgs[k].is_inverted) continue; // Must be an active iFVG
+   // 6. Render Nearest Below Zones (at most 2)
+   int num_below = MathMin(InpMaxZonesBelow, ArraySize(below_zones));
+   for(int i = 0; i < num_below; i++)
+   {
+      string rank_prefix = StringFormat("[Below #%d] ", i + 1);
+      DrawZoneObject(below_zones[i], rank_prefix, current_t, false);
+   }
 
-            // Check if price ranges overlap!
-            double overlap_top = MathMin(all_fvgs[f].top, all_fvgs[k].top);
-            double overlap_btm = MathMax(all_fvgs[f].bottom, all_fvgs[k].bottom);
-
-            if(overlap_top > overlap_btm) // Valid Overlap Range!
-            {
-               datetime conf_start = MathMax(all_fvgs[f].time, all_fvgs[k].invert_time);
-               string conf_id = OBJ_PREFIX + "CONF_" + all_fvgs[f].id + "_" + all_fvgs[k].id;
-
-               // Draw Confluence Highlight Box
-               ObjectCreate(0, conf_id, OBJ_RECTANGLE, 0, conf_start, overlap_top, current_t, overlap_btm);
-               ObjectSetInteger(0, conf_id, OBJPROP_COLOR, InpColorConfluence);
-               ObjectSetInteger(0, conf_id, OBJPROP_STYLE, STYLE_SOLID);
-               ObjectSetInteger(0, conf_id, OBJPROP_WIDTH, 2);
-               ObjectSetInteger(0, conf_id, OBJPROP_BACK, false); // Front overlay
-               ObjectSetInteger(0, conf_id, OBJPROP_FILL, false);
-
-               // Prominent Star Label
-               string conf_lbl = OBJ_PREFIX + "TXT_CONF_" + conf_id;
-               ObjectCreate(0, conf_lbl, OBJ_TEXT, 0, current_t, (overlap_top + overlap_btm) / 2.0);
-               ObjectSetString(0, conf_lbl, OBJPROP_TEXT, " ★ [CONFLUENCE: FVG + iFVG ZONE] ★");
-               ObjectSetInteger(0, conf_lbl, OBJPROP_COLOR, InpColorConfluence);
-               ObjectSetInteger(0, conf_lbl, OBJPROP_FONTSIZE, 9);
-               ObjectSetInteger(0, conf_lbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
-            }
-         }
-      }
+   // 7. Render Current Inside Zone (if any)
+   if(ArraySize(inside_zones) > 0)
+   {
+      // Pick the most recent / highest priority inside zone
+      DrawZoneObject(inside_zones[0], "⚡ [CURRENT INSIDE ZONE] ", current_t, true);
    }
 
    ChartRedraw();
+}
+
+void SortZonesByProximity(CandidateZone &arr[])
+{
+   int n = ArraySize(arr);
+   for(int i = 0; i < n - 1; i++)
+   {
+      for(int j = 0; j < n - i - 1; j++)
+      {
+         if(arr[j].distance_to_price > arr[j + 1].distance_to_price)
+         {
+            CandidateZone temp = arr[j];
+            arr[j] = arr[j + 1];
+            arr[j + 1] = temp;
+         }
+      }
+   }
+}
+
+void DrawZoneObject(const CandidateZone &zone, string rank_tag, datetime current_t, bool is_current_inside)
+{
+   datetime end_t = current_t;
+   string box_id = OBJ_PREFIX + "BOX_" + zone.id;
+
+   ObjectCreate(0, box_id, OBJ_RECTANGLE, 0, zone.start_time, zone.top, end_t, zone.bottom);
+   ObjectSetInteger(0, box_id, OBJPROP_COLOR, is_current_inside ? InpColorInsideZone : zone.box_color);
+   ObjectSetInteger(0, box_id, OBJPROP_STYLE, is_current_inside ? STYLE_SOLID : (zone.is_mitigated ? STYLE_DASH : STYLE_SOLID));
+   ObjectSetInteger(0, box_id, OBJPROP_WIDTH, is_current_inside ? 2 : ((zone.type == ZONE_COMBINED_CONFLUENCE || zone.has_counter_fvg) ? 2 : 1));
+   ObjectSetInteger(0, box_id, OBJPROP_BACK, true);
+   ObjectSetInteger(0, box_id, OBJPROP_FILL, true);
+
+   // CE 50% line for regular & combined
+   if(InpShowCE50 && zone.type != ZONE_INVERSION_FVG)
+   {
+      string ce_id = OBJ_PREFIX + "CE_" + zone.id;
+      ObjectCreate(0, ce_id, OBJ_TREND, 0, zone.start_time, zone.ce_price, end_t, zone.ce_price);
+      ObjectSetInteger(0, ce_id, OBJPROP_COLOR, InpColorCE);
+      ObjectSetInteger(0, ce_id, OBJPROP_STYLE, STYLE_DOT);
+      ObjectSetInteger(0, ce_id, OBJPROP_RAY_RIGHT, false);
+   }
+
+   // Label
+   string lbl_id = OBJ_PREFIX + "LBL_" + zone.id;
+   string full_text = rank_tag + zone.display_label;
+
+   ObjectCreate(0, lbl_id, OBJ_TEXT, 0, end_t, (zone.top + zone.bottom) / 2.0);
+   ObjectSetString(0, lbl_id, OBJPROP_TEXT, full_text);
+   ObjectSetInteger(0, lbl_id, OBJPROP_COLOR, is_current_inside ? InpColorInsideZone : zone.box_color);
+   ObjectSetInteger(0, lbl_id, OBJPROP_FONTSIZE, is_current_inside ? 9 : 8);
+   ObjectSetInteger(0, lbl_id, OBJPROP_ANCHOR, ANCHOR_LEFT);
 }
