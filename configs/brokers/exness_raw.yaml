@@ -1,0 +1,12 @@
+broker_name: "Exness_Raw"
+canonical_symbol: "XAUUSD"
+broker_symbol: "XAUUSD.u"
+digits: 3
+point: 0.001
+contract_size: 100.0
+min_lot: 0.01
+max_lot: 200.0
+lot_step: 0.01
+lot_decimals: 2
+tick_size: 0.001
+tick_value: 0.1
