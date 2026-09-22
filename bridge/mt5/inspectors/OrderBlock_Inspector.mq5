@@ -5,21 +5,25 @@
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.10"
-#property description "Master Institutional Inspector: Reversal OB (DBR/RBD), Continuation S&D (RBR/DBD with Leg-In/Base/Leg-Out rules), and Breaker Blocks"
+#property version   "2.20"
+#property description "Master Institutional Inspector: Reversal OB (DBR/RBD), Continuation S&D (RBR/DBD), Smart Confluence Clustering, and Two-Tier Data Lake Integration"
 
 //--- Inputs
+input group "=== Architecture V2 Data Lake Integration (Solusi A) ==="
+input bool     InpUseEngineSnapshot    = true;              // Solusi A: Load from Python Two-Tier Data Lake Snapshot
+input string   InpSnapshotFile         = "live_snapshot_xauusd.json"; // Shared Snapshot File Name
+
 input group "=== Category Display Switches ==="
 input bool     InpShowReversalOB       = true;              // Show Reversal OB (+OB DBR / -OB RBD)
 input bool     InpShowContinuationSD   = true;              // Show Continuation S&D (+Demand RBR / -Supply DBD)
 input bool     InpShowBreakers         = false;             // Show Breaker Blocks (Optional - Default OFF)
 
-input group "=== Continuation S&D Quality Filters ==="
+input group "=== Continuation S&D Quality Filters (Local MT5 Mode) ==="
 input int      InpMaxBaseCandles       = 3;                 // Max Base Candles (Strict: 1 to 3)
 input double   InpMinImpulseRatio      = 1.5;               // Min Impulse Ratio (Leg-Out / Base Range >= 1.5x)
 
 input group "=== Proximity & Display Settings ==="
-input int      InpMaxBars              = 1000;              // Max Bars to Analyze (Default 1000 for deep roof/floor search)
+input int      InpMaxBars              = 1000;              // Max Bars to Analyze (Fallback Local Mode)
 input int      InpMaxZonesAbove        = 2;                 // Max Nearest Zones Above Price (Roofs)
 input int      InpMaxZonesBelow        = 2;                 // Max Nearest Zones Below Price (Floors)
 input bool     InpShowMeanThreshold    = true;              // Draw 50% Mean Threshold (MT) Line
@@ -82,6 +86,7 @@ int OnInit()
 {
    CleanObjects();
    RedrawZones();
+   EventSetMillisecondTimer(500); // Poll snapshot every 500ms
    return(INIT_SUCCEEDED);
 }
 
@@ -90,6 +95,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   EventKillTimer();
    CleanObjects();
    ChartRedraw();
 }
@@ -97,6 +103,14 @@ void OnDeinit(const int reason)
 void CleanObjects()
 {
    ObjectsDeleteAll(0, OBJ_PREFIX);
+}
+
+void OnTimer()
+{
+   if(InpUseEngineSnapshot)
+   {
+      RedrawZones();
+   }
 }
 
 void OnTick()
@@ -110,10 +124,160 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
+//| JSON Value Extraction Helpers                                    |
+//+------------------------------------------------------------------+
+double ExtractJsonDouble(const string &json_chunk, const string &key)
+{
+   int pos = StringFind(json_chunk, key);
+   if(pos < 0) return 0.0;
+   pos += StringLen(key);
+   while(pos < StringLen(json_chunk))
+   {
+      ushort ch = StringGetCharacter(json_chunk, pos);
+      if(ch == ' ' || ch == ':' || ch == '\t') pos++;
+      else break;
+   }
+   int end_pos = pos;
+   while(end_pos < StringLen(json_chunk))
+   {
+      ushort ch = StringGetCharacter(json_chunk, end_pos);
+      if((ch >= '0' && ch <= '9') || ch == '.' || ch == '-') end_pos++;
+      else break;
+   }
+   if(end_pos > pos)
+   {
+      return StringToDouble(StringSubstr(json_chunk, pos, end_pos - pos));
+   }
+   return 0.0;
+}
+
+string ExtractJsonString(const string &json_chunk, const string &key)
+{
+   int pos = StringFind(json_chunk, key);
+   if(pos < 0) return "";
+   int q1 = StringFind(json_chunk, "\"", pos + StringLen(key));
+   if(q1 < 0) return "";
+   int q2 = StringFind(json_chunk, "\"", q1 + 1);
+   if(q2 < 0) return "";
+   return StringSubstr(json_chunk, q1 + 1, q2 - q1 - 1);
+}
+
+//+------------------------------------------------------------------+
+//| Solusi A: Load Snapshot from Two-Tier Data Lake Cache            |
+//+------------------------------------------------------------------+
+bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count)
+{
+   string filename = InpSnapshotFile;
+   int handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_SHARE_READ);
+   if(handle == INVALID_HANDLE)
+   {
+      handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_SHARE_READ | FILE_COMMON);
+   }
+   if(handle == INVALID_HANDLE) return false;
+
+   string json = "";
+   while(!FileIsEnding(handle))
+   {
+      json += FileReadString(handle);
+   }
+   FileClose(handle);
+
+   if(StringLen(json) < 20) return false;
+
+   int obs_start = StringFind(json, "\"active_obs\":");
+   if(obs_start < 0) return false;
+
+   int array_start = StringFind(json, "[", obs_start);
+   if(array_start < 0) return false;
+
+   int current_pos = array_start + 1;
+   zone_count = 0;
+   ArrayResize(zones, 0);
+
+   while(true)
+   {
+      int obj_open = StringFind(json, "{", current_pos);
+      if(obj_open < 0) break;
+      int obj_close = StringFind(json, "}", obj_open);
+      if(obj_close < 0) break;
+
+      string obj_str = StringSubstr(json, obj_open, obj_close - obj_open + 1);
+      current_pos = obj_close + 1;
+
+      ZoneItem z;
+      z.id = ExtractJsonString(obj_str, "\"id\":");
+      z.is_breaker = false;
+      z.is_fully_used = false;
+      z.distance = 0.0;
+      z.bar_index = 0;
+      z.time = TimeCurrent();
+      z.base_count = 1;
+      z.impulse_ratio = 1.5;
+
+      z.is_bullish = (StringFind(obj_str, "\"direction\": \"BUY\"") >= 0 || StringFind(obj_str, "\"direction\":\"BUY\"") >= 0);
+
+      z.top = ExtractJsonDouble(obj_str, "\"top\":");
+      z.bottom = ExtractJsonDouble(obj_str, "\"bottom\":");
+      z.mean_threshold = ExtractJsonDouble(obj_str, "\"mean_threshold\":");
+      if(z.mean_threshold == 0.0 && z.top > z.bottom) z.mean_threshold = (z.top + z.bottom) / 2.0;
+
+      z.is_confluence = (StringFind(obj_str, "\"is_confluence\": true") >= 0 || StringFind(obj_str, "\"is_confluence\":true") >= 0);
+      z.confluence_desc = ExtractJsonString(obj_str, "\"confluence_desc\":");
+
+      string ob_type_str = ExtractJsonString(obj_str, "\"ob_type\":");
+      if(ob_type_str == "REVERSAL_DBR") z.kind = ZONE_REVERSAL_DBR;
+      else if(ob_type_str == "REVERSAL_RBD") z.kind = ZONE_REVERSAL_RBD;
+      else if(ob_type_str == "CONTINUATION_RBR") z.kind = ZONE_CONTINUATION_RBR;
+      else if(ob_type_str == "CONTINUATION_DBD") z.kind = ZONE_CONTINUATION_DBD;
+      else z.kind = z.is_bullish ? ZONE_REVERSAL_DBR : ZONE_REVERSAL_RBD;
+
+      z.touch_count = (int)ExtractJsonDouble(obj_str, "\"touch_count\":");
+      z.deepest_touch_price = ExtractJsonDouble(obj_str, "\"deepest_touch_price\":");
+      z.is_mitigated = (StringFind(obj_str, "\"is_mitigated\": true") >= 0 || StringFind(obj_str, "\"is_mitigated\":true") >= 0);
+      z.has_swept_liq = (StringFind(obj_str, "\"has_swept_liquidity\": true") >= 0 || StringFind(obj_str, "\"has_swept_liquidity\":true") >= 0);
+
+      if(z.top > z.bottom)
+      {
+         ArrayResize(zones, zone_count + 1);
+         zones[zone_count] = z;
+         zone_count++;
+      }
+
+      int next_bracket = StringFind(json, "]", obj_close);
+      int next_brace = StringFind(json, "{", current_pos);
+      if(next_bracket >= 0 && (next_brace < 0 || next_bracket < next_brace))
+      {
+         break;
+      }
+   }
+
+   return (zone_count > 0);
+}
+
+//+------------------------------------------------------------------+
 //| Core Detection Engine                                            |
 //+------------------------------------------------------------------+
 void RedrawZones()
 {
+   datetime current_candle_time = iTime(_Symbol, _Period, 0);
+   double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(current_price <= 0.0) current_price = iClose(_Symbol, _Period, 0);
+
+   // SOLUSI A: Cek apakah snapshot dari Python Two-Tier Data Lake tersedia
+   if(InpUseEngineSnapshot)
+   {
+      ZoneItem snapshot_zones[];
+      int snap_count = 0;
+      if(LoadSnapshotFromDisk(snapshot_zones, snap_count))
+      {
+         CleanObjects();
+         ProcessAndRenderCandidates(snapshot_zones, snap_count, current_price, current_candle_time, "[DataLake]");
+         ChartRedraw();
+         return;
+      }
+   }
+
+   // FALLBACK: Local MT5 Chart Scanning Mode
    CleanObjects();
 
    int total_bars = iBars(_Symbol, _Period);
@@ -124,8 +288,8 @@ void RedrawZones()
    ArraySetAsSeries(rates, true);
    if(CopyRates(_Symbol, _Period, 0, bars_to_check, rates) < bars_to_check) return;
 
-   datetime current_candle_time = rates[0].time;
-   double current_price = rates[0].close;
+   current_candle_time = rates[0].time;
+   current_price = rates[0].close;
 
    ZoneItem raw_zones[];
    int raw_count = 0;
@@ -158,7 +322,6 @@ void RedrawZones()
 
       if(origin_idx >= bars_to_check - 2 || origin_idx < 1) continue;
 
-      // Avoid duplicates
       bool dup = false;
       for(int d = 0; d < raw_count; d++)
       {
@@ -166,14 +329,13 @@ void RedrawZones()
       }
       if(dup) continue;
 
-      // 2. Base Anatomy: Count boring candles (up to InpMaxBaseCandles)
       int base_count = 1;
       double base_high = rates[origin_idx].high;
       double base_low  = rates[origin_idx].low;
 
       for(int b = 1; b < InpMaxBaseCandles; b++)
       {
-         int check_b = origin_idx + b; // In reverse series, +b goes backward in time
+         int check_b = origin_idx + b;
          if(check_b >= bars_to_check - 1) break;
 
          double b_range = rates[check_b].high - rates[check_b].low;
@@ -187,13 +349,11 @@ void RedrawZones()
          else break;
       }
 
-      // 3. Leg-Out Impulse Ratio
       int leg_out_idx = i + 1;
       double leg_out_range = rates[leg_out_idx].high - rates[leg_out_idx].low;
       double base_range = MathMax(base_high - base_low, _Point * 10);
       double imp_ratio = leg_out_range / base_range;
 
-      // 4. Leg-In Analysis (Candle before base)
       int prior_idx = origin_idx + base_count;
       if(prior_idx >= bars_to_check) continue;
 
@@ -225,14 +385,12 @@ void RedrawZones()
 
          if(is_prior_down)
          {
-            // Drop-Base-Rally (Reversal OB)
             zone.kind = ZONE_REVERSAL_DBR;
             zone.id = "OB_DBR_" + IntegerToString(origin_idx);
          }
          else
          {
-            // Rally-Base-Rally (Continuation Demand)
-            if(base_count > InpMaxBaseCandles || imp_ratio < InpMinImpulseRatio) continue; // Strict filter
+            if(base_count > InpMaxBaseCandles || imp_ratio < InpMinImpulseRatio) continue;
             zone.kind = ZONE_CONTINUATION_RBR;
             zone.id = "SD_RBR_" + IntegerToString(origin_idx);
          }
@@ -244,45 +402,39 @@ void RedrawZones()
 
          if(is_prior_up)
          {
-            // Rally-Base-Drop (Reversal OB)
             zone.kind = ZONE_REVERSAL_RBD;
             zone.id = "OB_RBD_" + IntegerToString(origin_idx);
          }
          else
          {
-            // Drop-Base-Drop (Continuation Supply)
-            if(base_count > InpMaxBaseCandles || imp_ratio < InpMinImpulseRatio) continue; // Strict filter
+            if(base_count > InpMaxBaseCandles || imp_ratio < InpMinImpulseRatio) continue;
             zone.kind = ZONE_CONTINUATION_DBD;
             zone.id = "SD_DBD_" + IntegerToString(origin_idx);
          }
       }
 
-      // 5. Track Lifecycle down to bar 0
       for(int k = origin_idx - 1; k >= 0; k--)
       {
          bool is_closed_bar = (k >= 1);
 
          if(zone.is_bullish && !zone.is_breaker)
          {
-            // Touch test
             if(rates[k].low <= zone.top && rates[k].high >= zone.bottom)
             {
                zone.is_touched = true;
                if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].low; }
                else if(rates[k].low < zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].low; }
             }
-            // Retested / Mitigated: candle closed inside zone (zone is tested but STILL VALID floor)
             if(is_closed_bar && rates[k].close <= zone.top && rates[k].close >= zone.bottom)
             {
                zone.is_mitigated = true;
             }
-            // Invalidation: candle body closed BELOW bottom (floor broken!)
             if(is_closed_bar && rates[k].close < zone.bottom)
             {
                if(InpShowBreakers)
                {
                   zone.is_breaker = true;
-                  zone.is_bullish = false; // Flipped to Bearish Resistance
+                  zone.is_bullish = false;
                   zone.kind = ZONE_BREAKER_BEARISH;
                   zone.breaker_time = rates[k].time;
                   zone.is_mitigated = false;
@@ -292,31 +444,28 @@ void RedrawZones()
                }
                else
                {
-                  zone.is_fully_used = true; // Floor officially broken / removed
+                  zone.is_fully_used = true;
                }
             }
          }
          else if(!zone.is_bullish && !zone.is_breaker)
          {
-            // Bearish Touch test
             if(rates[k].high >= zone.bottom && rates[k].low <= zone.top)
             {
                zone.is_touched = true;
                if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].high; }
                else if(rates[k].high > zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].high; }
             }
-            // Retested / Mitigated: candle closed inside zone (zone is tested but STILL VALID roof)
             if(is_closed_bar && rates[k].close >= zone.bottom && rates[k].close <= zone.top)
             {
                zone.is_mitigated = true;
             }
-            // Invalidation: candle body closed ABOVE top (roof broken!)
             if(is_closed_bar && rates[k].close > zone.top)
             {
                if(InpShowBreakers)
                {
                   zone.is_breaker = true;
-                  zone.is_bullish = true; // Flipped to Bullish Support
+                  zone.is_bullish = true;
                   zone.kind = ZONE_BREAKER_BULLISH;
                   zone.breaker_time = rates[k].time;
                   zone.is_mitigated = false;
@@ -326,13 +475,12 @@ void RedrawZones()
                }
                else
                {
-                  zone.is_fully_used = true; // Roof officially broken / removed
+                  zone.is_fully_used = true;
                }
             }
          }
          else if(zone.is_breaker)
          {
-            // Retest on Breaker
             if(zone.is_bullish)
             {
                if(rates[k].low <= zone.top && rates[k].high >= zone.bottom)
@@ -341,7 +489,7 @@ void RedrawZones()
                   if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].low; }
                   else if(rates[k].low < zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].low; }
                }
-               if(is_closed_bar && rates[k].close < zone.bottom) zone.is_fully_used = true; // Breaker broken
+               if(is_closed_bar && rates[k].close < zone.bottom) zone.is_fully_used = true;
             }
             else
             {
@@ -351,7 +499,7 @@ void RedrawZones()
                   if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].high; }
                   else if(rates[k].high > zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].high; }
                }
-               if(is_closed_bar && rates[k].close > zone.top) zone.is_fully_used = true; // Breaker broken
+               if(is_closed_bar && rates[k].close > zone.top) zone.is_fully_used = true;
             }
          }
       }
@@ -363,7 +511,6 @@ void RedrawZones()
       raw_count++;
    }
 
-   // 6. Filter candidate active zones by Category Switches & Liveness
    ZoneItem candidates[];
    int cand_count = 0;
 
@@ -389,8 +536,7 @@ void RedrawZones()
       cand_count++;
    }
 
-   // 7. SMART CONFLUENCE CLUSTER MERGING (Option 1)
-   // Iteratively merge overlapping zones of the same side (both Demand/Support or both Supply/Resistance)
+   // SMART CONFLUENCE CLUSTER MERGING
    bool merged_any = true;
    while(merged_any && cand_count > 1)
    {
@@ -406,7 +552,6 @@ void RedrawZones()
 
             if(overlap_top > overlap_btm)
             {
-               // Overlap found! Merge b into a
                candidates[a].top = MathMax(candidates[a].top, candidates[b].top);
                candidates[a].bottom = MathMin(candidates[a].bottom, candidates[b].bottom);
                candidates[a].mean_threshold = (candidates[a].top + candidates[a].bottom) / 2.0;
@@ -450,7 +595,6 @@ void RedrawZones()
                }
                candidates[a].is_mitigated = candidates[a].is_mitigated || candidates[b].is_mitigated;
 
-               // Remove element b
                for(int r = b; r < cand_count - 1; r++)
                {
                   candidates[r] = candidates[r + 1];
@@ -466,7 +610,15 @@ void RedrawZones()
       }
    }
 
-   // 8. Proximity Sorting on Distinct Consolidated Zones
+   ProcessAndRenderCandidates(candidates, cand_count, current_price, current_candle_time, "[Local]");
+   ChartRedraw();
+}
+
+//+------------------------------------------------------------------+
+//| Proximity Sorter & Zone Drawer                                   |
+//+------------------------------------------------------------------+
+void ProcessAndRenderCandidates(ZoneItem &candidates[], int cand_count, double current_price, datetime current_candle_time, string source_tag)
+{
    int above_indices[];
    double above_dists[];
    int above_count = 0;
@@ -485,7 +637,7 @@ void RedrawZones()
       if(is_inside)
       {
          inside_idx = m;
-         continue; // Protected as inside zone
+         continue;
       }
 
       if(candidates[m].bottom > current_price)
@@ -508,7 +660,6 @@ void RedrawZones()
       }
    }
 
-   // Sort Above candidates by ascending distance
    for(int a = 0; a < above_count - 1; a++)
    {
       for(int b = a + 1; b < above_count; b++)
@@ -521,7 +672,6 @@ void RedrawZones()
       }
    }
 
-   // Sort Below candidates by ascending distance
    for(int a = 0; a < below_count - 1; a++)
    {
       for(int b = a + 1; b < below_count; b++)
@@ -534,7 +684,6 @@ void RedrawZones()
       }
    }
 
-   // 9. Draw Rendered Zones (Consolidated & Anti-Flicker)
    if(inside_idx >= 0)
    {
       DrawZone(candidates[inside_idx], current_candle_time, "⚡ [CURRENT INSIDE ZONE]");
@@ -543,16 +692,14 @@ void RedrawZones()
    int render_above = MathMin(InpMaxZonesAbove, above_count);
    for(int a = 0; a < render_above; a++)
    {
-      DrawZone(candidates[above_indices[a]], current_candle_time, "[Above #" + IntegerToString(a + 1) + "]");
+      DrawZone(candidates[above_indices[a]], current_candle_time, source_tag + " [Above #" + IntegerToString(a + 1) + "]");
    }
 
    int render_below = MathMin(InpMaxZonesBelow, below_count);
    for(int b = 0; b < render_below; b++)
    {
-      DrawZone(candidates[below_indices[b]], current_candle_time, "[Below #" + IntegerToString(b + 1) + "]");
+      DrawZone(candidates[below_indices[b]], current_candle_time, source_tag + " [Below #" + IntegerToString(b + 1) + "]");
    }
-
-   ChartRedraw();
 }
 
 //+------------------------------------------------------------------+
@@ -560,7 +707,7 @@ void RedrawZones()
 //+------------------------------------------------------------------+
 void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
 {
-   string id_str = IntegerToString(zone.time) + "_" + IntegerToString(zone.bar_index);
+   string id_str = IntegerToString(zone.time) + "_" + IntegerToString(zone.bar_index) + "_" + DoubleToString(zone.bottom, 2);
    string rect_name = OBJ_PREFIX + "BOX_" + id_str;
    string mt_line_name = OBJ_PREFIX + "MT_" + id_str;
    string text_name = OBJ_PREFIX + "LBL_" + id_str;
@@ -609,7 +756,7 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    }
 
    datetime start_time = zone.is_breaker ? zone.breaker_time : zone.time;
-   if(start_time == 0) start_time = zone.time;
+   if(start_time == 0) start_time = current_time - 3600 * 4; // Default span if time is 0
 
    // 1. Rectangle Box
    ObjectCreate(0, rect_name, OBJ_RECTANGLE, 0, start_time, zone.top, current_time, zone.bottom);

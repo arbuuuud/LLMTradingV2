@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import json
+import logging
 import numpy as np
 
 from src.core.types import (
@@ -54,6 +55,7 @@ class LiveDataFeedGenerator:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.swing_window = swing_window
         self.max_buffer_size = max_buffer_size
+        self.logger = logging.getLogger("LiveDataFeedGenerator")
 
         # In-memory bar rolling buffers
         self.timestamps: List[datetime] = []
@@ -78,6 +80,43 @@ class LiveDataFeedGenerator:
             self._append_bar_to_buffer(bar)
         if len(self.closes) >= self.swing_window * 2 + 1:
             self._compute_snapshot(self.closes[-1], self.closes[-1], 0.1)
+
+    def load_from_data_lake(
+        self,
+        parquet_path: Optional[Union[str, Path]] = None,
+        max_bars: int = 3000
+    ) -> bool:
+        """
+        Loads Priority 0 base cold historical data from Two-Tier Data Lake (parquet)
+        to initialize the rolling buffer, structure, and POIs.
+        """
+        path = Path(parquet_path) if parquet_path else Path("data/parquet/XAUUSD/M1/XAUUSD_M1.parquet")
+        if not path.exists():
+            return False
+
+        try:
+            import polars as pl
+            df = pl.read_parquet(path)
+            if df.is_empty():
+                return False
+            df_subset = df.tail(max_bars)
+            bars = []
+            for row in df_subset.iter_rows(named=True):
+                bars.append({
+                    "timestamp": row["timestamp"].isoformat() if hasattr(row["timestamp"], "isoformat") else str(row["timestamp"]),
+                    "open": float(row["open"]),
+                    "high": float(row["high"]),
+                    "low": float(row["low"]),
+                    "close": float(row["close"]),
+                    "volume": float(row.get("tick_volume", 0.0))
+                })
+            self.seed_historical_bars(bars)
+            if self.last_snapshot:
+                self._save_snapshot_to_cache(self.last_snapshot)
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to load base historical data from {path}: {e}")
+            return False
 
     def _append_bar_to_buffer(self, bar: Dict[str, Any]):
         t = bar["timestamp"]

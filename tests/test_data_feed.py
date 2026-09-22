@@ -45,3 +45,19 @@ def test_live_data_feed_generator(tmp_path):
     loaded_snapshot = MarketStateSnapshot.model_validate(data)
     assert loaded_snapshot.symbol == "XAUUSD"
     assert loaded_snapshot.timeframe == "M1"
+
+
+def test_load_from_data_lake(tmp_path):
+    generator = LiveDataFeedGenerator(
+        canonical_symbol="XAUUSD",
+        timeframe="M1",
+        cache_dir=str(tmp_path),
+        max_buffer_size=100
+    )
+    parquet_path = Path("data/parquet/XAUUSD/M1/XAUUSD_M1.parquet")
+    if parquet_path.exists():
+        success = generator.load_from_data_lake(parquet_path=parquet_path, max_bars=50)
+        assert success is True
+        assert len(generator.closes) == 50
+        assert generator.last_snapshot is not None
+        assert (tmp_path / "live_snapshot_xauusd.json").exists()
