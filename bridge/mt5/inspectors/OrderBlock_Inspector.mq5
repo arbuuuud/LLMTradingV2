@@ -78,6 +78,95 @@ struct ZoneItem
 };
 
 datetime g_last_bar_time = 0;
+datetime g_last_file_mtime = 0;
+string   g_active_object_names[];
+int      g_active_object_count = 0;
+
+void RegisterActiveObjectName(const string &name)
+{
+   ArrayResize(g_active_object_names, g_active_object_count + 1);
+   g_active_object_names[g_active_object_count] = name;
+   g_active_object_count++;
+}
+
+void PurgeOrphanedObjects()
+{
+   int total = ObjectsTotal(0, 0, -1);
+   for(int i = total - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, -1);
+      if(StringFind(name, OBJ_PREFIX) == 0)
+      {
+         bool is_active = false;
+         for(int j = 0; j < g_active_object_count; j++)
+         {
+            if(g_active_object_names[j] == name) { is_active = true; break; }
+         }
+         if(!is_active)
+         {
+            ObjectDelete(0, name);
+         }
+      }
+   }
+}
+
+// Anti-Flicker Object Updaters (In-Place Coordinate & Property Updates)
+void UpdateOrCreateRect(string name, datetime t1, double p1, datetime t2, double p2, color clr, int style, int width)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_RECTANGLE, 0, t1, p1, t2, p2);
+   }
+   else
+   {
+      ObjectSetInteger(0, name, OBJPROP_TIME, 0, t1);
+      ObjectSetDouble(0, name, OBJPROP_PRICE, 0, p1);
+      ObjectSetInteger(0, name, OBJPROP_TIME, 1, t2);
+      ObjectSetDouble(0, name, OBJPROP_PRICE, 1, p2);
+   }
+   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+   ObjectSetInteger(0, name, OBJPROP_STYLE, style);
+   ObjectSetInteger(0, name, OBJPROP_WIDTH, width);
+   ObjectSetInteger(0, name, OBJPROP_BACK, true);
+   ObjectSetInteger(0, name, OBJPROP_FILL, true);
+}
+
+void UpdateOrCreateLine(string name, datetime t1, double p, datetime t2, color clr, int style, int width)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_TREND, 0, t1, p, t2, p);
+   }
+   else
+   {
+      ObjectSetInteger(0, name, OBJPROP_TIME, 0, t1);
+      ObjectSetDouble(0, name, OBJPROP_PRICE, 0, p);
+      ObjectSetInteger(0, name, OBJPROP_TIME, 1, t2);
+      ObjectSetDouble(0, name, OBJPROP_PRICE, 1, p);
+   }
+   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+   ObjectSetInteger(0, name, OBJPROP_STYLE, style);
+   ObjectSetInteger(0, name, OBJPROP_WIDTH, width);
+   ObjectSetInteger(0, name, OBJPROP_RAY_RIGHT, false);
+   ObjectSetInteger(0, name, OBJPROP_BACK, false);
+}
+
+void UpdateOrCreateText(string name, datetime t, double p, string text, color clr, int font_size, int anchor)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_TEXT, 0, t, p);
+   }
+   else
+   {
+      ObjectSetInteger(0, name, OBJPROP_TIME, 0, t);
+      ObjectSetDouble(0, name, OBJPROP_PRICE, 0, p);
+   }
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, font_size);
+   ObjectSetInteger(0, name, OBJPROP_ANCHOR, anchor);
+}
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -86,7 +175,7 @@ int OnInit()
 {
    CleanObjects();
    RedrawZones();
-   EventSetMillisecondTimer(500); // Poll snapshot every 500ms
+   EventSetTimer(1); // 1-second check (zero flicker)
    return(INIT_SUCCEEDED);
 }
 
@@ -103,14 +192,26 @@ void OnDeinit(const int reason)
 void CleanObjects()
 {
    ObjectsDeleteAll(0, OBJ_PREFIX);
+   g_active_object_count = 0;
+   ArrayResize(g_active_object_names, 0);
 }
 
 void OnTimer()
 {
-   if(InpUseEngineSnapshot)
+   if(!InpUseEngineSnapshot) return;
+
+   datetime file_mtime = (datetime)FileGetInteger(InpSnapshotFile, FILE_MODIFY_DATE, false);
+   if(file_mtime == 0)
+      file_mtime = (datetime)FileGetInteger(InpSnapshotFile, FILE_MODIFY_DATE, true);
+
+   // Only redraw if the snapshot file timestamp has actually updated!
+   if(file_mtime != 0 && file_mtime == g_last_file_mtime)
    {
-      RedrawZones();
+      return; // Snapshot hasn't changed, DO NOTHING! Zero flicker!
    }
+
+   g_last_file_mtime = file_mtime;
+   RedrawZones();
 }
 
 void OnTick()
@@ -270,7 +371,6 @@ void RedrawZones()
       int snap_count = 0;
       if(LoadSnapshotFromDisk(snapshot_zones, snap_count))
       {
-         CleanObjects();
          ProcessAndRenderCandidates(snapshot_zones, snap_count, current_price, current_candle_time, "[DataLake]");
          ChartRedraw();
          return;
@@ -278,8 +378,6 @@ void RedrawZones()
    }
 
    // FALLBACK: Local MT5 Chart Scanning Mode
-   CleanObjects();
-
    int total_bars = iBars(_Symbol, _Period);
    int bars_to_check = MathMin(InpMaxBars, total_bars - 5);
    if(bars_to_check < 6) return;
@@ -684,6 +782,9 @@ void ProcessAndRenderCandidates(ZoneItem &candidates[], int cand_count, double c
       }
    }
 
+   g_active_object_count = 0;
+   ArrayResize(g_active_object_names, 0);
+
    if(inside_idx >= 0)
    {
       DrawZone(candidates[inside_idx], current_candle_time, "⚡ [CURRENT INSIDE ZONE]");
@@ -700,6 +801,8 @@ void ProcessAndRenderCandidates(ZoneItem &candidates[], int cand_count, double c
    {
       DrawZone(candidates[below_indices[b]], current_candle_time, source_tag + " [Below #" + IntegerToString(b + 1) + "]");
    }
+
+   PurgeOrphanedObjects();
 }
 
 //+------------------------------------------------------------------+
@@ -756,28 +859,23 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    }
 
    datetime start_time = zone.is_breaker ? zone.breaker_time : zone.time;
-   if(start_time == 0) start_time = current_time - 3600 * 4; // Default span if time is 0
+   if(start_time == 0) start_time = current_time - 3600 * 4;
 
-   // 1. Rectangle Box
-   ObjectCreate(0, rect_name, OBJ_RECTANGLE, 0, start_time, zone.top, current_time, zone.bottom);
-   ObjectSetInteger(0, rect_name, OBJPROP_COLOR, zone.is_inside ? InpColorInside : zone_color);
-   ObjectSetInteger(0, rect_name, OBJPROP_STYLE, zone.is_inside ? STYLE_SOLID : (zone.is_mitigated ? STYLE_DASH : STYLE_SOLID));
-   ObjectSetInteger(0, rect_name, OBJPROP_WIDTH, zone.is_inside ? 2 : 1);
-   ObjectSetInteger(0, rect_name, OBJPROP_BACK, true);
-   ObjectSetInteger(0, rect_name, OBJPROP_FILL, true);
+   // 1. In-Place Update Rectangle Box (Zero Flicker)
+   RegisterActiveObjectName(rect_name);
+   int rect_style = zone.is_inside ? STYLE_SOLID : (zone.is_mitigated ? STYLE_DASH : STYLE_SOLID);
+   int rect_width = zone.is_inside ? 2 : 1;
+   color rect_color = zone.is_inside ? InpColorInside : zone_color;
+   UpdateOrCreateRect(rect_name, start_time, zone.top, current_time, zone.bottom, rect_color, rect_style, rect_width);
 
-   // 2. Mean Threshold (50% MT) Line
+   // 2. In-Place Update Mean Threshold (50% MT) Line
    if(InpShowMeanThreshold)
    {
-      ObjectCreate(0, mt_line_name, OBJ_TREND, 0, start_time, zone.mean_threshold, current_time, zone.mean_threshold);
-      ObjectSetInteger(0, mt_line_name, OBJPROP_COLOR, zone_color);
-      ObjectSetInteger(0, mt_line_name, OBJPROP_STYLE, STYLE_DOT);
-      ObjectSetInteger(0, mt_line_name, OBJPROP_WIDTH, 1);
-      ObjectSetInteger(0, mt_line_name, OBJPROP_RAY_RIGHT, false);
-      ObjectSetInteger(0, mt_line_name, OBJPROP_BACK, false);
+      RegisterActiveObjectName(mt_line_name);
+      UpdateOrCreateLine(mt_line_name, start_time, zone.mean_threshold, current_time, zone_color, STYLE_DOT, 1);
    }
 
-   // 3. Informative Tag Label
+   // 3. In-Place Update Informative Tag Label
    string label = prefix_tag + " " + badge;
 
    if(!zone.is_confluence && (zone.kind == ZONE_CONTINUATION_RBR || zone.kind == ZONE_CONTINUATION_DBD))
@@ -802,10 +900,8 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
 
    label += " MT:" + DoubleToString(zone.mean_threshold, _Digits);
 
-   ObjectCreate(0, text_name, OBJ_TEXT, 0, current_time, zone.mean_threshold);
-   ObjectSetString(0, text_name, OBJPROP_TEXT, label);
-   ObjectSetInteger(0, text_name, OBJPROP_COLOR, zone.is_inside ? InpColorInside : zone_color);
-   ObjectSetInteger(0, text_name, OBJPROP_FONTSIZE, 8);
-   ObjectSetInteger(0, text_name, OBJPROP_ANCHOR, ANCHOR_RIGHT_LOWER);
+   RegisterActiveObjectName(text_name);
+   color text_color = zone.is_inside ? InpColorInside : zone_color;
+   UpdateOrCreateText(text_name, current_time, zone.mean_threshold, label, text_color, 8, ANCHOR_RIGHT_LOWER);
 }
 //+------------------------------------------------------------------+
