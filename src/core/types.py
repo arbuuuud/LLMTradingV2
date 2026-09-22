@@ -60,7 +60,8 @@ class FairValueGap(BaseModel):
     timestamp: datetime
     bar_index: int
     is_inversion: bool = False
-    is_mitigated: bool = False
+    is_mitigated: bool = False   # Body closed inside or through gap
+    is_fully_used: bool = False  # Orders 100% consumed by wick/body (swept to opposite boundary)
     tested_count: int = 0
 
 
@@ -75,7 +76,8 @@ class InversionFVG(BaseModel):
     invert_time: datetime
     breached_with_counter_fvg: bool = False
     counter_fvg_id: Optional[str] = None
-    is_mitigated: bool = False
+    is_mitigated: bool = False   # Body closed inside or through gap
+    is_fully_used: bool = False  # Orders 100% consumed by wick/body
     tested_count: int = 0
 
 

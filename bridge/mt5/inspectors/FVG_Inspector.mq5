@@ -1,19 +1,13 @@
 //+------------------------------------------------------------------+
 //|                                            FVG_Inspector.mq5     |
 //|  Nearest 2 Above, 2 Below + 1 Inside (STRICTLY UNMITIGATED ONLY) |
+//|        Distinguishes: Mitigated (Body Close) vs Fully Used (All) |
 //|                                  LLMTradingV2 Institutional V2   |
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.30"
-#property description "Displays ONLY the Nearest UNMITIGATED / FRESH Zones (FVG / iFVG / Combined): 2 Above, 2 Below, plus 1 Inside"
-
-enum ENUM_MITIGATION_MODE
-{
-   MITIGATION_ANY_TOUCH = 0,    // Any Touch (Tersentuh batas celah / Tap)
-   MITIGATION_CE_TOUCH  = 1,    // 50% Consequent Encroachment (CE) Touch
-   MITIGATION_FULL_FILL = 2     // Full Gap Fill (100% Tertutup Penuh)
-};
+#property version   "2.40"
+#property description "Displays ONLY Fresh Active Zones: Mitigated (Body Close) and Fully Used (Wick/Body 100% Orders Consumed) are strictly excluded"
 
 //--- Inputs
 input group "=== Proximity Display Settings ==="
@@ -23,9 +17,9 @@ input int                  InpMaxBars           = 500;                  // Max B
 input double               InpMinGapPoints      = 10.0;                 // Minimum Gap Size (Points)
 input bool                 InpExtendToCurrent   = true;                 // Extend Zones to Current Candle
 
-input group "=== Mitigation Filter Settings ==="
-input bool                 InpHideMitigated     = true;                 // HIDE Mitigated Zones (Auto-Scan Next Fresh)
-input ENUM_MITIGATION_MODE InpMitigationMode    = MITIGATION_ANY_TOUCH; // Mitigation Trigger Criteria
+input group "=== Strict Lifecycle Exclusion Filters ==="
+input bool                 InpExcludeMitigated  = true;                 // Exclude Mitigated (Candle Body Closed Inside)
+input bool                 InpExcludeFullyUsed  = true;                 // Exclude Fully Used (Wick/Body Consumed All Orders)
 
 input group "=== Regular FVG Colors ==="
 input color                InpColorBullFVG      = C'16,185,129';        // Bullish FVG Box Color (Emerald)
@@ -59,11 +53,13 @@ struct FVGNode
    double   ce_price;
    datetime time;
    int      bar_idx;
-   bool     is_mitigated;
+   bool     is_mitigated;   // Body closed inside or through gap
+   bool     is_fully_used;  // Wick or body took all orders to opposite boundary
    bool     is_inverted;
    datetime invert_time;
    int      invert_bar_idx;
    bool     is_ifvg_mitigated;
+   bool     is_ifvg_fully_used;
    bool     inverted_with_counter_fvg;
    string   counter_fvg_id;
 };
@@ -80,6 +76,7 @@ struct CandidateZone
    double   ce_price;
    datetime start_time;
    bool     is_mitigated;
+   bool     is_fully_used;
    bool     has_counter_fvg;
    double   distance_to_price;
 };
@@ -156,9 +153,11 @@ void RedrawFVGSystem()
       all_fvgs[sz].time          = gap_t;
       all_fvgs[sz].bar_idx       = i;
       all_fvgs[sz].is_mitigated  = false;
+      all_fvgs[sz].is_fully_used = false;
       all_fvgs[sz].is_inverted   = false;
       all_fvgs[sz].invert_bar_idx = -1;
       all_fvgs[sz].is_ifvg_mitigated = false;
+      all_fvgs[sz].is_ifvg_fully_used = false;
       all_fvgs[sz].inverted_with_counter_fvg = false;
       all_fvgs[sz].counter_fvg_id = "";
    }
@@ -166,35 +165,26 @@ void RedrawFVGSystem()
    int total_fvg_count = ArraySize(all_fvgs);
    if(total_fvg_count == 0) return;
 
-   // 2. Track Mitigation and Inversion status
+   // 2. Track Lifecycle: Mitigated (Body Close) vs Fully Used (All Orders Taken) vs Inverted
    for(int f = 0; f < total_fvg_count; f++)
    {
       int start_bar = all_fvgs[f].bar_idx - 1;
-
-      // Determine mitigation threshold level based on user input
-      double bull_mit_level = all_fvgs[f].top;
-      double bear_mit_level = all_fvgs[f].bottom;
-      if(InpMitigationMode == MITIGATION_CE_TOUCH)
-      {
-         bull_mit_level = all_fvgs[f].ce_price;
-         bear_mit_level = all_fvgs[f].ce_price;
-      }
-      else if(InpMitigationMode == MITIGATION_FULL_FILL)
-      {
-         bull_mit_level = all_fvgs[f].bottom;
-         bear_mit_level = all_fvgs[f].top;
-      }
 
       for(int k = start_bar; k >= 0; k--)
       {
          if(all_fvgs[f].is_bullish)
          {
-            // Check Mitigation of regular Bull FVG
-            if(!all_fvgs[f].is_inverted && rates[k].low <= bull_mit_level)
+            // Fully Used: Wick or body reached all the way to bottom (100% orders consumed)
+            if(rates[k].low <= all_fvgs[f].bottom)
+            {
+               all_fvgs[f].is_fully_used = true;
+            }
+            // Mitigated: Candle body closed inside the gap (close <= top)
+            if(rates[k].close <= all_fvgs[f].top)
             {
                all_fvgs[f].is_mitigated = true;
             }
-            // Check Breach (Inversion to Resistance)
+            // Breach: Candle body closed below bottom -> Inverted to Resistance
             if(!all_fvgs[f].is_inverted && rates[k].close < all_fvgs[f].bottom)
             {
                all_fvgs[f].is_inverted = true;
@@ -211,15 +201,14 @@ void RedrawFVGSystem()
                   }
                }
             }
-            // If already inverted, track subsequent mitigation of the iFVG resistance
+            // If already inverted to Resistance, track subsequent lifecycle:
             else if(all_fvgs[f].is_inverted && k < all_fvgs[f].invert_bar_idx)
             {
-               if(rates[k].high >= all_fvgs[f].bottom)
+               if(rates[k].high >= all_fvgs[f].top)
                {
-                  all_fvgs[f].is_ifvg_mitigated = true;
+                  all_fvgs[f].is_ifvg_fully_used = true;
                }
-               // If price closes back above top, iFVG is completely violated/dead
-               if(rates[k].close > all_fvgs[f].top)
+               if(rates[k].close >= all_fvgs[f].bottom)
                {
                   all_fvgs[f].is_ifvg_mitigated = true;
                }
@@ -227,12 +216,17 @@ void RedrawFVGSystem()
          }
          else // bearish fvg
          {
-            // Check Mitigation of regular Bear FVG
-            if(!all_fvgs[f].is_inverted && rates[k].high >= bear_mit_level)
+            // Fully Used: Wick or body reached all the way to top (100% orders consumed)
+            if(rates[k].high >= all_fvgs[f].top)
+            {
+               all_fvgs[f].is_fully_used = true;
+            }
+            // Mitigated: Candle body closed inside the gap (close >= bottom)
+            if(rates[k].close >= all_fvgs[f].bottom)
             {
                all_fvgs[f].is_mitigated = true;
             }
-            // Check Breach (Inversion to Support)
+            // Breach: Candle body closed above top -> Inverted to Support
             if(!all_fvgs[f].is_inverted && rates[k].close > all_fvgs[f].top)
             {
                all_fvgs[f].is_inverted = true;
@@ -249,15 +243,14 @@ void RedrawFVGSystem()
                   }
                }
             }
-            // If already inverted, track subsequent mitigation of the iFVG support
+            // If already inverted to Support, track subsequent lifecycle:
             else if(all_fvgs[f].is_inverted && k < all_fvgs[f].invert_bar_idx)
             {
-               if(rates[k].low <= all_fvgs[f].top)
+               if(rates[k].low <= all_fvgs[f].bottom)
                {
-                  all_fvgs[f].is_ifvg_mitigated = true;
+                  all_fvgs[f].is_ifvg_fully_used = true;
                }
-               // If price closes back below bottom, iFVG is completely violated/dead
-               if(rates[k].close < all_fvgs[f].bottom)
+               if(rates[k].close <= all_fvgs[f].top)
                {
                   all_fvgs[f].is_ifvg_mitigated = true;
                }
@@ -266,7 +259,7 @@ void RedrawFVGSystem()
       }
    }
 
-   // 3. Collect STRICTLY UNMITIGATED Candidate Zones
+   // 3. Collect Candidate Zones (Applying Strict Lifecycle Filters)
    CandidateZone candidates[];
    ArrayResize(candidates, 0);
 
@@ -278,12 +271,14 @@ void RedrawFVGSystem()
    for(int f = 0; f < total_fvg_count; f++)
    {
       if(all_fvgs[f].is_inverted) continue;
-      if(InpHideMitigated && all_fvgs[f].is_mitigated) continue; // Skip mitigated
+      if(InpExcludeMitigated && all_fvgs[f].is_mitigated) continue;
+      if(InpExcludeFullyUsed && all_fvgs[f].is_fully_used) continue;
 
       for(int k = 0; k < total_fvg_count; k++)
       {
          if(!all_fvgs[k].is_inverted) continue;
-         if(InpHideMitigated && all_fvgs[k].is_ifvg_mitigated) continue; // Skip mitigated
+         if(InpExcludeMitigated && all_fvgs[k].is_ifvg_mitigated) continue;
+         if(InpExcludeFullyUsed && all_fvgs[k].is_ifvg_fully_used) continue;
 
          double overlap_top = MathMin(all_fvgs[f].top, all_fvgs[k].top);
          double overlap_btm = MathMax(all_fvgs[f].bottom, all_fvgs[k].bottom);
@@ -304,19 +299,21 @@ void RedrawFVGSystem()
             candidates[c_sz].box_color         = InpColorCombined;
             candidates[c_sz].is_bullish        = all_fvgs[f].is_bullish;
             candidates[c_sz].is_mitigated      = false;
+            candidates[c_sz].is_fully_used     = false;
             candidates[c_sz].has_counter_fvg   = all_fvgs[k].inverted_with_counter_fvg;
 
             double pts = (overlap_top - overlap_btm) / _Point;
-            candidates[c_sz].display_label     = StringFormat(" ★ [FRESH COMBINED FVG+iFVG] (%.0f pts)", pts);
+            candidates[c_sz].display_label     = StringFormat(" ★ [COMBINED FVG+iFVG] (%.0f pts)", pts);
          }
       }
    }
 
-   // B. Unmitigated Inversion FVGs (iFVG)
+   // B. Inversion FVGs (iFVG)
    for(int f = 0; f < total_fvg_count; f++)
    {
       if(!all_fvgs[f].is_inverted) continue;
-      if(InpHideMitigated && all_fvgs[f].is_ifvg_mitigated) continue; // STRICTLY SKIP IF MITIGATED
+      if(InpExcludeMitigated && all_fvgs[f].is_ifvg_mitigated) continue;
+      if(InpExcludeFullyUsed && all_fvgs[f].is_ifvg_fully_used) continue;
       if(fvg_in_confluence[f]) continue;
 
       int c_sz = ArraySize(candidates);
@@ -328,21 +325,23 @@ void RedrawFVGSystem()
       candidates[c_sz].ce_price          = all_fvgs[f].ce_price;
       candidates[c_sz].start_time        = all_fvgs[f].invert_time;
       candidates[c_sz].box_color         = all_fvgs[f].inverted_with_counter_fvg ? InpColorInversionPwr : InpColorInversion;
-      candidates[c_sz].is_bullish        = !all_fvgs[f].is_bullish; // Flipped role
-      candidates[c_sz].is_mitigated      = false;
+      candidates[c_sz].is_bullish        = !all_fvgs[f].is_bullish;
+      candidates[c_sz].is_mitigated      = all_fvgs[f].is_ifvg_mitigated;
+      candidates[c_sz].is_fully_used     = all_fvgs[f].is_ifvg_fully_used;
       candidates[c_sz].has_counter_fvg   = all_fvgs[f].inverted_with_counter_fvg;
 
       double pts = (all_fvgs[f].top - all_fvgs[f].bottom) / _Point;
-      string role = candidates[c_sz].is_bullish ? "Fresh iFVG Support" : "Fresh iFVG Resistance";
+      string role = candidates[c_sz].is_bullish ? "iFVG Support" : "iFVG Resistance";
       if(all_fvgs[f].inverted_with_counter_fvg) role += " [Counter-FVG!]";
       candidates[c_sz].display_label     = StringFormat(" %s (%.0f pts)", role, pts);
    }
 
-   // C. Unmitigated Regular Active FVGs
+   // C. Regular Active FVGs
    for(int f = 0; f < total_fvg_count; f++)
    {
       if(all_fvgs[f].is_inverted) continue;
-      if(InpHideMitigated && all_fvgs[f].is_mitigated) continue; // STRICTLY SKIP IF MITIGATED
+      if(InpExcludeMitigated && all_fvgs[f].is_mitigated) continue;
+      if(InpExcludeFullyUsed && all_fvgs[f].is_fully_used) continue;
       if(fvg_in_confluence[f]) continue;
 
       int c_sz = ArraySize(candidates);
@@ -355,15 +354,16 @@ void RedrawFVGSystem()
       candidates[c_sz].start_time        = all_fvgs[f].time;
       candidates[c_sz].box_color         = all_fvgs[f].is_bullish ? InpColorBullFVG : InpColorBearFVG;
       candidates[c_sz].is_bullish        = all_fvgs[f].is_bullish;
-      candidates[c_sz].is_mitigated      = false;
+      candidates[c_sz].is_mitigated      = all_fvgs[f].is_mitigated;
+      candidates[c_sz].is_fully_used     = all_fvgs[f].is_fully_used;
       candidates[c_sz].has_counter_fvg   = false;
 
       double pts = (all_fvgs[f].top - all_fvgs[f].bottom) / _Point;
-      candidates[c_sz].display_label     = StringFormat(" Fresh %s (%.0f pts) CE: %.2f",
+      candidates[c_sz].display_label     = StringFormat(" %s (%.0f pts) CE: %.2f",
          all_fvgs[f].is_bullish ? "Bull FVG" : "Bear FVG", pts, all_fvgs[f].ce_price);
    }
 
-   // 4. Classify Fresh Zones: Strictly Above, Strictly Below, and Current Inside Zone
+   // 4. Classify Proximity: 2 Nearest Above, 2 Nearest Below, and 1 Current Inside
    CandidateZone above_zones[];
    CandidateZone below_zones[];
    CandidateZone inside_zones[];
@@ -373,7 +373,7 @@ void RedrawFVGSystem()
 
    for(int i = 0; i < ArraySize(candidates); i++)
    {
-      // A. Check if price is currently INSIDE this fresh zone
+      // Inside current price range
       if(cur_price >= candidates[i].bottom && cur_price <= candidates[i].top)
       {
          int in_sz = ArraySize(inside_zones);
@@ -381,7 +381,7 @@ void RedrawFVGSystem()
          candidates[i].distance_to_price = 0.0;
          inside_zones[in_sz] = candidates[i];
       }
-      // B. Strictly Above (bottom > cur_price)
+      // Strictly Above price
       else if(candidates[i].bottom > cur_price)
       {
          int a_sz = ArraySize(above_zones);
@@ -389,7 +389,7 @@ void RedrawFVGSystem()
          candidates[i].distance_to_price = candidates[i].bottom - cur_price;
          above_zones[a_sz] = candidates[i];
       }
-      // C. Strictly Below (top < cur_price)
+      // Strictly Below price
       else if(candidates[i].top < cur_price)
       {
          int b_sz = ArraySize(below_zones);
@@ -399,11 +399,11 @@ void RedrawFVGSystem()
       }
    }
 
-   // Sort strictly by distance to price (closest fresh zone first)
+   // Sort strictly by distance to current price (closest first)
    SortZonesByProximity(above_zones);
    SortZonesByProximity(below_zones);
 
-   // 5. Render Nearest FRESH Above Zones (at most 2)
+   // 5. Render Top 2 Above Zones
    int num_above = MathMin(InpMaxZonesAbove, ArraySize(above_zones));
    for(int i = 0; i < num_above; i++)
    {
@@ -411,7 +411,7 @@ void RedrawFVGSystem()
       DrawZoneObject(above_zones[i], rank_prefix, current_t, false);
    }
 
-   // 6. Render Nearest FRESH Below Zones (at most 2)
+   // 6. Render Top 2 Below Zones
    int num_below = MathMin(InpMaxZonesBelow, ArraySize(below_zones));
    for(int i = 0; i < num_below; i++)
    {
@@ -419,7 +419,7 @@ void RedrawFVGSystem()
       DrawZoneObject(below_zones[i], rank_prefix, current_t, false);
    }
 
-   // 7. Render Current Inside Zone (if any)
+   // 7. Render Current Inside Zone (if price is currently inside a gap)
    if(ArraySize(inside_zones) > 0)
    {
       DrawZoneObject(inside_zones[0], "⚡ [CURRENT INSIDE ZONE] ", current_t, true);

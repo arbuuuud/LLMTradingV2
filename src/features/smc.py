@@ -67,24 +67,34 @@ def update_fvg_mitigation(
 ) -> List[FairValueGap]:
     """
     Updates mitigation and inversion status of active FVGs:
-    - If price touches inside the gap, tested_count increments and marked mitigated.
-    - If price closes completely beyond the opposite boundary, it becomes an Inversion FVG (iFVG).
+    - Mitigated: Candle body closed inside or penetrated the gap.
+    - Fully Used: All orders consumed (wick or body swept 100% across the opposite boundary).
+    - Inversion: Candle body closed beyond opposite boundary.
     """
     for fvg in fvgs:
         if fvg.direction == Direction.BUY:
-            # Bullish FVG tested if price dips into it
-            if latest_low <= fvg.top and latest_high >= fvg.bottom:
-                fvg.is_mitigated = True
+            if latest_low <= fvg.top:
                 fvg.tested_count += 1
-            # If price closes below the bottom, it flips to Bearish Inversion FVG
+            # Mitigated: body close inside or below top
+            if latest_close <= fvg.top:
+                fvg.is_mitigated = True
+            # Fully Used: wick or body penetrated all the way to bottom
+            if latest_low <= fvg.bottom:
+                fvg.is_fully_used = True
+            # Inversion: body closed below bottom
             if latest_close < fvg.bottom:
                 fvg.is_inversion = True
+
         elif fvg.direction == Direction.SELL:
-            # Bearish FVG tested if price rallies into it
-            if latest_high >= fvg.bottom and latest_low <= fvg.top:
-                fvg.is_mitigated = True
+            if latest_high >= fvg.bottom:
                 fvg.tested_count += 1
-            # If price closes above the top, it flips to Bullish Inversion FVG
+            # Mitigated: body close inside or above bottom
+            if latest_close >= fvg.bottom:
+                fvg.is_mitigated = True
+            # Fully Used: wick or body penetrated all the way to top
+            if latest_high >= fvg.top:
+                fvg.is_fully_used = True
+            # Inversion: body closed above top
             if latest_close > fvg.top:
                 fvg.is_inversion = True
 
@@ -100,9 +110,10 @@ def process_fvg_inversions(
     existing_ifvgs: Optional[List[InversionFVG]] = None
 ) -> Tuple[List[FairValueGap], List[InversionFVG]]:
     """
-    Tracks mitigation and breaches of FVGs, spawning distinct InversionFVG objects.
+    Tracks mitigation, full order consumption, and breaches of FVGs, spawning distinct InversionFVG objects.
+    - Mitigated: body close inside
+    - Fully used: orders 100% consumed by wick/body
     - If candle close breaches opposite boundary, FVG becomes an iFVG.
-    - Checks if the breach coincided with a counter-displacement FVG.
     """
     ifvgs: List[InversionFVG] = list(existing_ifvgs or [])
     active_regular_fvgs: List[FairValueGap] = []
@@ -110,8 +121,12 @@ def process_fvg_inversions(
     for fvg in fvgs:
         if fvg.direction == Direction.BUY:
             if latest_low <= fvg.top:
-                fvg.is_mitigated = True
                 fvg.tested_count += 1
+            if latest_close <= fvg.top:
+                fvg.is_mitigated = True
+            if latest_low <= fvg.bottom:
+                fvg.is_fully_used = True
+
             # Breach below bottom -> Inverted to Resistance
             if latest_close < fvg.bottom:
                 fvg.is_inversion = True
@@ -135,8 +150,12 @@ def process_fvg_inversions(
                 active_regular_fvgs.append(fvg)
         else: # Bearish FVG
             if latest_high >= fvg.bottom:
-                fvg.is_mitigated = True
                 fvg.tested_count += 1
+            if latest_close >= fvg.bottom:
+                fvg.is_mitigated = True
+            if latest_high >= fvg.top:
+                fvg.is_fully_used = True
+
             # Breach above top -> Inverted to Support
             if latest_close > fvg.top:
                 fvg.is_inversion = True
