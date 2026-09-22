@@ -5,8 +5,8 @@
   "current_phase": "Phase 2: Data Pipeline & Live Feed",
   "stats": {
     "total_tasks": 16,
-    "completed_tasks": 7,
-    "in_progress_tasks": 1,
+    "completed_tasks": 6,
+    "in_progress_tasks": 2,
     "pending_tasks": 8
   },
   "phases": [
@@ -42,10 +42,10 @@
         {
           "id": "T0-4",
           "title": "Deterministic Primitives (SMC, Structure, OTE, Checklist, ForceClose)",
-          "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
-          "branch": "feat/initial-architecture",
-          "notes": "8 unit tests lolos dengan Pytest."
+          "status": "IN_PROGRESS",
+          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/mt5-visual-inspectors",
+          "branch": "feat/mt5-visual-inspectors",
+          "notes": "Sedang diverifikasi secara visual 1 per 1 di chart MT5 menggunakan folder inspectors EA."
         }
       ]
     },
@@ -218,6 +218,13 @@
     },
     {
       "id": "DEC-005",
+      "date": "2026-09-22",
+      "topic": "Test Note",
+      "summary": "This is an automated test note.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-006",
       "date": "2026-09-22",
       "topic": "Test Note",
       "summary": "This is an automated test note.",

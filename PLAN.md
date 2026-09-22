@@ -10,20 +10,20 @@
 ## 📊 Ringkasan Progress Proyek
 
 - **Total Tasks Terencana**: 16 tasks
-- **Tasks Selesai**: 7 tasks (43.75%)
-- **Tasks Sedang Berjalan**: 3 tasks (Fase PM)
-- **Tasks Antrian**: 6 tasks
+- **Tasks Selesai**: 6 tasks (37.5%)
+- **Tasks Sedang Berjalan**: 2 tasks (Fase PM & Verifikasi Visual MT5 T0-4)
+- **Tasks Antrian**: 8 tasks
 
 ---
 
 ## 🗺️ Roadmap & Checklist Step-by-Step
 
-### ✅ Fase 0: Git & Master Architecture Foundation
+### 🔄 Fase 0: Git & Master Architecture Foundation
 - [x] **T0-1**: Inisialisasi Git, `.gitignore`, branch `main`, dan `feat/initial-architecture`.
 - [x] **T0-2**: Penyusunan Master `BLUEPRINT.md` dan spesifikasi mendalam 5 Core Workflows (`docs/workflows/`).
 - [x] **T0-3**: Definisi Kontrak Data Pydantic (`src/core/types.py`) untuk data stream terstruktur tanpa halusinasi.
-- [x] **T0-4**: Modul kalkulator deterministik dasar (SMC, Structure, OTE, Checklist, ForceClose) + 8 Pytest unit tests.
-- *PR*: [feat/initial-architecture](https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture)
+- [/] **T0-4**: Modul kalkulator deterministik dasar (SMC, Structure, OTE, Checklist, ForceClose) — *Sedang diverifikasi secara visual 1 per 1 di chart MT5 menggunakan MQL5 Inspector EAs*.
+- *PR*: [feat/mt5-visual-inspectors](https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/mt5-visual-inspectors)
 
 ### ✅ Fase 1: Hybrid Data Lake & Multi-Broker Normalization
 - [x] **T1-1**: Two-Tier Priority Data Lake (`src/data/merger.py`) dengan mekanisme deduplikasi & prioritas data Live MT5 (Priority 1) di atas data Base Download (Priority 0).
