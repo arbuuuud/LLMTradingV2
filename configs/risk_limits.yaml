@@ -1,0 +1,8 @@
+circuit_breaker:
+  max_daily_drawdown_pct: 3.0 # Hard kill switch if account drops 3% in a day
+  max_floating_loss_pct: 2.5  # Warning trigger
+  max_open_positions: 2       # Maximum concurrent open trades
+  max_risk_per_trade_pct: 0.5 # 0.5% risk of equity per trade
+  news_blackout_minutes_before: 5
+  news_blackout_minutes_after: 5
+  handbrake_file: "configs/handbrake.lock"

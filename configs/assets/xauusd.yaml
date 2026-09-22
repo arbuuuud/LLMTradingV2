@@ -1,0 +1,23 @@
+symbol: "XAUUSD"
+description: "Spot Gold vs US Dollar"
+base_currency: "XAU"
+quote_currency: "USD"
+digits: 2
+point: 0.01
+tick_size: 0.01
+contract_size: 100 # 1 standard lot = 100 troy oz
+min_lot: 0.01
+max_lot: 50.00
+lot_step: 0.01
+default_slippage_points: 30
+max_spread_points: 50 # 5 pips max spread allowed for entry
+trading_sessions:
+  asian:
+    start_utc: "00:00"
+    end_utc: "07:00"
+  london:
+    start_utc: "07:00"
+    end_utc: "12:00"
+  new_york:
+    start_utc: "12:00"
+    end_utc: "21:00"
