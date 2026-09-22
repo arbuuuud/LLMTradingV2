@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Tuple, Optional
 from datetime import datetime
 import numpy as np
-from src.core.types import FairValueGap, OrderBlock, Direction
+from src.core.types import FairValueGap, InversionFVG, FVGConfluenceZone, OrderBlock, Direction
 
 
 def detect_fvgs(
@@ -31,6 +31,7 @@ def detect_fvgs(
                     direction=Direction.BUY,
                     top=gap_top,
                     bottom=gap_bottom,
+                    ce_price=(gap_top + gap_bottom) / 2.0,
                     timestamp=timestamps[i],
                     bar_index=i,
                     is_inversion=False,
@@ -47,6 +48,7 @@ def detect_fvgs(
                     direction=Direction.SELL,
                     top=gap_top,
                     bottom=gap_bottom,
+                    ce_price=(gap_top + gap_bottom) / 2.0,
                     timestamp=timestamps[i],
                     bar_index=i,
                     is_inversion=False,
@@ -87,6 +89,113 @@ def update_fvg_mitigation(
                 fvg.is_inversion = True
 
     return fvgs
+
+
+def process_fvg_inversions(
+    fvgs: List[FairValueGap],
+    latest_high: float,
+    latest_low: float,
+    latest_close: float,
+    current_time: datetime,
+    existing_ifvgs: Optional[List[InversionFVG]] = None
+) -> Tuple[List[FairValueGap], List[InversionFVG]]:
+    """
+    Tracks mitigation and breaches of FVGs, spawning distinct InversionFVG objects.
+    - If candle close breaches opposite boundary, FVG becomes an iFVG.
+    - Checks if the breach coincided with a counter-displacement FVG.
+    """
+    ifvgs: List[InversionFVG] = list(existing_ifvgs or [])
+    active_regular_fvgs: List[FairValueGap] = []
+
+    for fvg in fvgs:
+        if fvg.direction == Direction.BUY:
+            if latest_low <= fvg.top:
+                fvg.is_mitigated = True
+                fvg.tested_count += 1
+            # Breach below bottom -> Inverted to Resistance
+            if latest_close < fvg.bottom:
+                fvg.is_inversion = True
+                ifvg_id = f"IFVG-{fvg.id}"
+                if not any(item.id == ifvg_id for item in ifvgs):
+                    counter_fvg = next((cf for cf in fvgs if cf.direction == Direction.SELL and abs(cf.bar_index - fvg.bar_index) <= 3), None)
+                    ifvgs.append(
+                        InversionFVG(
+                            id=ifvg_id,
+                            original_fvg_id=fvg.id,
+                            direction=Direction.SELL, # Now Resistance
+                            top=fvg.top,
+                            bottom=fvg.bottom,
+                            ce_price=fvg.ce_price,
+                            invert_time=current_time,
+                            breached_with_counter_fvg=bool(counter_fvg),
+                            counter_fvg_id=counter_fvg.id if counter_fvg else None
+                        )
+                    )
+            else:
+                active_regular_fvgs.append(fvg)
+        else: # Bearish FVG
+            if latest_high >= fvg.bottom:
+                fvg.is_mitigated = True
+                fvg.tested_count += 1
+            # Breach above top -> Inverted to Support
+            if latest_close > fvg.top:
+                fvg.is_inversion = True
+                ifvg_id = f"IFVG-{fvg.id}"
+                if not any(item.id == ifvg_id for item in ifvgs):
+                    counter_fvg = next((cf for cf in fvgs if cf.direction == Direction.BUY and abs(cf.bar_index - fvg.bar_index) <= 3), None)
+                    ifvgs.append(
+                        InversionFVG(
+                            id=ifvg_id,
+                            original_fvg_id=fvg.id,
+                            direction=Direction.BUY, # Now Support
+                            top=fvg.top,
+                            bottom=fvg.bottom,
+                            ce_price=fvg.ce_price,
+                            invert_time=current_time,
+                            breached_with_counter_fvg=bool(counter_fvg),
+                            counter_fvg_id=counter_fvg.id if counter_fvg else None
+                        )
+                    )
+            else:
+                active_regular_fvgs.append(fvg)
+
+    return active_regular_fvgs, ifvgs
+
+
+def detect_fvg_confluences(
+    fvgs: List[FairValueGap],
+    ifvgs: List[InversionFVG]
+) -> List[FVGConfluenceZone]:
+    """
+    Detects high-probability confluence zones where an active FVG and an active iFVG
+    overlap in price range.
+    """
+    confluences: List[FVGConfluenceZone] = []
+
+    for fvg in fvgs:
+        if fvg.is_inversion:
+            continue
+        for ifvg in ifvgs:
+            overlap_top = min(fvg.top, ifvg.top)
+            overlap_btm = max(fvg.bottom, ifvg.bottom)
+
+            if overlap_top > overlap_btm: # Overlapping zone!
+                conf_id = f"CONF-{fvg.id}-{ifvg.id}"
+                score = 9.0 if ifvg.breached_with_counter_fvg else 8.0
+                confluences.append(
+                    FVGConfluenceZone(
+                        id=conf_id,
+                        fvg_id=fvg.id,
+                        ifvg_id=ifvg.id,
+                        overlap_top=float(overlap_top),
+                        overlap_bottom=float(overlap_btm),
+                        confluence_type="OVERLAPPING_ZONE",
+                        has_counter_fvg_breach=ifvg.breached_with_counter_fvg,
+                        probability_score=score
+                    )
+                )
+
+    return confluences
 
 
 def detect_order_blocks(

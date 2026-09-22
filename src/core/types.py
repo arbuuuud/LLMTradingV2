@@ -56,11 +56,39 @@ class FairValueGap(BaseModel):
     direction: Direction
     top: float
     bottom: float
+    ce_price: float = 0.0  # 50% Consequent Encroachment
     timestamp: datetime
     bar_index: int
     is_inversion: bool = False
     is_mitigated: bool = False
     tested_count: int = 0
+
+
+class InversionFVG(BaseModel):
+    """Flipped Fair Value Gap acting as newly inverted Support or Resistance."""
+    id: str
+    original_fvg_id: str
+    direction: Direction  # Flipped role: BUY = Support, SELL = Resistance
+    top: float
+    bottom: float
+    ce_price: float = 0.0
+    invert_time: datetime
+    breached_with_counter_fvg: bool = False
+    counter_fvg_id: Optional[str] = None
+    is_mitigated: bool = False
+    tested_count: int = 0
+
+
+class FVGConfluenceZone(BaseModel):
+    """High-probability confluence where an active FVG and an active iFVG overlap or co-exist."""
+    id: str
+    fvg_id: str
+    ifvg_id: str
+    overlap_top: float
+    overlap_bottom: float
+    confluence_type: str = "OVERLAPPING_ZONE"  # OVERLAPPING_ZONE or SAME_SWING
+    has_counter_fvg_breach: bool = False
+    probability_score: float = 8.5  # Boosted confidence weight
 
 
 class OrderBlock(BaseModel):
@@ -106,6 +134,8 @@ class MarketStateSnapshot(BaseModel):
     htf_trend: Trend
     structure: StructureState
     active_fvgs: List[FairValueGap] = Field(default_factory=list)
+    active_ifvgs: List[InversionFVG] = Field(default_factory=list)
+    fvg_confluences: List[FVGConfluenceZone] = Field(default_factory=list)
     active_obs: List[OrderBlock] = Field(default_factory=list)
     fibonacci: Optional[FibonacciOTE] = None
     liquidity: LiquidityState = Field(default_factory=LiquidityState)
