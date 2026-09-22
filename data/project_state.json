@@ -5,8 +5,8 @@
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
     "total_tasks": 22,
-    "completed_tasks": 13,
-    "in_progress_tasks": 0,
+    "completed_tasks": 12,
+    "in_progress_tasks": 1,
     "pending_tasks": 9
   },
   "phases": [
@@ -148,9 +148,9 @@
         {
           "id": "INSP-03-SUPPLY-DEMAND",
           "title": "Master OrderBlock & S&D Inspector (OB, RBR/DBD, RBD/DBR, Breaker Block)",
-          "status": "COMPLETED",
+          "status": "IN_PROGRESS",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified di MT5: Reversal (DBR/RBD), Continuation (RBR/DBD dengan aturan Leg-In/Base 1-3c/Leg-Out Imp 1.5x), 50% MT, Swept Liquidity check, Breaker Block optional (default OFF), lookback 1000 bars, dan Proximity 4-5 zona (2 Roofs di atas, 2 Floors di bawah, 1 Inside)."
+          "notes": "OPEN BUG: Floor di Strategy Tester / Backtest MT5 belum muncul (Roof muncul normal). Menjadi prioritas perbaikan pertama saat sesi dilanjutkan."
         },
         {
           "id": "INSP-04-CANDLE-PATTERNS",
@@ -274,6 +274,13 @@
       "topic": "S&D / OB Roof & Floor Lifecycle",
       "summary": "Aturan ketat Continuation RBR/DBD (Base 1-3c, Leg-Out impulse ratio >= 1.5x, FVG). Zona Roof & Floor tetap aktif digambar selama belum dijebol body close tembus batas seberang; retest di dalam ditandai [Tested]. Breaker Block dijadikan optional (default OFF). Lookback 1000 bars menjamin ketersediaan 4-5 zona pemetaan (2 Roofs, 2 Floors, 1 Inside).",
       "status": "CONFIRMED"
+    },
+    {
+      "id": "BUG-001",
+      "date": "2025-09-22",
+      "topic": "Floor di Backtest MT5 Belum Muncul",
+      "summary": "Pada saat pengujian visual di MetaTrader 5 Strategy Tester (Backtest), area Floor (Lantai/Demand) di bawah harga tidak muncul di chart, sedangkan Roof muncul normal. Menjadi agenda investigasi dan perbaikan pertama saat sesi dilanjutkan.",
+      "status": "OPEN_BUG"
     }
   ]
 }
