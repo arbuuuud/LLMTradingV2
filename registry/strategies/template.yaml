@@ -1,0 +1,36 @@
+id: "STRAT-001"
+name: "Trend Pullback iFVG Scalper"
+version: "1.0.0"
+status: "DRAFT" # DRAFT | BACKTESTED | FORWARD_STAGING | LIVE_APPROVED | ARCHIVED
+author: "Researcher Agent & Human Operator"
+created_at: "2025-09-22"
+
+target_assets:
+  - "XAUUSD"
+
+timeframes:
+  htf: "M15"
+  ltf: "M1"
+
+checklist_rules:
+  - id: "HTF_TREND_ALIGNED"
+    description: "Trend M15 harus searah dengan setup (Bullish/Bearish)"
+    weight: 2.5
+    mandatory: true
+
+  - id: "LIQUIDITY_SWEPT"
+    description: "Telah terjadi sweep recent Swing Point atau Liquidity Pool"
+    weight: 2.0
+    mandatory: true
+
+  - id: "ACTIVE_POI_PRESENT"
+    description: "Terdapat FVG aktif atau Unmitigated Order Block di area entry"
+    weight: 3.0
+    mandatory: true
+
+  - id: "IN_OTE_ZONE"
+    description: "Harga pullback ke zona Optimal Trade Entry (0.618 - 0.786)"
+    weight: 2.5
+    mandatory: false
+
+score_threshold: 7.5 # Skor minimum untuk trigger order
