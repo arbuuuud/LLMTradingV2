@@ -64,6 +64,7 @@ data/cache/*
 # Logs & Test outputs
 logs/
 *.log
+*.ex5
 .pytest_cache/
 .coverage
 htmlcov/
