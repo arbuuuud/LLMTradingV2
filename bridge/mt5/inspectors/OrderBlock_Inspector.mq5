@@ -5,12 +5,12 @@
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.20"
-#property description "Master Institutional Inspector: Reversal OB (DBR/RBD), Continuation S&D (RBR/DBD), Smart Confluence Clustering, and Two-Tier Data Lake Integration"
+#property version   "2.30"
+#property description "Master Institutional Inspector: Reversal OB, Continuation S&D, Smart Confluence Clustering, 5000+ Bar Deep Lookback, and Auto HTF (H1) Fallback"
 
 //--- Inputs
-input group "=== Architecture V2 Data Lake Integration (Solusi A) ==="
-input bool     InpUseEngineSnapshot    = true;              // Solusi A: Load from Python Two-Tier Data Lake Snapshot
+input group "=== Architecture V2 Data Lake Integration ==="
+input bool     InpUseEngineSnapshot    = true;              // Solusi A: Load from Python Two-Tier Data Lake Snapshot (Live only)
 input string   InpSnapshotFile         = "live_snapshot_xauusd.json"; // Shared Snapshot File Name
 
 input group "=== Category Display Switches ==="
@@ -18,12 +18,13 @@ input bool     InpShowReversalOB       = true;              // Show Reversal OB 
 input bool     InpShowContinuationSD   = true;              // Show Continuation S&D (+Demand RBR / -Supply DBD)
 input bool     InpShowBreakers         = false;             // Show Breaker Blocks (Optional - Default OFF)
 
-input group "=== Continuation S&D Quality Filters (Local MT5 Mode) ==="
+input group "=== Continuation S&D Quality Filters ==="
 input int      InpMaxBaseCandles       = 3;                 // Max Base Candles (Strict: 1 to 3)
 input double   InpMinImpulseRatio      = 1.5;               // Min Impulse Ratio (Leg-Out / Base Range >= 1.5x)
 
-input group "=== Proximity & Display Settings ==="
-input int      InpMaxBars              = 1000;              // Max Bars to Analyze (Fallback Local Mode)
+input group "=== Proximity, Deep Lookback & HTF Fallback ==="
+input int      InpMaxBars              = 5000;              // Max Bars to Analyze (Default 5000 bars for deep history)
+input bool     InpAutoHtfFallback      = true;              // Auto HTF (H1) Fallback if Local Floors/Roofs < 2
 input int      InpMaxZonesAbove        = 2;                 // Max Nearest Zones Above Price (Roofs)
 input int      InpMaxZonesBelow        = 2;                 // Max Nearest Zones Below Price (Floors)
 input bool     InpShowMeanThreshold    = true;              // Draw 50% Mean Threshold (MT) Line
@@ -74,6 +75,7 @@ struct ZoneItem
    bool              is_inside;
    bool              is_confluence;       // Merged from overlapping zones
    string            confluence_desc;     // e.g. "OB(DBR) + SD(RBR)"
+   string            source_tag;          // e.g. "[Local]", "[H1 HTF]", "[DataLake]"
    double            distance;
 };
 
@@ -198,16 +200,16 @@ void CleanObjects()
 
 void OnTimer()
 {
+   if(MQLInfoInteger(MQL_TESTER)) return; // Strategy Tester runs on OnTick
    if(!InpUseEngineSnapshot) return;
 
    datetime file_mtime = (datetime)FileGetInteger(InpSnapshotFile, FILE_MODIFY_DATE, false);
    if(file_mtime == 0)
       file_mtime = (datetime)FileGetInteger(InpSnapshotFile, FILE_MODIFY_DATE, true);
 
-   // Only redraw if the snapshot file timestamp has actually updated!
    if(file_mtime != 0 && file_mtime == g_last_file_mtime)
    {
-      return; // Snapshot hasn't changed, DO NOTHING! Zero flicker!
+      return; // Snapshot hasn't changed, zero redraw
    }
 
    g_last_file_mtime = file_mtime;
@@ -225,7 +227,7 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-//| JSON Value Extraction Helpers                                    |
+//| JSON Extraction Helpers                                          |
 //+------------------------------------------------------------------+
 double ExtractJsonDouble(const string &json_chunk, const string &key)
 {
@@ -263,9 +265,6 @@ string ExtractJsonString(const string &json_chunk, const string &key)
    return StringSubstr(json_chunk, q1 + 1, q2 - q1 - 1);
 }
 
-//+------------------------------------------------------------------+
-//| Solusi A: Load Snapshot from Two-Tier Data Lake Cache            |
-//+------------------------------------------------------------------+
 bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count)
 {
    string filename = InpSnapshotFile;
@@ -314,6 +313,7 @@ bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count)
       z.time = TimeCurrent();
       z.base_count = 1;
       z.impulse_ratio = 1.5;
+      z.source_tag = "[DataLake]";
 
       z.is_bullish = (StringFind(obj_str, "\"direction\": \"BUY\"") >= 0 || StringFind(obj_str, "\"direction\":\"BUY\"") >= 0);
 
@@ -356,43 +356,12 @@ bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count)
 }
 
 //+------------------------------------------------------------------+
-//| Core Detection Engine                                            |
+//| Modular Zone Scanning from any Rate Array (Local or HTF)         |
 //+------------------------------------------------------------------+
-void RedrawZones()
+void ScanZonesFromRates(const MqlRates &rates[], int bars_to_check, ENUM_TIMEFRAMES tf, string src_tag, ZoneItem &out_zones[], int &out_count)
 {
-   datetime current_candle_time = iTime(_Symbol, _Period, 0);
-   double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   if(current_price <= 0.0) current_price = iClose(_Symbol, _Period, 0);
-
-   // SOLUSI A: Cek apakah snapshot dari Python Two-Tier Data Lake tersedia
-   if(InpUseEngineSnapshot)
-   {
-      ZoneItem snapshot_zones[];
-      int snap_count = 0;
-      if(LoadSnapshotFromDisk(snapshot_zones, snap_count))
-      {
-         ProcessAndRenderCandidates(snapshot_zones, snap_count, current_price, current_candle_time, "[DataLake]");
-         ChartRedraw();
-         return;
-      }
-   }
-
-   // FALLBACK: Local MT5 Chart Scanning Mode
-   int total_bars = iBars(_Symbol, _Period);
-   int bars_to_check = MathMin(InpMaxBars, total_bars - 5);
    if(bars_to_check < 6) return;
 
-   MqlRates rates[];
-   ArraySetAsSeries(rates, true);
-   if(CopyRates(_Symbol, _Period, 0, bars_to_check, rates) < bars_to_check) return;
-
-   current_candle_time = rates[0].time;
-   current_price = rates[0].close;
-
-   ZoneItem raw_zones[];
-   int raw_count = 0;
-
-   // 1. Scan for displacement FVG (Leg-Out)
    for(int i = bars_to_check - 5; i >= 1; i--)
    {
       bool is_bull_fvg = (rates[i].low > rates[i + 2].high);
@@ -421,9 +390,9 @@ void RedrawZones()
       if(origin_idx >= bars_to_check - 2 || origin_idx < 1) continue;
 
       bool dup = false;
-      for(int d = 0; d < raw_count; d++)
+      for(int d = 0; d < out_count; d++)
       {
-         if(raw_zones[d].bar_index == origin_idx) { dup = true; break; }
+         if(out_zones[d].bar_index == origin_idx && out_zones[d].time == rates[origin_idx].time) { dup = true; break; }
       }
       if(dup) continue;
 
@@ -474,6 +443,9 @@ void RedrawZones()
       zone.is_breaker = false;
       zone.breaker_time = 0;
       zone.is_inside = false;
+      zone.is_confluence = false;
+      zone.confluence_desc = "";
+      zone.source_tag = src_tag;
       zone.distance = 0.0;
 
       if(is_bull_fvg)
@@ -511,6 +483,7 @@ void RedrawZones()
          }
       }
 
+      // Lifecycle check down to bar 0
       for(int k = origin_idx - 1; k >= 0; k--)
       {
          bool is_closed_bar = (k >= 1);
@@ -577,37 +550,53 @@ void RedrawZones()
                }
             }
          }
-         else if(zone.is_breaker)
-         {
-            if(zone.is_bullish)
-            {
-               if(rates[k].low <= zone.top && rates[k].high >= zone.bottom)
-               {
-                  zone.is_touched = true;
-                  if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].low; }
-                  else if(rates[k].low < zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].low; }
-               }
-               if(is_closed_bar && rates[k].close < zone.bottom) zone.is_fully_used = true;
-            }
-            else
-            {
-               if(rates[k].high >= zone.bottom && rates[k].low <= zone.top)
-               {
-                  zone.is_touched = true;
-                  if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].high; }
-                  else if(rates[k].high > zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].high; }
-               }
-               if(is_closed_bar && rates[k].close > zone.top) zone.is_fully_used = true;
-            }
-         }
       }
 
-      ArrayResize(raw_zones, raw_count + 1);
-      zone.is_confluence = false;
-      zone.confluence_desc = "";
-      raw_zones[raw_count] = zone;
-      raw_count++;
+      ArrayResize(out_zones, out_count + 1);
+      out_zones[out_count] = zone;
+      out_count++;
    }
+}
+
+//+------------------------------------------------------------------+
+//| Core Detection Engine                                            |
+//+------------------------------------------------------------------+
+void RedrawZones()
+{
+   datetime current_candle_time = iTime(_Symbol, _Period, 0);
+   double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(current_price <= 0.0) current_price = iClose(_Symbol, _Period, 0);
+
+   bool is_tester = (bool)MQLInfoInteger(MQL_TESTER);
+
+   // SOLUSI A: Hanya gunakan snapshot file jika live (bukan di Strategy Tester)
+   if(InpUseEngineSnapshot && !is_tester)
+   {
+      ZoneItem snapshot_zones[];
+      int snap_count = 0;
+      if(LoadSnapshotFromDisk(snapshot_zones, snap_count))
+      {
+         ProcessAndRenderCandidates(snapshot_zones, snap_count, current_price, current_candle_time, "[DataLake]");
+         ChartRedraw();
+         return;
+      }
+   }
+
+   // STRATEGY TESTER & LOCAL MT5 SCANNING MODE (Deep Lookback 5000+ Bars)
+   int total_bars = iBars(_Symbol, _Period);
+   int bars_to_check = MathMin(InpMaxBars, total_bars - 5);
+   if(bars_to_check < 6) return;
+
+   MqlRates rates[];
+   ArraySetAsSeries(rates, true);
+   if(CopyRates(_Symbol, _Period, 0, bars_to_check, rates) < bars_to_check) return;
+
+   current_candle_time = rates[0].time;
+   current_price = rates[0].close;
+
+   ZoneItem raw_zones[];
+   int raw_count = 0;
+   ScanZonesFromRates(rates, bars_to_check, _Period, "[Local]", raw_zones, raw_count);
 
    ZoneItem candidates[];
    int cand_count = 0;
@@ -632,6 +621,58 @@ void RedrawZones()
       ArrayResize(candidates, cand_count + 1);
       candidates[cand_count] = raw_zones[m];
       cand_count++;
+   }
+
+   // Count how many floors (below) and roofs (above) we currently have
+   int local_below = 0;
+   int local_above = 0;
+   for(int c = 0; c < cand_count; c++)
+   {
+      if(candidates[c].top < current_price) local_below++;
+      else if(candidates[c].bottom > current_price) local_above++;
+   }
+
+   // AUTO HTF FALLBACK: Jika Floor < 2 atau Roof < 2, intip Timeframe H1!
+   if(InpAutoHtfFallback && _Period < PERIOD_H1)
+   {
+      if(local_below < InpMaxZonesBelow || local_above < InpMaxZonesAbove)
+      {
+         int htf_total = iBars(_Symbol, PERIOD_H1);
+         int htf_check = MathMin(1000, htf_total - 5);
+         if(htf_check >= 6)
+         {
+            MqlRates htf_rates[];
+            ArraySetAsSeries(htf_rates, true);
+            if(CopyRates(_Symbol, PERIOD_H1, 0, htf_check, htf_rates) >= htf_check)
+            {
+               ZoneItem htf_raw[];
+               int htf_count = 0;
+               ScanZonesFromRates(htf_rates, htf_check, PERIOD_H1, "[H1 HTF]", htf_raw, htf_count);
+
+               for(int h = 0; h < htf_count; h++)
+               {
+                  if(htf_raw[h].is_fully_used) continue;
+
+                  // If we need floors, add unmitigated H1 demand below current price
+                  if(local_below < InpMaxZonesBelow && htf_raw[h].is_bullish && htf_raw[h].top < current_price)
+                  {
+                     ArrayResize(candidates, cand_count + 1);
+                     candidates[cand_count] = htf_raw[h];
+                     cand_count++;
+                     local_below++;
+                  }
+                  // If we need roofs, add unmitigated H1 supply above current price
+                  else if(local_above < InpMaxZonesAbove && !htf_raw[h].is_bullish && htf_raw[h].bottom > current_price)
+                  {
+                     ArrayResize(candidates, cand_count + 1);
+                     candidates[cand_count] = htf_raw[h];
+                     cand_count++;
+                     local_above++;
+                  }
+               }
+            }
+         }
+      }
    }
 
    // SMART CONFLUENCE CLUSTER MERGING
@@ -793,13 +834,17 @@ void ProcessAndRenderCandidates(ZoneItem &candidates[], int cand_count, double c
    int render_above = MathMin(InpMaxZonesAbove, above_count);
    for(int a = 0; a < render_above; a++)
    {
-      DrawZone(candidates[above_indices[a]], current_candle_time, source_tag + " [Above #" + IntegerToString(a + 1) + "]");
+      string tag = candidates[above_indices[a]].source_tag;
+      if(tag == "") tag = source_tag;
+      DrawZone(candidates[above_indices[a]], current_candle_time, tag + " [Above #" + IntegerToString(a + 1) + "]");
    }
 
    int render_below = MathMin(InpMaxZonesBelow, below_count);
    for(int b = 0; b < render_below; b++)
    {
-      DrawZone(candidates[below_indices[b]], current_candle_time, source_tag + " [Below #" + IntegerToString(b + 1) + "]");
+      string tag = candidates[below_indices[b]].source_tag;
+      if(tag == "") tag = source_tag;
+      DrawZone(candidates[below_indices[b]], current_candle_time, tag + " [Below #" + IntegerToString(b + 1) + "]");
    }
 
    PurgeOrphanedObjects();
@@ -861,21 +906,18 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    datetime start_time = zone.is_breaker ? zone.breaker_time : zone.time;
    if(start_time == 0) start_time = current_time - 3600 * 4;
 
-   // 1. In-Place Update Rectangle Box (Zero Flicker)
    RegisterActiveObjectName(rect_name);
    int rect_style = zone.is_inside ? STYLE_SOLID : (zone.is_mitigated ? STYLE_DASH : STYLE_SOLID);
    int rect_width = zone.is_inside ? 2 : 1;
    color rect_color = zone.is_inside ? InpColorInside : zone_color;
    UpdateOrCreateRect(rect_name, start_time, zone.top, current_time, zone.bottom, rect_color, rect_style, rect_width);
 
-   // 2. In-Place Update Mean Threshold (50% MT) Line
    if(InpShowMeanThreshold)
    {
       RegisterActiveObjectName(mt_line_name);
       UpdateOrCreateLine(mt_line_name, start_time, zone.mean_threshold, current_time, zone_color, STYLE_DOT, 1);
    }
 
-   // 3. In-Place Update Informative Tag Label
    string label = prefix_tag + " " + badge;
 
    if(!zone.is_confluence && (zone.kind == ZONE_CONTINUATION_RBR || zone.kind == ZONE_CONTINUATION_DBD))
