@@ -10,8 +10,8 @@
 ## 📊 Ringkasan Progress Proyek
 
 - **Total Tasks Terencana**: 22 tasks
-- **Tasks Selesai**: 11 tasks (50.0%)
-- **Tasks Sedang Berjalan**: 1 task (`INSP-02-FVG`)
+- **Tasks Selesai**: 12 tasks (54.5%)
+- **Tasks Sedang Berjalan**: 0 task
 - **Tasks Antrian**: 10 tasks
 
 ---
@@ -49,10 +49,10 @@
 
 - [x] **INSP-01-STRUCTURE**: **Master Structure & Fibonacci Inspector** (`Structure_Inspector.mq5`)  
   *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), Strong vs Weak High/Low, Fibo Retracement (0.382-0.500 Shallow & 0.618-0.786 OTE), serta Fibo Extension Targets (1.272 & 1.618 dengan status HIT tracker). *(VERIFIED & PASSED)*
-- [/] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
-  *Isi Lengkap*: Fair Value Gap (Bullish & Bearish), Status Mitigasi (Dashed box), dan Inversion FVG (iFVG emas). *(Sedang Dieksplorasi)*
+- [x] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
+  *Isi Lengkap*: Pemisahan FVG & iFVG (dengan deteksi breach counter-FVG), Confluence Zone (Cyan), Proximity Model (2 Above, 2 Below, 1 Inside terlindungi), Counter Sentuhan (+1 hanya jika menembus lebih dalam), serta pemisahan tegas Mitigated (body close) vs Fully Used (order 100% tersapu). *(VERIFIED & PASSED)*
 - [ ] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
-  *Isi Lengkap*: Order Block (OB), Continuation (RBR / DBD), Reversal (RBD / DBR), dan Breaker Block (BB).
+  *Isi Lengkap*: Order Block (OB), Continuation (RBR / DBD), Reversal (RBD / DBR), dan Breaker Block (BB). *(Antrian Berikutnya)*
 - [ ] **INSP-04-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
   *Isi Lengkap*: Engulfing (Bull/Bear), Doji Variants, Morning/Evening Star, dan Momentum Displacement Candle (Marubozu).
 
@@ -82,4 +82,5 @@
 | **DEC-002** | 2025-09-22 | Two-Tier Hybrid Data Lake | Data Live dari MT5 EA memiliki Priority 1 (Ground Truth) dan menimpa data download (Priority 0) jika ada overlap timestamp. Data download bertindak sebagai fallback. | **CONFIRMED** |
 | **DEC-003** | 2025-09-22 | Multi-Broker Canonical Abstraction | Seluruh Agent internal hanya mengenal simbol `"XAUUSD"`. Penerjemahan ke `XAUUSD.u` / `XAUUSD.sc` dan kuantisasi lot step ditangani di boundary oleh `BrokerAdapter`. | **CONFIRMED** |
 | **DEC-004** | 2025-09-22 | Interactive PM Dashboard & Review SOP | Dibuatkan dashboard lokal interaktif untuk memonitor progress live, status checklist, dan catatan keputusan. Setiap kali step selesai, wajib konfirmasi ada/tidaknya catatan dari/ke pengguna. | **CONFIRMED** |
-| **DEC-005** | 2025-09-22 | 5 Master Inspectors Alignment | Primitives dikelompokkan secara kohesif menjadi 5 Master Inspector (1 EA = 1 Subtask Domain) agar mudah dikontrol, diuji, dan diverifikasi di chart MT5. | **CONFIRMED** |
+| **DEC-005** | 2025-09-22 | 5 Master Inspectors Alignment | Primitives dikelompokkan secara kohesif menjadi Master Inspector (1 EA = 1 Subtask Domain) agar mudah dikontrol, diuji, dan diverifikasi di chart MT5. | **CONFIRMED** |
+| **DEC-006** | 2025-09-22 | FVG Proximity & Lifecycle Separation | FVG & iFVG dipisahkan sebagai objek distinct. Pembedaan tegas: (1) Touched increment +1 hanya jika menembus harga lebih dalam, (2) Mitigated hanya jika candle closed dengan body di dalam, (3) Fully Used jika 100% order tersapu wick/body, dan (4) Zona aktif tempat harga berada di dalamnya (Inside Zone) diproteksi mutlak dari penghapusan. | **CONFIRMED** |

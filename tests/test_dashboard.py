@@ -5,9 +5,15 @@ import threading
 import urllib.request
 import urllib.parse
 from src.dashboard.server import DashboardHTTPHandler
+import src.dashboard.server as server_module
 
 
 def test_dashboard_api(tmp_path):
+    original_state_file = server_module.STATE_FILE
+    temp_state = tmp_path / "project_state.json"
+    temp_state.write_text(original_state_file.read_text(encoding="utf-8"), encoding="utf-8")
+    server_module.STATE_FILE = temp_state
+
     # Setup test server on an ephemeral port
     server = HTTPServer(("127.0.0.1", 0), DashboardHTTPHandler)
     port = server.server_address[1]
@@ -42,3 +48,4 @@ def test_dashboard_api(tmp_path):
     finally:
         server.shutdown()
         server.server_close()
+        server_module.STATE_FILE = original_state_file

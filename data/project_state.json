@@ -5,8 +5,8 @@
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
     "total_tasks": 22,
-    "completed_tasks": 11,
-    "in_progress_tasks": 1,
+    "completed_tasks": 12,
+    "in_progress_tasks": 0,
     "pending_tasks": 10
   },
   "phases": [
@@ -141,9 +141,9 @@
         {
           "id": "INSP-02-FVG",
           "title": "Master FVG Inspector (Bullish/Bearish FVG, Mitigation, Inversion iFVG)",
-          "status": "IN_PROGRESS",
+          "status": "COMPLETED",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Sedang disempurnakan: deteksi celah 3-candle, auto-extension, tracking mitigasi (tested count), dan status Inversion FVG (iFVG emas)."
+          "notes": "Verified di MT5: Pemisahan FVG & iFVG, Confluence zone, Proximity 2 Above/Below + 1 Inside terlindungi, Counter sentuhan (+1 hanya jika tembus lebih dalam), Mitigated (body close) vs Fully Used (100% order tersapu)."
         },
         {
           "id": "INSP-03-SUPPLY-DEMAND",
@@ -263,100 +263,9 @@
     },
     {
       "id": "DEC-006",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-007",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-008",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-009",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-010",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-011",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-012",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-013",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-014",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-015",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-016",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-017",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-018",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
-      "status": "CONFIRMED"
-    },
-    {
-      "id": "DEC-019",
-      "date": "2026-09-22",
-      "topic": "Test Note",
-      "summary": "This is an automated test note.",
+      "date": "2025-09-22",
+      "topic": "FVG Proximity & Lifecycle Separation",
+      "summary": "FVG & iFVG dipisahkan sebagai objek distinct. Pembedaan tegas: (1) Touched increment +1 hanya jika menembus harga lebih dalam, (2) Mitigated hanya jika candle closed dengan body di dalam, (3) Fully Used jika 100% order tersapu wick/body, dan (4) Zona aktif tempat harga berada di dalamnya (Inside Zone) diproteksi mutlak dari penghapusan.",
       "status": "CONFIRMED"
     }
   ]
