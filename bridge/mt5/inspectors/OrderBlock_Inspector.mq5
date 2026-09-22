@@ -12,16 +12,16 @@
 input group "=== Category Display Switches ==="
 input bool     InpShowReversalOB       = true;              // Show Reversal OB (+OB DBR / -OB RBD)
 input bool     InpShowContinuationSD   = true;              // Show Continuation S&D (+Demand RBR / -Supply DBD)
-input bool     InpShowBreakers         = true;              // Show Breaker Blocks (Failed OB Flip)
+input bool     InpShowBreakers         = false;             // Show Breaker Blocks (Optional - Default OFF)
 
 input group "=== Continuation S&D Quality Filters ==="
 input int      InpMaxBaseCandles       = 3;                 // Max Base Candles (Strict: 1 to 3)
 input double   InpMinImpulseRatio      = 1.5;               // Min Impulse Ratio (Leg-Out / Base Range >= 1.5x)
 
 input group "=== Proximity & Display Settings ==="
-input int      InpMaxBars              = 300;               // Max Bars to Analyze
-input int      InpMaxZonesAbove        = 2;                 // Max Nearest Zones Above Price
-input int      InpMaxZonesBelow        = 2;                 // Max Nearest Zones Below Price
+input int      InpMaxBars              = 1000;              // Max Bars to Analyze (Default 1000 for deep roof/floor search)
+input int      InpMaxZonesAbove        = 2;                 // Max Nearest Zones Above Price (Roofs)
+input int      InpMaxZonesBelow        = 2;                 // Max Nearest Zones Below Price (Floors)
 input bool     InpShowMeanThreshold    = true;              // Draw 50% Mean Threshold (MT) Line
 
 input group "=== Distinct Color Palette ==="
@@ -260,64 +260,70 @@ void RedrawZones()
 
          if(zone.is_bullish && !zone.is_breaker)
          {
-            // Touch
+            // Touch test
             if(rates[k].low <= zone.top && rates[k].high >= zone.bottom)
             {
                zone.is_touched = true;
                if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].low; }
                else if(rates[k].low < zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].low; }
             }
-            // Mitigated (closed inside)
+            // Retested / Mitigated: candle closed inside zone (zone is tested but STILL VALID floor)
             if(is_closed_bar && rates[k].close <= zone.top && rates[k].close >= zone.bottom)
             {
                zone.is_mitigated = true;
             }
-            // Fully used
-            if(rates[k].low <= zone.bottom)
-            {
-               zone.is_fully_used = true;
-            }
-            // Breaker Flip
+            // Invalidation: candle body closed BELOW bottom (floor broken!)
             if(is_closed_bar && rates[k].close < zone.bottom)
             {
-               zone.is_breaker = true;
-               zone.is_bullish = false; // Flipped to Resistance
-               zone.kind = ZONE_BREAKER_BEARISH;
-               zone.breaker_time = rates[k].time;
-               zone.is_mitigated = false;
-               zone.is_fully_used = false;
-               zone.touch_count = 0;
-               zone.deepest_touch_price = 0.0;
+               if(InpShowBreakers)
+               {
+                  zone.is_breaker = true;
+                  zone.is_bullish = false; // Flipped to Bearish Resistance
+                  zone.kind = ZONE_BREAKER_BEARISH;
+                  zone.breaker_time = rates[k].time;
+                  zone.is_mitigated = false;
+                  zone.is_fully_used = false;
+                  zone.touch_count = 0;
+                  zone.deepest_touch_price = 0.0;
+               }
+               else
+               {
+                  zone.is_fully_used = true; // Floor officially broken / removed
+               }
             }
          }
          else if(!zone.is_bullish && !zone.is_breaker)
          {
-            // Bearish Touch
+            // Bearish Touch test
             if(rates[k].high >= zone.bottom && rates[k].low <= zone.top)
             {
                zone.is_touched = true;
                if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].high; }
                else if(rates[k].high > zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].high; }
             }
+            // Retested / Mitigated: candle closed inside zone (zone is tested but STILL VALID roof)
             if(is_closed_bar && rates[k].close >= zone.bottom && rates[k].close <= zone.top)
             {
                zone.is_mitigated = true;
             }
-            if(rates[k].high >= zone.top)
-            {
-               zone.is_fully_used = true;
-            }
-            // Breaker Flip
+            // Invalidation: candle body closed ABOVE top (roof broken!)
             if(is_closed_bar && rates[k].close > zone.top)
             {
-               zone.is_breaker = true;
-               zone.is_bullish = true; // Flipped to Support
-               zone.kind = ZONE_BREAKER_BULLISH;
-               zone.breaker_time = rates[k].time;
-               zone.is_mitigated = false;
-               zone.is_fully_used = false;
-               zone.touch_count = 0;
-               zone.deepest_touch_price = 0.0;
+               if(InpShowBreakers)
+               {
+                  zone.is_breaker = true;
+                  zone.is_bullish = true; // Flipped to Bullish Support
+                  zone.kind = ZONE_BREAKER_BULLISH;
+                  zone.breaker_time = rates[k].time;
+                  zone.is_mitigated = false;
+                  zone.is_fully_used = false;
+                  zone.touch_count = 0;
+                  zone.deepest_touch_price = 0.0;
+               }
+               else
+               {
+                  zone.is_fully_used = true; // Roof officially broken / removed
+               }
             }
          }
          else if(zone.is_breaker)
@@ -331,7 +337,7 @@ void RedrawZones()
                   if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].low; }
                   else if(rates[k].low < zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].low; }
                }
-               if(is_closed_bar && rates[k].close < zone.bottom) zone.is_fully_used = true;
+               if(is_closed_bar && rates[k].close < zone.bottom) zone.is_fully_used = true; // Breaker broken
             }
             else
             {
@@ -341,7 +347,7 @@ void RedrawZones()
                   if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].high; }
                   else if(rates[k].high > zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].high; }
                }
-               if(is_closed_bar && rates[k].close > zone.top) zone.is_fully_used = true;
+               if(is_closed_bar && rates[k].close > zone.top) zone.is_fully_used = true; // Breaker broken
             }
          }
       }
@@ -388,8 +394,8 @@ void RedrawZones()
          continue; // Protected
       }
 
-      // Exclude dead zones from outside proximity
-      if(raw_zones[m].is_fully_used || raw_zones[m].is_mitigated) continue;
+      // Exclude dead zones that have been broken by body close past boundary
+      if(raw_zones[m].is_fully_used) continue;
 
       if(raw_zones[m].bottom > current_price)
       {
@@ -509,7 +515,7 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    // 1. Rectangle Box
    ObjectCreate(0, rect_name, OBJ_RECTANGLE, 0, start_time, zone.top, current_time, zone.bottom);
    ObjectSetInteger(0, rect_name, OBJPROP_COLOR, zone.is_inside ? InpColorInside : zone_color);
-   ObjectSetInteger(0, rect_name, OBJPROP_STYLE, zone.is_inside ? STYLE_SOLID : (zone.is_breaker ? STYLE_DASHDOT : STYLE_DASH));
+   ObjectSetInteger(0, rect_name, OBJPROP_STYLE, zone.is_inside ? STYLE_SOLID : (zone.is_mitigated ? STYLE_DASH : STYLE_SOLID));
    ObjectSetInteger(0, rect_name, OBJPROP_WIDTH, zone.is_inside ? 2 : 1);
    ObjectSetInteger(0, rect_name, OBJPROP_BACK, true);
    ObjectSetInteger(0, rect_name, OBJPROP_FILL, true);
@@ -539,9 +545,13 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    {
       label += " [Virgin]";
    }
+   else if(zone.is_mitigated)
+   {
+      label += " [Tested x" + IntegerToString(zone.touch_count) + " @ " + DoubleToString(zone.deepest_touch_price, _Digits) + "]";
+   }
    else
    {
-      label += " [Touched x" + IntegerToString(zone.touch_count) + " @ " + DoubleToString(zone.deepest_touch_price, _Digits) + "]";
+      label += " [Wick Touch x" + IntegerToString(zone.touch_count) + " @ " + DoubleToString(zone.deepest_touch_price, _Digits) + "]";
    }
 
    label += " MT:" + DoubleToString(zone.mean_threshold, _Digits);

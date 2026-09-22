@@ -427,15 +427,13 @@ def process_order_block_lifecycle(
                     ob.touch_count += 1
                     ob.deepest_touch_price = float(latest_low)
 
-            # Mitigated (closed inside)
+            # Mitigated (closed inside, but still an active holding floor)
             if latest_close <= ob.top and latest_close >= ob.bottom:
                 ob.is_mitigated = True
-            # Fully used (swept 100% through bottom)
-            if latest_low <= ob.bottom:
-                ob.is_fully_used = True
 
-            # Breaker flip: closed below bottom -> Bearish Breaker Resistance
+            # Invalidation & Breaker flip: closed below bottom
             if latest_close < ob.bottom:
+                ob.is_fully_used = True
                 ob.is_breaker = True
                 ob.direction = Direction.SELL
                 ob.ob_type = OrderBlockType.BREAKER_BEARISH
@@ -455,15 +453,13 @@ def process_order_block_lifecycle(
                     ob.touch_count += 1
                     ob.deepest_touch_price = float(latest_high)
 
-            # Mitigated (closed inside)
+            # Mitigated (closed inside, but still an active holding roof)
             if latest_close >= ob.bottom and latest_close <= ob.top:
                 ob.is_mitigated = True
-            # Fully used (swept 100% through top)
-            if latest_high >= ob.top:
-                ob.is_fully_used = True
 
-            # Breaker flip: closed above top -> Bullish Breaker Support
+            # Invalidation & Breaker flip: closed above top
             if latest_close > ob.top:
+                ob.is_fully_used = True
                 ob.is_breaker = True
                 ob.direction = Direction.BUY
                 ob.ob_type = OrderBlockType.BREAKER_BULLISH
