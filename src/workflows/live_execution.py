@@ -9,7 +9,7 @@ Core Architecture:
 """
 
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -83,9 +83,6 @@ class CircuitBreakerSentinel:
             return False, self.trip_reason
 
         return True, "SAFE"
-
-
-from typing import Tuple
 
 
 class LiveExecutionPipeline:
