@@ -165,6 +165,19 @@ class LiveMT5BridgeCore:
                     "tp": pos.get("tp", 0.0)
                 }))
 
+                # Toast Notification for BEP Lock
+                notif = {
+                    "id": int(now * 1000),
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "title": f"🛡️ BEP Lock Activated!",
+                    "message": f"BUY #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Zero Risk!",
+                    "type": "BEP",
+                    "price": bep_sl
+                }
+                self.pending_notifications.append(notif)
+                if len(self.pending_notifications) > 10:
+                    self.pending_notifications.pop(0)
+
             elif side == "SELL" and cur_p <= entry_p - 1.0 and (sl > entry_p or sl == 0.0):
                 bep_sl = round(entry_p - 0.20, 2)  # Entry - spread buffer
                 logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on SELL #{ticket} @ ${bep_sl:.2f}")
@@ -175,6 +188,19 @@ class LiveMT5BridgeCore:
                     "tp": pos.get("tp", 0.0)
                 }))
 
+                # Toast Notification for BEP Lock
+                notif = {
+                    "id": int(now * 1000),
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "title": f"🛡️ BEP Lock Activated!",
+                    "message": f"SELL #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Zero Risk!",
+                    "type": "BEP",
+                    "price": bep_sl
+                }
+                self.pending_notifications.append(notif)
+                if len(self.pending_notifications) > 10:
+                    self.pending_notifications.pop(0)
+
             # 2. Structural Soft-SL Cut (Emergency Force Close on violation)
             # If opposite momentum pushes past critical invalidation threshold
             if side == "BUY" and cur_p <= (entry_p - 3.5):
@@ -184,6 +210,20 @@ class LiveMT5BridgeCore:
                     "symbol": "XAUUSD",
                     "magic": pos.get("magic", 1001)
                 }))
+
+                # Toast Notification for Emergency Force Close
+                notif = {
+                    "id": int(now * 1000),
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "title": f"🚨 EMERGENCY FORCE CLOSE!",
+                    "message": f"BUY #{ticket} soft-cut at market (${cur_p:.2f}) - Structural Breach Avoided!",
+                    "type": "FORCE_CLOSE",
+                    "price": cur_p
+                }
+                self.pending_notifications.append(notif)
+                if len(self.pending_notifications) > 10:
+                    self.pending_notifications.pop(0)
+
             elif side == "SELL" and cur_p >= (entry_p + 3.5):
                 logger.warning(f"🚨 [FORCE CLOSE] Structural breach on SELL #{ticket}! Closing at market...")
                 asyncio.create_task(self.broadcast({
@@ -191,6 +231,19 @@ class LiveMT5BridgeCore:
                     "symbol": "XAUUSD",
                     "magic": pos.get("magic", 1001)
                 }))
+
+                # Toast Notification for Emergency Force Close
+                notif = {
+                    "id": int(now * 1000),
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "title": f"🚨 EMERGENCY FORCE CLOSE!",
+                    "message": f"SELL #{ticket} soft-cut at market (${cur_p:.2f}) - Structural Breach Avoided!",
+                    "type": "FORCE_CLOSE",
+                    "price": cur_p
+                }
+                self.pending_notifications.append(notif)
+                if len(self.pending_notifications) > 10:
+                    self.pending_notifications.pop(0)
 
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         client_addr = writer.get_extra_info("peername")

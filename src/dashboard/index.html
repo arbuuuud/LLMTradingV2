@@ -438,10 +438,27 @@
       if (!container) return;
 
       const toast = document.createElement('div');
-      const isBuy = type === 'BUY' || type.includes('BUY');
-      const borderCol = isBuy ? 'border-emerald-500/60 shadow-emerald-500/20' : 'border-rose-500/60 shadow-rose-500/20';
-      const icon = isBuy ? 'fa-arrow-trend-up text-emerald-400' : 'fa-arrow-trend-down text-rose-400';
-      const badgeBg = isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400';
+      let borderCol = 'border-blue-500/60 shadow-blue-500/20';
+      let icon = 'fa-bell text-blue-400';
+      let badgeBg = 'bg-blue-500/20 text-blue-400';
+
+      if (type === 'BUY' || type.includes('BUY')) {
+        borderCol = 'border-emerald-500/60 shadow-emerald-500/20';
+        icon = 'fa-arrow-trend-up text-emerald-400';
+        badgeBg = 'bg-emerald-500/20 text-emerald-400';
+      } else if (type === 'SELL' || type.includes('SELL')) {
+        borderCol = 'border-rose-500/60 shadow-rose-500/20';
+        icon = 'fa-arrow-trend-down text-rose-400';
+        badgeBg = 'bg-rose-500/20 text-rose-400';
+      } else if (type === 'BEP') {
+        borderCol = 'border-amber-500/60 shadow-amber-500/20';
+        icon = 'fa-shield-halved text-amber-400';
+        badgeBg = 'bg-amber-500/20 text-amber-400';
+      } else if (type === 'FORCE_CLOSE') {
+        borderCol = 'border-red-600/80 shadow-red-600/30';
+        icon = 'fa-triangle-exclamation text-red-400';
+        badgeBg = 'bg-red-500/20 text-red-400';
+      }
 
       toast.className = `pointer-events-auto p-4 rounded-xl glass-card border ${borderCol} shadow-2xl backdrop-blur-xl transition transform duration-300 translate-x-full opacity-0 flex items-start gap-3`;
       toast.innerHTML = `
