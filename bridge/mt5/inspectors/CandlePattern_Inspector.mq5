@@ -5,8 +5,8 @@
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.00"
-#property description "Master Candlestick Inspector: Engulfing, Pin Bar, Star, and Marubozu with Auto Internal POI Detection for Strategy Tester & Live Chart"
+#property version   "2.10"
+#property description "Master Candlestick Inspector: Institutional Geometric Ratios for Engulfing, Pin Bar, Star, and Momentum Marubozu with POI Filter"
 
 //--- Inputs
 input group "=== POI Confluence Filter Settings ==="
@@ -232,11 +232,27 @@ void RedrawPatterns()
       double h_prev = rates[i + 1].high;
       double l_prev = rates[i + 1].low;
       double c_prev = rates[i + 1].close;
+      double body_prev = MathAbs(c_prev - o_prev);
+      double range_prev = MathMax(h_prev - l_prev, _Point * 10);
 
       double upper_wick = h - MathMax(o, c);
       double lower_wick = MathMin(o, c) - l;
       double upper_wick_ratio = upper_wick / c_range;
       double lower_wick_ratio = lower_wick / c_range;
+
+      // Local benchmark range: Average range of prior 5 bars
+      double sum_rng = 0.0;
+      int cnt_rng = 0;
+      for(int r = 1; r <= 5; r++)
+      {
+         if(i + r < bars_to_check)
+         {
+            sum_rng += (rates[i + r].high - rates[i + r].low);
+            cnt_rng++;
+         }
+      }
+      double avg_range = cnt_rng > 0 ? (sum_rng / cnt_rng) : c_range;
+      avg_range = MathMax(avg_range, _Point * 10);
 
       bool found = false;
       DetectedPattern p;
@@ -246,12 +262,18 @@ void RedrawPatterns()
       if(InpShowStars && i + 2 < bars_to_check)
       {
          double o_p2 = rates[i + 2].open;
+         double h_p2 = rates[i + 2].high;
+         double l_p2 = rates[i + 2].low;
          double c_p2 = rates[i + 2].close;
-         double body_prev = MathAbs(c_prev - o_prev);
-         double range_prev = MathMax(h_prev - l_prev, _Point * 10);
+         double body_p2 = MathAbs(c_p2 - o_p2);
+         double range_p2 = MathMax(h_p2 - l_p2, _Point * 10);
 
-         // Morning Star
-         if((c_p2 < o_p2) && (body_prev / range_prev <= 0.40) && (c > o))
+         bool is_c1_bear = (c_p2 < o_p2) && (body_p2 / range_p2 >= 0.50);
+         bool is_c1_bull = (c_p2 > o_p2) && (body_p2 / range_p2 >= 0.50);
+         bool is_star = (body_prev / range_prev <= 0.35);
+
+         // Morning Star: C1 bear -> C2 star -> C3 bull closing > 50% midpoint of C1 body
+         if(is_c1_bear && is_star && (c > o))
          {
             double mid_p2 = (o_p2 + c_p2) / 2.0;
             if(c >= mid_p2)
@@ -265,8 +287,8 @@ void RedrawPatterns()
                found = true;
             }
          }
-         // Evening Star
-         else if((c_p2 > o_p2) && (body_prev / range_prev <= 0.40) && (c < o))
+         // Evening Star: C1 bull -> C2 star -> C3 bear closing < 50% midpoint of C1 body
+         else if(is_c1_bull && is_star && (c < o))
          {
             double mid_p2 = (o_p2 + c_p2) / 2.0;
             if(c <= mid_p2)
@@ -282,58 +304,80 @@ void RedrawPatterns()
          }
       }
 
-      // 2. Engulfing
-      if(!found && InpShowEngulfing)
+      // 2. Bullish Engulfing (Strict: body > body_prev, close >= prev_open, upper wick <= 25%, range >= 0.8x avg)
+      if(!found && InpShowEngulfing && c_prev < o_prev && c > o)
       {
-         if(c_prev < o_prev && c > o && c >= o_prev && o <= c_prev)
+         if(body > body_prev && c >= o_prev && o <= c_prev)
          {
-            p.pat_type = PAT_BULLISH_ENGULFING;
-            p.is_bullish = true;
-            p.price_level = l;
-            p.label = "Bullish Engulfing";
-            p.clr = InpColorBullishPat;
-            p.arrow_code = 233;
-            found = true;
-         }
-         else if(c_prev > o_prev && c < o && c <= o_prev && o >= c_prev)
-         {
-            p.pat_type = PAT_BEARISH_ENGULFING;
-            p.is_bullish = false;
-            p.price_level = h;
-            p.label = "Bearish Engulfing";
-            p.clr = InpColorBearishPat;
-            p.arrow_code = 234;
-            found = true;
+            if(upper_wick_ratio <= 0.25 && c_range >= 0.8 * avg_range)
+            {
+               p.pat_type = PAT_BULLISH_ENGULFING;
+               p.is_bullish = true;
+               p.price_level = l;
+               p.label = "Bullish Engulfing";
+               p.clr = InpColorBullishPat;
+               p.arrow_code = 233;
+               found = true;
+            }
          }
       }
 
-      // 3. Pin Bar / Rejection Wick
+      // 3. Bearish Engulfing (Strict: body > body_prev, close <= prev_open, lower wick <= 25%, range >= 0.8x avg)
+      if(!found && InpShowEngulfing && c_prev > o_prev && c < o)
+      {
+         if(body > body_prev && c <= o_prev && o >= c_prev)
+         {
+            if(lower_wick_ratio <= 0.25 && c_range >= 0.8 * avg_range)
+            {
+               p.pat_type = PAT_BEARISH_ENGULFING;
+               p.is_bullish = false;
+               p.price_level = h;
+               p.label = "Bearish Engulfing";
+               p.clr = InpColorBearishPat;
+               p.arrow_code = 234;
+               found = true;
+            }
+         }
+      }
+
+      // 4. Bullish Pin Bar / Hammer (Rejection wick >= 60%, body <= 30% in top 35%, opposing wick <= 20%)
       if(!found && InpShowPinBar)
       {
-         if(lower_wick_ratio >= 0.55 && body_ratio <= 0.40 && upper_wick_ratio <= 0.25)
+         if(lower_wick_ratio >= 0.60 && body_ratio <= 0.30 && upper_wick_ratio <= 0.20)
          {
-            p.pat_type = PAT_BULLISH_PIN_BAR;
-            p.is_bullish = true;
-            p.price_level = l;
-            p.label = "Pin Bar (Hammer)";
-            p.clr = InpColorBullishPat;
-            p.arrow_code = 233;
-            found = true;
-         }
-         else if(upper_wick_ratio >= 0.55 && body_ratio <= 0.40 && lower_wick_ratio <= 0.25)
-         {
-            p.pat_type = PAT_BEARISH_PIN_BAR;
-            p.is_bullish = false;
-            p.price_level = h;
-            p.label = "Pin Bar (Star)";
-            p.clr = InpColorBearishPat;
-            p.arrow_code = 234;
-            found = true;
+            if(MathMin(o, c) >= l + 0.55 * c_range)
+            {
+               p.pat_type = PAT_BULLISH_PIN_BAR;
+               p.is_bullish = true;
+               p.price_level = l;
+               p.label = "Pin Bar (Hammer)";
+               p.clr = InpColorBullishPat;
+               p.arrow_code = 233;
+               found = true;
+            }
          }
       }
 
-      // 4. Momentum Marubozu
-      if(!found && InpShowMarubozu && body_ratio >= 0.75)
+      // 5. Bearish Pin Bar / Shooting Star (Rejection wick >= 60%, body <= 30% in bottom 35%, opposing wick <= 20%)
+      if(!found && InpShowPinBar)
+      {
+         if(upper_wick_ratio >= 0.60 && body_ratio <= 0.30 && lower_wick_ratio <= 0.20)
+         {
+            if(MathMax(o, c) <= h - 0.55 * c_range)
+            {
+               p.pat_type = PAT_BEARISH_PIN_BAR;
+               p.is_bullish = false;
+               p.price_level = h;
+               p.label = "Pin Bar (Star)";
+               p.clr = InpColorBearishPat;
+               p.arrow_code = 234;
+               found = true;
+            }
+         }
+      }
+
+      // 6. Momentum Marubozu (Body >= 75%, Expansion Range >= 1.3x avg_range)
+      if(!found && InpShowMarubozu && body_ratio >= 0.75 && c_range >= 1.3 * avg_range)
       {
          if(c > o)
          {

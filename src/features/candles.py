@@ -1,15 +1,27 @@
 """
-Deterministic Candle Pattern Recognition for SMC & POI Confirmation.
-Detects:
+Deterministic Candlestick Confirmation Pattern Recognition for SMC & POI Execution.
+Implements strict institutional rules:
 1. Engulfing (Bullish & Bearish)
-2. Pin Bar / Rejection Wick (Hammer, Shooting Star, Long Wick Doji)
-3. Morning Star & Evening Star (3-bar reversal)
-4. Momentum Marubozu (Displacement expansion candle)
+   - Body engulfs previous body (Body_curr > Body_prev)
+   - Previous candle must be strictly opposite color
+   - Closing dominance: closing wick <= 25% of range
+   - Minimum momentum: range >= 0.8x avg range of last 5 bars
+2. Pin Bar / Rejection Wick (Hammer & Shooting Star)
+   - Rejection wick >= 60% of total candle range
+   - Body <= 30% of total range (located in top 35% for Hammer, bottom 35% for Star)
+   - Opposing wick <= 20% of range
+3. Morning Star & Evening Star (3-Bar Reversal)
+   - Candle 1: Strong trend candle with body >= 50%
+   - Candle 2: Small star/doji with body <= 35%
+   - Candle 3: Aggressive reversal closing beyond 50% midpoint of Candle 1 body
+4. Momentum Marubozu (Displacement Expansion)
+   - Body >= 75% of candle range (wicks <= 25% combined)
+   - Relative size expansion: range >= 1.3x avg range of last 5 bars
 
-Enriches detected patterns with POI contextual location (at OB, FVG, or Fibo OTE).
+Enriches patterns with POI contextual location (at OB, FVG, or Fibo OTE).
 """
 
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Tuple
 from datetime import datetime
 import numpy as np
 
@@ -35,7 +47,7 @@ def detect_candle_patterns(
     require_poi_confluence: bool = False
 ) -> List[CandlePattern]:
     """
-    Detects high-probability confirmation candlestick patterns.
+    Detects high-probability confirmation candlestick patterns according to strict institutional criteria.
     Optionally filters patterns to only those occurring at an active POI (OB, FVG, or OTE).
     """
     patterns: List[CandlePattern] = []
@@ -46,12 +58,14 @@ def detect_candle_patterns(
     obs = active_obs or []
     fvgs = active_fvgs or []
 
+    # Precalculate candle ranges for relative size comparison
+    all_ranges = highs - lows
+
     def check_poi_overlap(p_high: float, p_low: float, direction: Direction) -> Tuple[bool, Optional[str], Optional[str]]:
         """Checks if a price range touches or penetrates an active POI."""
         # 1. Check Order Blocks
         for ob in obs:
             if not ob.is_fully_used:
-                # Floor demand touches bull pattern, roof supply touches bear pattern
                 if direction == Direction.BUY and ob.direction == Direction.BUY:
                     if p_low <= ob.top and p_high >= ob.bottom:
                         return True, "OB", ob.id
@@ -91,59 +105,96 @@ def detect_candle_patterns(
         h_prev = float(highs[i - 1])
         l_prev = float(lows[i - 1])
         c_prev = float(closes[i - 1])
+        body_prev = abs(c_prev - o_prev)
+        range_prev = max(h_prev - l_prev, 1e-5)
 
-        # Upper and lower wicks
         upper_wick = h - max(o, c)
         lower_wick = min(o, c) - l
         upper_wick_ratio = upper_wick / c_range
         lower_wick_ratio = lower_wick / c_range
 
+        # Local benchmark range (avg range of past up to 5 bars)
+        lookback_start = max(0, i - 5)
+        avg_range = float(np.mean(all_ranges[lookback_start:i])) if i > lookback_start else c_range
+        avg_range = max(avg_range, 1e-5)
+
         pat_type: Optional[CandlePatternType] = None
         direction: Optional[Direction] = None
 
-        # 1. Morning Star & Evening Star (3-candle patterns evaluated first, requires i >= 2)
+        # 1. Morning Star & Evening Star (3-candle patterns, evaluated first, requires i >= 2)
         if i >= 2:
             o_p2 = float(opens[i - 2])
+            h_p2 = float(highs[i - 2])
+            l_p2 = float(lows[i - 2])
             c_p2 = float(closes[i - 2])
-            body_prev = abs(c_prev - o_prev)
-            range_prev = max(h_prev - l_prev, 1e-5)
+            body_p2 = abs(c_p2 - o_p2)
+            range_p2 = max(h_p2 - l_p2, 1e-5)
 
-            # Morning Star: Bar 0 bearish, Bar 1 small doji/star, Bar 2 strong bullish close above 50% of Bar 0
-            if (c_p2 < o_p2) and (body_prev / range_prev <= 0.40) and (c > o):
+            # Candle 1 must have meaningful body (>= 50% range)
+            is_c1_bear = (c_p2 < o_p2) and (body_p2 / range_p2 >= 0.50)
+            is_c1_bull = (c_p2 > o_p2) and (body_p2 / range_p2 >= 0.50)
+            # Candle 2 (star) must be a small indecision candle (body <= 35% range)
+            is_star = (body_prev / range_prev <= 0.35)
+
+            # Morning Star: C1 bear -> C2 star -> C3 bull closing > 50% midpoint of C1 body
+            if is_c1_bear and is_star and (c > o):
                 mid_p2 = (o_p2 + c_p2) / 2.0
                 if c >= mid_p2:
                     pat_type = CandlePatternType.MORNING_STAR
                     direction = Direction.BUY
 
-            # Evening Star: Bar 0 bullish, Bar 1 small doji/star, Bar 2 strong bearish close below 50% of Bar 0
-            elif (c_p2 > o_p2) and (body_prev / range_prev <= 0.40) and (c < o):
+            # Evening Star: C1 bull -> C2 star -> C3 bear closing < 50% midpoint of C1 body
+            elif is_c1_bull and is_star and (c < o):
                 mid_p2 = (o_p2 + c_p2) / 2.0
                 if c <= mid_p2:
                     pat_type = CandlePatternType.EVENING_STAR
                     direction = Direction.SELL
 
-        # 2. Bullish Engulfing (Prev red, curr green, curr body engulfs prev body)
-        if pat_type is None and c_prev < o_prev and c > o and c >= o_prev and o <= c_prev:
-            pat_type = CandlePatternType.BULLISH_ENGULFING
-            direction = Direction.BUY
+        # 2. Bullish Engulfing
+        # - Prev was red
+        # - Curr is green
+        # - Body strictly engulfs previous body (body > body_prev and close >= open_prev and open <= close_prev)
+        # - Closing dominance: upper wick <= 25% of range
+        # - Meaningful size: range >= 0.8 * avg_range
+        if pat_type is None and c_prev < o_prev and c > o:
+            if body > body_prev and c >= o_prev and o <= c_prev:
+                if upper_wick_ratio <= 0.25 and c_range >= 0.8 * avg_range:
+                    pat_type = CandlePatternType.BULLISH_ENGULFING
+                    direction = Direction.BUY
 
-        # 3. Bearish Engulfing (Prev green, curr red, curr body engulfs prev body)
-        elif pat_type is None and c_prev > o_prev and c < o and c <= o_prev and o >= c_prev:
-            pat_type = CandlePatternType.BEARISH_ENGULFING
-            direction = Direction.SELL
+        # 3. Bearish Engulfing
+        # - Prev was green
+        # - Curr is red
+        # - Body strictly engulfs previous body
+        # - Closing dominance: lower wick <= 25% of range
+        # - Meaningful size: range >= 0.8 * avg_range
+        elif pat_type is None and c_prev > o_prev and c < o and body > body_prev and c <= o_prev and o >= c_prev:
+            if lower_wick_ratio <= 0.25 and c_range >= 0.8 * avg_range:
+                pat_type = CandlePatternType.BEARISH_ENGULFING
+                direction = Direction.SELL
 
-        # 4. Bullish Pin Bar / Hammer (Long lower rejection wick >= 55%, body in upper 45%)
-        elif pat_type is None and lower_wick_ratio >= 0.55 and body_ratio <= 0.40 and upper_wick_ratio <= 0.25:
-            pat_type = CandlePatternType.BULLISH_PIN_BAR
-            direction = Direction.BUY
+        # 4. Bullish Pin Bar / Hammer
+        # - Lower rejection wick >= 60% of range
+        # - Body <= 30% of range (located in top 35% of candle: min(o,c) >= l + 0.60 * c_range)
+        # - Upper wick <= 20% of range
+        if pat_type is None and lower_wick_ratio >= 0.60 and body_ratio <= 0.30 and upper_wick_ratio <= 0.20:
+            if min(o, c) >= l + 0.55 * c_range:
+                pat_type = CandlePatternType.BULLISH_PIN_BAR
+                direction = Direction.BUY
 
-        # 5. Bearish Pin Bar / Shooting Star (Long upper rejection wick >= 55%, body in lower 45%)
-        elif pat_type is None and upper_wick_ratio >= 0.55 and body_ratio <= 0.40 and lower_wick_ratio <= 0.25:
-            pat_type = CandlePatternType.BEARISH_PIN_BAR
-            direction = Direction.SELL
+        # 5. Bearish Pin Bar / Shooting Star
+        # - Upper rejection wick >= 60% of range
+        # - Body <= 30% of range (located in bottom 35% of candle: max(o,c) <= h - 0.60 * c_range)
+        # - Lower wick <= 20% of range
+        if pat_type is None and upper_wick_ratio >= 0.60 and body_ratio <= 0.30 and lower_wick_ratio <= 0.20:
+            if max(o, c) <= h - 0.55 * c_range:
+                pat_type = CandlePatternType.BEARISH_PIN_BAR
+                direction = Direction.SELL
 
-        # 6. Momentum Marubozu (Huge directional body >= 75% of range, minimal wicks)
-        elif pat_type is None and body_ratio >= 0.75:
+        # 6. Momentum Marubozu (Displacement Expansion)
+        # - Body >= 75% of range (minimal wicks)
+        # - Range expansion: range >= 1.3 * avg_range
+        elif pat_type is None and body_ratio >= 0.75 and c_range >= 1.3 * avg_range:
             if c > o:
                 pat_type = CandlePatternType.MOMENTUM_MARUBOZU_BULL
                 direction = Direction.BUY
