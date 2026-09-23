@@ -5,11 +5,18 @@ evaluates PAC Strategy Checklist via Tactician, executes through Risk Governor &
 dispatches Limit Orders to MT5, and records every closed trade into data/forward_trades_live.json.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root directory to sys.path so 'src' is always importable on Windows/Linux/macOS
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import asyncio
 import json
 import logging
 import signal
-from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
 
