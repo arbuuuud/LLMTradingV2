@@ -1,0 +1,15 @@
+[Unit]
+Description=LLMTradingV2 Production Trading Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/LLMTradingV2
+Environment="PYTHONPATH=/home/ubuntu/LLMTradingV2"
+ExecStart=/home/ubuntu/LLMTradingV2/.venv/bin/python3 /home/ubuntu/LLMTradingV2/src/workflows/forward_daemon.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+broker_name: "ICMarkets_ECN"
+canonical_symbol: "XAUUSD"
+broker_symbol: "XAUUSD"
+digits: 2
+point: 0.01
+contract_size: 100.0
+min_lot: 0.01
+max_lot: 100.0
+lot_step: 0.01
+lot_decimals: 2
+tick_size: 0.01
+tick_value: 1.0

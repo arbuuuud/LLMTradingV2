@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # 1. MT5 Headless Terminal with Wine & VNC
+  mt5-headless:
+    image: metatrader5:latest # or custom ubuntu:22.04 with wine & mt5
+    container_name: llm_mt5_terminal
+    restart: unless-stopped
+    environment:
+      - DISPLAY=:1
+      - VNC_PASSWORD=institutional_secret
+    ports:
+      - "5901:5901" # Web / VNC Viewer port
+    volumes:
+      - ./mt5_data:/root/.wine/drive_c/Program Files/MetaTrader 5
+      - ./bridge/mt5:/root/.wine/drive_c/Program Files/MetaTrader 5/MQL5/Experts/LLMTradingV2
+      - ./common_files:/root/.wine/drive_c/users/root/AppData/Roaming/MetaQuotes/Terminal/Common/Files
+    networks:
+      - llm_net
+
+  # 2. Python Live Execution Daemon & Circuit Breaker Sentinel
+  python-engine:
+    image: python:3.11-slim
+    container_name: llm_trading_engine
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    ports:
+      - "8000:8000" # Web Dashboard
+    volumes:
+      - .:/app
+    command: bash -c "pip install -r requirements.txt && python3 src/workflows/forward_daemon.py"
+    depends_on:
+      - mt5-headless
+    networks:
+      - llm_net
+
+networks:
+  llm_net:
+    driver: bridge
