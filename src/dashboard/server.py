@@ -288,21 +288,27 @@ def get_radar_chart_data(tf: str = "M1") -> Dict[str, Any]:
     if RADAR_STATE_PATH.exists():
         try:
             live_data = json.loads(RADAR_STATE_PATH.read_text(encoding="utf-8"))
-            live_bars = live_data.get("bars", [])
-            if len(live_bars) >= 5:
+            # Check if timeframe_bars has exact bars for this TF
+            tf_bars = live_data.get("timeframe_bars", {}).get(tf)
+            if not tf_bars:
+                tf_bars = live_data.get("bars", [])
+
+            if len(tf_bars) >= 5:
                 eq_curve = [10000.0]
-                for i in range(1, len(live_bars)):
-                    diff = (live_bars[i]["close"] - live_bars[i - 1]["close"]) * 5.0
+                for i in range(1, len(tf_bars)):
+                    diff = (tf_bars[i]["close"] - tf_bars[i - 1]["close"]) * 5.0
                     eq_curve.append(round(eq_curve[-1] + diff, 2))
 
                 curr_eq = eq_curve[-1]
                 ret_pct = round(((curr_eq - 10000.0) / 10000.0) * 100.0, 2)
+                tf_info = live_data.get("timeframes", {}).get(tf, {})
 
                 return {
                     "source": "LIVE_MT5_TERMINAL",
                     "timeframe": tf,
                     "symbol": live_data.get("symbol", "XAUUSD"),
-                    "candles": live_bars,
+                    "candles": tf_bars,
+                    "tf_info": tf_info,
                     "equity_curve": eq_curve,
                     "summary": {
                         "initial_balance": 10000.0,

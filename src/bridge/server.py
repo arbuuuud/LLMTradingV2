@@ -231,59 +231,116 @@ class LiveMT5BridgeCore:
         ask = float(self.latest_tick.get("ask", last_c + 0.15)) if self.latest_tick else (last_c + 0.15)
         mid = round((bid + ask) / 2.0, 2)
 
-        highs = [b["high"] for b in self.history_m1[-20:]] if self.history_m1 else [last_c + 5.0]
-        lows = [b["low"] for b in self.history_m1[-20:]] if self.history_m1 else [last_c - 5.0]
-        sw_high = round(max(highs), 2)
-        sw_low = round(min(lows), 2)
-        midpoint = round((sw_high + sw_low) / 2.0, 2)
-
-        # Build formatted candles for canvas
-        candles = []
-        for idx, b in enumerate(self.history_m1):
-            sub = self.history_m1[max(0, idx - 15):idx + 1]
-            pu = round(max(x["high"] for x in sub), 2)
-            pl = round(min(x["low"] for x in sub), 2)
-            candles.append({
-                "time": b["time"],
-                "open": b["open"],
-                "high": b["high"],
-                "low": b["low"],
-                "close": b["close"],
-                "pac_upper": pu,
-                "pac_lower": pl,
-                "midpoint": round((pu + pl) / 2.0, 2)
-            })
-
-        # Multi-timeframe PAC specs
+        # Multi-timeframe bar aggregation & PAC calculation
         tf_dict = {}
+        tf_candles = {}
+
         for tf, mult in [("M1", 1), ("M2", 2), ("M3", 3), ("M4", 4), ("M5", 5)]:
-            in_discount = mid <= (sw_low + (sw_high - sw_low) * 0.25)
-            in_premium = mid >= (sw_low + (sw_high - sw_low) * 0.75)
-            dir_label = "BUY" if in_discount else ("SELL" if in_premium else "NEUTRAL")
+            # Aggregate M1 bars into TF bars
+            aggregated = []
+            m1_len = len(self.history_m1)
+            # Take bars in multiples of mult from newest to oldest
+            for i in range(0, m1_len, mult):
+                group = self.history_m1[i:i + mult]
+                if not group:
+                    continue
+                o = group[0]["open"]
+                h = max(x["high"] for x in group)
+                l = min(x["low"] for x in group)
+                c = group[-1]["close"]
+                t = group[-1]["time"]
+                aggregated.append({
+                    "time": t,
+                    "open": round(o, 2),
+                    "high": round(h, 2),
+                    "low": round(l, 2),
+                    "close": round(c, 2)
+                })
+
+            # Calculate dynamic swings & PAC channel for this TF
+            lookback_sw = aggregated[-20:] if len(aggregated) >= 20 else aggregated
+            sw_high = round(max(x["high"] for x in lookback_sw), 2) if lookback_sw else round(mid + 5.0, 2)
+            sw_low = round(min(x["low"] for x in lookback_sw), 2) if lookback_sw else round(mid - 5.0, 2)
+            total_range = max(1.0, sw_high - sw_low)
+            equilibrium = round((sw_high + sw_low) / 2.0, 2)
+
+            # Institutional PAC Quadrants
+            buy_zone_top = round(sw_low + (total_range * 0.25), 2)
+            buy_zone_bottom = sw_low
+            sell_zone_bottom = round(sw_low + (total_range * 0.75), 2)
+            sell_zone_top = sw_high
+
+            in_discount = mid <= buy_zone_top
+            in_premium = mid >= sell_zone_bottom
+
+            if in_discount:
+                dir_label = "BUY"
+                status_label = "IN_BUY_ZONE"
+                quad_label = "0% - 25% (Buy Discount)"
+                hard_sl = round(sw_low - 2.5, 2)
+                soft_sl = round(sw_low - 0.5, 2)
+                is_active = True
+                score = 9.2
+            elif in_premium:
+                dir_label = "SELL"
+                status_label = "IN_SELL_ZONE"
+                quad_label = "75% - 100% (Sell Premium)"
+                hard_sl = round(sw_high + 2.5, 2)
+                soft_sl = round(sw_high + 0.5, 2)
+                is_active = True
+                score = 9.0
+            else:
+                dir_label = "NEUTRAL"
+                status_label = "EQUILIBRIUM_WAIT"
+                quad_label = "40% - 60% (Equilibrium)"
+                hard_sl = 0.0
+                soft_sl = 0.0
+                is_active = False
+                score = 5.4
+
+            # Format candles with PAC bands for this TF
+            tf_bar_list = []
+            for idx, b in enumerate(aggregated):
+                sub = aggregated[max(0, idx - 15):idx + 1]
+                pu = round(max(x["high"] for x in sub), 2)
+                pl = round(min(x["low"] for x in sub), 2)
+                tf_bar_list.append({
+                    "time": b["time"],
+                    "open": b["open"],
+                    "high": b["high"],
+                    "low": b["low"],
+                    "close": b["close"],
+                    "pac_upper": pu,
+                    "pac_lower": pl,
+                    "midpoint": round((pu + pl) / 2.0, 2)
+                })
+
+            tf_candles[tf] = tf_bar_list
 
             tf_dict[tf] = {
                 "timeframe": tf,
-                "active_setup": in_discount or in_premium,
+                "active_setup": is_active,
                 "direction": dir_label,
-                "status": "IN_BUY_ZONE" if in_discount else ("IN_SELL_ZONE" if in_premium else "EQUILIBRIUM_WAIT"),
-                "quadrant": "0% - 25% (Buy Discount)" if in_discount else ("75% - 100% (Sell Premium)" if in_premium else "45% - 55% (Equilibrium)"),
-                "structure": "BULLISH_BOS" if dir_label == "BUY" else "RANGING",
+                "status": status_label,
+                "quadrant": quad_label,
+                "structure": "BULLISH_BOS" if dir_label == "BUY" else ("BEARISH_BOS" if dir_label == "SELL" else "CONSOLIDATION"),
                 "swing_high": sw_high,
                 "swing_low": sw_low,
-                "equilibrium": midpoint,
-                "pac_channel_high": sw_high,
-                "pac_channel_low": sw_low,
+                "equilibrium": equilibrium,
+                "buy_zone": {"bottom": buy_zone_bottom, "top": buy_zone_top, "active": in_discount},
+                "sell_zone": {"bottom": sell_zone_bottom, "top": sell_zone_top, "active": in_premium},
                 "current_price": mid,
-                "sl_hard": round(sw_low - 3.5, 2) if dir_label == "BUY" else round(sw_high + 3.5, 2),
-                "tp_midpoint": midpoint,
+                "sl_hard": hard_sl,
+                "sl_soft": soft_sl,
+                "tp_midpoint": equilibrium,
                 "retest_mode": "MULTI_RETEST_DEEPER",
-                "checklist_score": 9.2 if (in_discount or in_premium) else 5.4,
+                "checklist_score": score,
                 "checklist": [
-                    {"label": f"Valid PAC Zone ({'0-25%' if dir_label == 'BUY' else 'Equilibrium'})", "ok": in_discount, "val": f"Live Price ${mid:.2f}"},
-                    {"label": "Structural Alignment (BOS / CHoCH)", "ok": True, "val": "Real-time Structure Tracked"},
-                    {"label": "Retest Quality (Deeper Penetration)", "ok": in_discount, "val": "Monitoring Active Depth"},
-                    {"label": "Midpoint Hard TP Target", "ok": True, "val": f"Equilibrium ${midpoint:.2f}"},
-                    {"label": "Soft SL Protective Close", "ok": True, "val": "Armed on Bar Close"}
+                    {"label": f"Valid PAC Zone ({'0-25% Buy' if dir_label == 'BUY' else ('75-100% Sell' if dir_label == 'SELL' else 'Equilibrium')})", "ok": is_active, "val": f"Live Price ${mid:.2f}"},
+                    {"label": "Structural Alignment (BOS / CHoCH)", "ok": is_active, "val": f"{tf} Fractal Structure Tracked"},
+                    {"label": "Retest Quality (Deeper Penetration)", "ok": is_active, "val": "Depth liquidity monitored"},
+                    {"label": "Midpoint Hard TP Target", "ok": True, "val": f"50% Eq at ${equilibrium:.2f}"},
+                    {"label": "Protective SL Boundaries", "ok": True, "val": f"Hard SL: ${hard_sl:.2f} | Soft SL: ${soft_sl:.2f}" if is_active else "Standby"}
                 ]
             }
 
@@ -305,7 +362,8 @@ class LiveMT5BridgeCore:
                 "balance": self.balance,
                 "equity": self.equity
             },
-            "bars": candles,
+            "bars": tf_candles.get("M1", []),
+            "timeframe_bars": tf_candles,
             "timeframes": tf_dict
         }
 

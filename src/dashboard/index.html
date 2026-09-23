@@ -401,13 +401,24 @@
       const chartW = W - padRight - padLeft;
       const chartH = H - padTop - padBottom;
 
-      // Price Scaling strictly tailored for Candlesticks
+      // Find Min & Max price across candles and zones
       let minP = Infinity;
       let maxP = -Infinity;
       candles.forEach(c => {
         if (c.low < minP) minP = c.low;
         if (c.high > maxP) maxP = c.high;
       });
+
+      const tfInfo = data.tf_info || (currentRadarData && currentRadarData.timeframes ? currentRadarData.timeframes[selectedRadarTf] : null);
+      if (tfInfo) {
+        if (tfInfo.sl_hard && tfInfo.sl_hard > 0) {
+          minP = Math.min(minP, tfInfo.sl_hard);
+          maxP = Math.max(maxP, tfInfo.sl_hard);
+        }
+        if (tfInfo.buy_zone && tfInfo.buy_zone.bottom) minP = Math.min(minP, tfInfo.buy_zone.bottom);
+        if (tfInfo.sell_zone && tfInfo.sell_zone.top) maxP = Math.max(maxP, tfInfo.sell_zone.top);
+      }
+
       // Add slight padding around candles
       const rawSpan = (maxP - minP) || 1.0;
       minP -= rawSpan * 0.08;
@@ -437,6 +448,104 @@
 
       const stepX = chartW / candles.length;
       const barWidth = Math.max(3, Math.min(10, stepX * 0.7));
+
+      // 1. Draw Institutional Zones (Buy Zone 0-25% & Sell Zone 75-100%)
+      if (tfInfo) {
+        const buyActive = tfInfo.buy_zone && tfInfo.buy_zone.active;
+        const sellActive = tfInfo.sell_zone && tfInfo.sell_zone.active;
+
+        // Buy Zone (0% - 25% Discount)
+        if (tfInfo.buy_zone && tfInfo.buy_zone.top && tfInfo.buy_zone.bottom) {
+          const yTop = getY(tfInfo.buy_zone.top);
+          const yBot = getY(tfInfo.buy_zone.bottom);
+          const hZone = Math.max(4, yBot - yTop);
+
+          candleCtx.fillStyle = buyActive ? 'rgba(34, 197, 94, 0.18)' : 'rgba(34, 197, 94, 0.04)';
+          candleCtx.fillRect(padLeft, yTop, chartW, hZone);
+
+          candleCtx.strokeStyle = buyActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(34, 197, 94, 0.25)';
+          candleCtx.lineWidth = buyActive ? 1.5 : 1.0;
+          candleCtx.strokeRect(padLeft, yTop, chartW, hZone);
+
+          // Zone Tag Label
+          candleCtx.fillStyle = buyActive ? '#4ade80' : 'rgba(74, 222, 128, 0.4)';
+          candleCtx.font = buyActive ? 'bold 10px ui-monospace, monospace' : '9px ui-monospace, monospace';
+          candleCtx.fillText(buyActive ? '● ACTIVE BUY ZONE (0-25% DISCOUNT)' : 'BUY ZONE (0-25% STANDBY)', padLeft + 10, yTop + 14);
+        }
+
+        // Sell Zone (75% - 100% Premium)
+        if (tfInfo.sell_zone && tfInfo.sell_zone.top && tfInfo.sell_zone.bottom) {
+          const yTop = getY(tfInfo.sell_zone.top);
+          const yBot = getY(tfInfo.sell_zone.bottom);
+          const hZone = Math.max(4, yBot - yTop);
+
+          candleCtx.fillStyle = sellActive ? 'rgba(239, 68, 68, 0.18)' : 'rgba(239, 68, 68, 0.04)';
+          candleCtx.fillRect(padLeft, yTop, chartW, hZone);
+
+          candleCtx.strokeStyle = sellActive ? 'rgba(239, 68, 68, 0.9)' : 'rgba(239, 68, 68, 0.25)';
+          candleCtx.lineWidth = sellActive ? 1.5 : 1.0;
+          candleCtx.strokeRect(padLeft, yTop, chartW, hZone);
+
+          // Zone Tag Label
+          candleCtx.fillStyle = sellActive ? '#f87171' : 'rgba(248, 113, 113, 0.4)';
+          candleCtx.font = sellActive ? 'bold 10px ui-monospace, monospace' : '9px ui-monospace, monospace';
+          candleCtx.fillText(sellActive ? '● ACTIVE SELL ZONE (75-100% PREMIUM)' : 'SELL ZONE (75-100% STANDBY)', padLeft + 10, yTop + 14);
+        }
+
+        // 2. Equilibrium 50% Hard TP Line (Gold)
+        if (tfInfo.equilibrium) {
+          const yEq = getY(tfInfo.equilibrium);
+          candleCtx.save();
+          candleCtx.setLineDash([5, 4]);
+          candleCtx.strokeStyle = '#fbbf24';
+          candleCtx.lineWidth = 1.5;
+          candleCtx.beginPath();
+          candleCtx.moveTo(padLeft, yEq);
+          candleCtx.lineTo(W - padRight, yEq);
+          candleCtx.stroke();
+          candleCtx.restore();
+
+          candleCtx.fillStyle = '#fbbf24';
+          candleCtx.font = 'bold 9px ui-monospace, monospace';
+          candleCtx.fillText(`50% EQUILIBRIUM TP ($${tfInfo.equilibrium.toFixed(2)})`, padLeft + chartW - 210, yEq - 5);
+        }
+
+        // 3. Hard SL Boundary Line (Crimson)
+        if (tfInfo.sl_hard && tfInfo.sl_hard > 0) {
+          const ySl = getY(tfInfo.sl_hard);
+          candleCtx.save();
+          candleCtx.setLineDash([4, 2]);
+          candleCtx.strokeStyle = '#f43f5e';
+          candleCtx.lineWidth = 1.8;
+          candleCtx.beginPath();
+          candleCtx.moveTo(padLeft, ySl);
+          candleCtx.lineTo(W - padRight, ySl);
+          candleCtx.stroke();
+          candleCtx.restore();
+
+          candleCtx.fillStyle = '#f43f5e';
+          candleCtx.font = 'bold 9px ui-monospace, monospace';
+          candleCtx.fillText(`🛑 HARD SL ($${tfInfo.sl_hard.toFixed(2)})`, padLeft + 10, ySl - 4);
+        }
+
+        // 4. Soft SL Boundary Line (Dashed Orange)
+        if (tfInfo.sl_soft && tfInfo.sl_soft > 0) {
+          const ySoft = getY(tfInfo.sl_soft);
+          candleCtx.save();
+          candleCtx.setLineDash([2, 4]);
+          candleCtx.strokeStyle = '#fb923c';
+          candleCtx.lineWidth = 1.2;
+          candleCtx.beginPath();
+          candleCtx.moveTo(padLeft, ySoft);
+          candleCtx.lineTo(W - padRight, ySoft);
+          candleCtx.stroke();
+          candleCtx.restore();
+
+          candleCtx.fillStyle = '#fb923c';
+          candleCtx.font = '9px ui-monospace, monospace';
+          candleCtx.fillText(`SOFT SL CLOSE ($${tfInfo.sl_soft.toFixed(2)})`, padLeft + 10, ySoft + 11);
+        }
+      }
 
       // Draw PAC Channel Cloud (if present)
       if (candles[0].pac_upper && candles[0].pac_lower) {
