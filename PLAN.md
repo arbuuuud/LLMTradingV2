@@ -10,9 +10,9 @@
 ## 📊 Ringkasan Progress Proyek
 
 - **Total Tasks Terencana**: 22 tasks
-- **Tasks Selesai**: 14 tasks (63.6%)
+- **Tasks Selesai**: 16 tasks (72.7%)
 - **Tasks Sedang Berjalan**: 0 task
-- **Tasks Antrian**: 8 tasks
+- **Tasks Antrian**: 6 tasks
 
 ---
 
@@ -64,9 +64,9 @@
 
 ---
 
-### ⏳ Fase 3: Backtest & Kage Bunshin Shadow Clone Matrix (Workflow 2)
-- [ ] **T3-1**: High-Performance Vectorized / Event-Driven Bar Backtest Engine dengan Polars.
-- [ ] **T3-2**: Kage Bunshin (Shadow Clone) Parallel Matrix Runner.
+### ✅ Fase 3: Backtest & Kage Bunshin Shadow Clone Matrix (Workflow 2) (Selesai Sebagian)
+- [x] **T3-1**: High-Performance Vectorized / Event-Driven Bar Backtest Engine dengan Polars (`src/workflows/backtest.py`). Mampu menyimulasikan kuadran PAC (0-25% Buy, 75-100% Sell), Hard SL, Soft SL Candle Close, Hard TP 50%, dan Saved-R. *(VERIFIED & COMPLETED)*
+- [x] **T3-2**: Kage Bunshin (Shadow Clone) Parallel Matrix Runner (`src/workflows/kage_bunshin.py`). Mengorkestrasi eksekusi paralel multi-core CPU hingga 3.840 klon independen, diaudit oleh Auditor Agent dan dipetakan ke 4 Profil Risiko Standar. *(VERIFIED & COMPLETED)*
 - [ ] **T3-3**: ForceClose Benchmark & Saved-R Analytics.
 
 ### ⏳ Fase 4: Forward Test Staging & Live Trading Engine (Workflow 4 & 3)

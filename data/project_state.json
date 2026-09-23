@@ -5,9 +5,9 @@
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
     "total_tasks": 22,
-    "completed_tasks": 14,
+    "completed_tasks": 16,
     "in_progress_tasks": 0,
-    "pending_tasks": 8
+    "pending_tasks": 6
   },
   "phases": [
     {
@@ -169,14 +169,16 @@
         {
           "id": "T3-1",
           "title": "Vectorized / Event-Driven Bar Backtest Engine",
-          "status": "PENDING",
-          "notes": "Engine evaluasi eksekusi bar/tick berkecepatan tinggi dengan Polars."
+          "status": "COMPLETED",
+          "branch": "feat/poi-structure-matrix-subtasks",
+          "notes": "Verified: High-speed Polars simulation engine dengan simulasi kuadran PAC (0-25% Buy, 75-100% Sell), Hard SL, Soft SL Candle Close, Hard TP 50%, dan Saved-R analytics."
         },
         {
           "id": "T3-2",
           "title": "Kage Bunshin Shadow Clone Matrix Runner",
-          "status": "PENDING",
-          "notes": "Multi-process generator penguji puluhan variasi checklist secara simultan."
+          "status": "COMPLETED",
+          "branch": "feat/poi-structure-matrix-subtasks",
+          "notes": "Verified: Multi-core ProcessPool parallel tournament runner mengeksekusi 108 s/d 3.840 Shadow Clones dalam hitungan detik, diaudit oleh AuditorAgent dan dipetakan ke 4 Profil Risiko Standar."
         },
         {
           "id": "T3-3",
