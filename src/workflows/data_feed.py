@@ -28,6 +28,7 @@ from src.features.smc import (
     process_fvg_inversions,
     detect_fvg_confluences
 )
+from src.features.candles import detect_candle_patterns
 from src.features.fibonacci import calculate_fibonacci_ote
 from src.data.adapter import BrokerAdapter
 
@@ -239,6 +240,19 @@ class LiveDataFeedGenerator:
             if latest_l < struct_state.last_swing_low.price and latest_c >= struct_state.last_swing_low.price:
                 liq_state.sell_side_swept = True
 
+        # 5. Candlestick Confirmation Patterns (At Active POIs)
+        candle_patterns = detect_candle_patterns(
+            opens=np_opens,
+            highs=np_highs,
+            lows=np_lows,
+            closes=np_closes,
+            timestamps=self.timestamps,
+            active_obs=self.active_obs,
+            active_fvgs=self.active_fvgs,
+            fibonacci_ote=fibo_ote,
+            require_poi_confluence=True
+        )
+
         quote = PriceQuote(bid=bid, ask=ask, spread=spread, timestamp=now)
 
         snapshot = MarketStateSnapshot(
@@ -253,6 +267,7 @@ class LiveDataFeedGenerator:
             fvg_confluences=self.fvg_confluences[-5:],
             active_obs=cluster_order_blocks(self.active_obs)[-5:],     # Retain top 5 most recent consolidated clusters
             active_breakers=self.active_breakers[-5:],
+            active_candle_patterns=candle_patterns[-10:],             # Retain top 10 recent confirmation patterns
             fibonacci=fibo_ote,
             liquidity=liq_state
         )

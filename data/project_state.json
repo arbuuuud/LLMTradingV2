@@ -5,9 +5,9 @@
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
     "total_tasks": 22,
-    "completed_tasks": 13,
+    "completed_tasks": 14,
     "in_progress_tasks": 0,
-    "pending_tasks": 9
+    "pending_tasks": 8
   },
   "phases": [
     {
@@ -155,9 +155,9 @@
         {
           "id": "INSP-04-CANDLE-PATTERNS",
           "title": "Master Candle Pattern Inspector (Engulfing, Doji, Star, Momentum Candle)",
-          "status": "PENDING",
+          "status": "COMPLETED",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Unified di CandlePattern_Inspector.mq5: Konfirmasi rejection dan displacement momentum candle."
+          "notes": "Verified di MT5 & Engine: Engulfing, Pin Bar (Hammer/Shooting Star), Morning/Evening Star, Momentum Marubozu, serta filter ketat Hanya Muncul di Zona POI untuk evaluasi akurasi Kage Bunshin."
         }
       ]
     },
@@ -280,6 +280,13 @@
       "date": "2025-09-22",
       "topic": "M1 Precomputed POI Databank Architecture",
       "summary": "Menghilangkan ketergantungan MT5 Strategy Tester pada scanning bar lokal/HTF dengan mengekspor 79.313 rekaman M1 OB langsung dari data lake 300.440 bars ke xauusd_m1_poi_databank.bin (2.7 MB). MT5 Strategy Tester membaca databank ini secara instan via FILE_COMMON, menjamin ketersediaan Floor & Roof M1 presisi tanpa interpolasi candle H1.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-009",
+      "date": "2025-09-22",
+      "topic": "Candlestick POI Confirmation Filter",
+      "summary": "Seluruh 4 tipe pola lilin (Engulfing, Pin Bar, Morning/Evening Star, Momentum Marubozu) dihitung secara deterministik dan hanya digambar/diakui jika menyentuh atau berada di dalam area aktif POI (InpFilterOnlyAtPOI = true). Menghindari kebisingan chart dan menyajikan data konfirmasi murni untuk evaluasi matriks Kage Bunshin.",
       "status": "CONFIRMED"
     },
     {

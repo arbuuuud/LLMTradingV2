@@ -47,6 +47,7 @@ compile_file "MQL5/Experts/LLMTradingV2/LLMTradingBridge.mq5"
 compile_file "MQL5/Experts/LLMTradingV2/inspectors/Structure_Inspector.mq5"
 compile_file "MQL5/Experts/LLMTradingV2/inspectors/FVG_Inspector.mq5"
 compile_file "MQL5/Experts/LLMTradingV2/inspectors/OrderBlock_Inspector.mq5"
+compile_file "MQL5/Experts/LLMTradingV2/inspectors/CandlePattern_Inspector.mq5"
 compile_file "MQL5/Experts/LLMTradingV2/inspectors/Fibonacci_OTE_Inspector.mq5"
 compile_file "MQL5/Experts/LLMTradingV2/inspectors/Liquidity_Inspector.mq5"
 

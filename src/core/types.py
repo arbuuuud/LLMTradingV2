@@ -157,6 +157,35 @@ class PriceQuote(BaseModel):
     timestamp: datetime
 
 
+class CandlePatternType(str, Enum):
+    BULLISH_ENGULFING = "BULLISH_ENGULFING"
+    BEARISH_ENGULFING = "BEARISH_ENGULFING"
+    BULLISH_PIN_BAR = "BULLISH_PIN_BAR"         # Hammer / Dragonfly Doji / Rejection wick at floor
+    BEARISH_PIN_BAR = "BEARISH_PIN_BAR"         # Shooting Star / Gravestone Doji / Rejection wick at roof
+    MORNING_STAR = "MORNING_STAR"               # 3-bar reversal at floor
+    EVENING_STAR = "EVENING_STAR"               # 3-bar reversal at roof
+    MOMENTUM_MARUBOZU_BULL = "MOMENTUM_MARUBOZU_BULL"
+    MOMENTUM_MARUBOZU_BEAR = "MOMENTUM_MARUBOZU_BEAR"
+
+
+class CandlePattern(BaseModel):
+    id: str
+    pattern_type: CandlePatternType
+    direction: Direction
+    timestamp: datetime
+    bar_index: int
+    open: float
+    high: float
+    low: float
+    close: float
+    body_ratio: float
+    rejection_wick_ratio: float
+    at_poi: bool = False
+    poi_type: Optional[str] = None      # e.g. "OB", "FVG", "OTE"
+    poi_id: Optional[str] = None
+    poi_confluence_score: float = 1.0
+
+
 class MarketStateSnapshot(BaseModel):
     """Enriched state output generated deterministically by W1 (Live Data Feed)."""
     symbol: str
@@ -170,6 +199,7 @@ class MarketStateSnapshot(BaseModel):
     fvg_confluences: List[FVGConfluenceZone] = Field(default_factory=list)
     active_obs: List[OrderBlock] = Field(default_factory=list)
     active_breakers: List[OrderBlock] = Field(default_factory=list)
+    active_candle_patterns: List[CandlePattern] = Field(default_factory=list)
     fibonacci: Optional[FibonacciOTE] = None
     liquidity: LiquidityState = Field(default_factory=LiquidityState)
 

@@ -10,9 +10,9 @@
 ## 📊 Ringkasan Progress Proyek
 
 - **Total Tasks Terencana**: 22 tasks
-- **Tasks Selesai**: 13 tasks (59.1%)
+- **Tasks Selesai**: 14 tasks (63.6%)
 - **Tasks Sedang Berjalan**: 0 task
-- **Tasks Antrian**: 9 tasks
+- **Tasks Antrian**: 8 tasks
 
 ---
 
@@ -53,8 +53,8 @@
   *Isi Lengkap*: Pemisahan FVG & iFVG (dengan deteksi breach counter-FVG), Confluence Zone (Cyan), Proximity Model (2 Above, 2 Below, 1 Inside terlindungi), Counter Sentuhan (+1 hanya jika menembus lebih dalam), serta pemisahan tegas Mitigated (body close) vs Fully Used (order 100% tersapu). *(VERIFIED & PASSED)*
 - [x] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
   *Isi Lengkap*: Order Block (OB DBR/RBD), Continuation (RBR/DBD), 50% Mean Threshold (MT), Liquidity Sweep, Smart Confluence Cluster Merging, dan integrasi langsung dengan **M1 POI Databank Binary (79.313 records dari 300.440 bars M1 murni)** sehingga Floor & Roof dijamin 100% muncul di Strategy Tester maupun Live chart tanpa interpolasi timeframe H1. *(VERIFIED & COMPLETED)*
-- [ ] **INSP-04-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
-  *Isi Lengkap*: Engulfing (Bull/Bear), Doji Variants, Morning/Evening Star, dan Momentum Displacement Candle (Marubozu). *(Antrian Berikutnya)*
+- [x] **INSP-04-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
+  *Isi Lengkap*: Engulfing (Bull/Bear), Pin Bar / Rejection Wick (Hammer & Shooting Star), Morning & Evening Star, Momentum Marubozu, serta filter ketat **Hanya Muncul di Zona POI (`InpFilterOnlyAtPOI`)** agar chart tetap bersih & siap dinilai performanya di Kage Bunshin. *(VERIFIED & COMPLETED)*
 
 ---
 
@@ -92,3 +92,4 @@
 | **DEC-006** | 2025-09-22 | FVG Proximity & Lifecycle Separation | FVG & iFVG dipisahkan sebagai objek distinct. Pembedaan tegas: (1) Touched increment +1 hanya jika menembus harga lebih dalam, (2) Mitigated hanya jika candle closed dengan body di dalam, (3) Fully Used jika 100% order tersapu wick/body, dan (4) Zona aktif tempat harga berada di dalamnya (Inside Zone) diproteksi mutlak dari penghapusan. | **CONFIRMED** |
 | **DEC-007** | 2025-09-22 | S&D / OB Roof & Floor Lifecycle | (1) Aturan ketat Continuation RBR/DBD: Base 1-3 candle (boring candle body <= 50%), Leg-Out impulse ratio >= 1.5x & FVG. (2) Zona Roof (Supply/-OB) dan Floor (Demand/+OB) tetap valid & digambar di chart selama belum dijebol oleh candle body close tembus keluar batas seberang; retest di dalam ditandai `[Tested]` tanpa dihapus. (3) Breaker Block bersifat optional (default OFF). (4) Lookback 1000 bars menjamin ketersediaan 4-5 zona pemetaan (2 Roofs di atas, 2 Floors di bawah, 1 Inside). | **CONFIRMED** |
 | **DEC-008** | 2025-09-22 | M1 Precomputed POI Databank Architecture | Menghilangkan ketergantungan MT5 Strategy Tester pada scanning bar lokal/HTF dengan mengekspor 79.313 rekaman M1 OB langsung dari data lake 300.440 bars ke `xauusd_m1_poi_databank.bin` (2.7 MB). MT5 Strategy Tester membaca databank ini secara instan via `FILE_COMMON`, menjamin ketersediaan Floor & Roof M1 presisi tanpa interpolasi candle H1. | **CONFIRMED** |
+| **DEC-009** | 2025-09-22 | Candlestick POI Confirmation Filter | Seluruh 4 tipe pola lilin (Engulfing, Pin Bar, Morning/Evening Star, Momentum Marubozu) dihitung secara deterministik dan hanya digambar/diakui jika menyentuh atau berada di dalam area aktif POI (`InpFilterOnlyAtPOI = true`). Menghindari kebisingan chart dan menyajikan data konfirmasi murni untuk evaluasi matriks Kage Bunshin. | **CONFIRMED** |
