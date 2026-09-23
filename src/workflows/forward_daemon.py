@@ -99,9 +99,51 @@ class ForwardDemoDaemon:
         self.output_path.write_text(json.dumps(data, indent=2))
 
     def _on_handshake(self, data: Dict[str, Any]):
-        logger.info(f"🤝 Handshake from MT5: Broker={data.get('broker_name')} Symbol={data.get('broker_symbol')}")
+        acc_num = str(data.get("account_number", "UNKNOWN"))
+        broker = data.get("broker_name", "DemoBroker")
+        server = data.get("server", "Demo-Server")
+        bal = float(data.get("balance", 10000.0))
+        eq = float(data.get("equity", 10000.0))
+
+        logger.info(f"🤝 Handshake from MT5: Account={acc_num} | Broker={broker} ({server}) | Balance={bal:.2f} Equity={eq:.2f}")
+
+        # Auto-register/sync live connected account to configs/accounts.yaml
+        cfg_path = PROJECT_ROOT / "configs" / "accounts.yaml"
+        if cfg_path.exists():
+            try:
+                import yaml
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+
+                # Mark previously connected accounts as STANDBY
+                accounts = cfg.setdefault("accounts", {})
+                for k, acc in accounts.items():
+                    if acc.get("status") == "CONNECTED":
+                        acc["status"] = "STANDBY"
+
+                # Update or register this exact live account
+                acc_key = f"ACC-{acc_num}"
+                accounts[acc_key] = {
+                    "account_number": acc_num,
+                    "broker_name": broker,
+                    "server": server,
+                    "account_type": "DEMO",
+                    "risk_profile": cfg.get("default_profile", "prop_firm"),
+                    "status": "CONNECTED",
+                    "balance": bal,
+                    "equity": eq,
+                    "assigned_timeframes": ["M1", "M2", "M3", "M5"],
+                    "updated_at": datetime.now().isoformat()
+                }
+
+                with open(cfg_path, "w", encoding="utf-8") as f:
+                    yaml.dump(cfg, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+                logger.info(f"💾 Synced live MT5 Account {acc_num} ({broker}) directly to dashboard accounts config.")
+            except Exception as e:
+                logger.warning(f"Failed to auto-sync account to config: {e}")
+
         spec = BrokerSpec(
-            broker_name=data.get("broker_name", "DemoBroker"),
+            broker_name=broker,
             broker_symbol=data.get("broker_symbol", "XAUUSD"),
             canonical_symbol=data.get("canonical_symbol", "XAUUSD"),
             digits=int(data.get("digits", 2)),

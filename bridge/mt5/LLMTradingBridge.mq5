@@ -97,9 +97,19 @@ bool SendJSON(string json_str)
 //+------------------------------------------------------------------+
 void SendHandshake()
 {
+   long acc_num = AccountInfoInteger(ACCOUNT_LOGIN);
+   string broker_company = AccountInfoString(ACCOUNT_COMPANY);
+   string server_name = AccountInfoString(ACCOUNT_SERVER);
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+
    string json = StringFormat(
       "{\"type\":\"HANDSHAKE\",\"symbol\":\"%s\",\"data\":{"
+      "\"account_number\":\"%I64d\","
       "\"broker_name\":\"%s\","
+      "\"server\":\"%s\","
+      "\"balance\":%.2f,"
+      "\"equity\":%.2f,"
       "\"broker_symbol\":\"%s\","
       "\"canonical_symbol\":\"%s\","
       "\"digits\":%d,"
@@ -111,7 +121,11 @@ void SendHandshake()
       "\"tick_size\":%f,"
       "\"tick_value\":%f}}",
       InpCanonicalSymbol,
-      AccountInfoString(ACCOUNT_COMPANY),
+      acc_num,
+      broker_company,
+      server_name,
+      balance,
+      equity,
       _Symbol,
       InpCanonicalSymbol,
       (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS),
