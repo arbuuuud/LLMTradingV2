@@ -241,6 +241,19 @@ class ForceClosePolicy(str, Enum):
     PARTIAL_50_BEP = "PARTIAL_50_BEP"             # Close 50% lot and move SL to BEP
     COUNTER_MOM_ONLY = "COUNTER_MOM_ONLY"         # Close only if opposite Momentum Marubozu occurs
     COUNTER_POI_TOUCH = "COUNTER_POI_TOUCH"       # Close when price touches new opposing POI
+    PASSIVE_HOLD = "PASSIVE_HOLD"                 # No force close, strictly hold until Hard TP/SL
+
+
+class PACRetestMode(str, Enum):
+    FIRST_RETEST_ONLY = "FIRST_RETEST_ONLY"       # Only trade virgin/first retest of the zone
+    MULTI_RETEST_DEEPER = "MULTI_RETEST_DEEPER"   # Trade multiple retests only if penetrating deeper
+    UNLIMITED_UNTIL_BREACH = "UNLIMITED"          # Keep limits active until floor/roof broken
+
+
+class PACHandoverMode(str, Enum):
+    DYNAMIC_TARGET_SHIFT = "DYNAMIC_SHIFT"        # Move TP to new equilibrium and lock BEP
+    PARTIAL_EXIT_BEP = "PARTIAL_EXIT_BEP"         # Close 50% lot immediately, let runner hit new/old TP
+    STRICT_ANCHOR_HOLD = "STRICT_HOLD"            # Maintain original anchor TP 50% regardless of new POI
 
 
 class MethodologyInput(BaseModel):
@@ -277,6 +290,11 @@ class ShadowCloneSpec(BaseModel):
     soft_sl_candle_close_pct: Optional[float] = -5.0
     hard_tp_pct: float = 50.0                     # Midpoint Equilibrium
     force_close_policy: ForceClosePolicy = ForceClosePolicy.PARTIAL_50_BEP
+
+    # Dimensi Tambahan Khusus PAC Lifecycle (Naruto Research Task)
+    pac_retest_mode: PACRetestMode = PACRetestMode.FIRST_RETEST_ONLY
+    cancel_remaining_on_tp: bool = True           # Cancel standing limits once TP 50% is achieved
+    pac_handover_mode: PACHandoverMode = PACHandoverMode.DYNAMIC_TARGET_SHIFT
 
     # Dimensi 4: Session
     session: SessionKillzone = SessionKillzone.ALL_DAY

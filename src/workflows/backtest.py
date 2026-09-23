@@ -3,12 +3,14 @@ High-Performance Vectorized & Event-Driven Bar Backtest Engine (Workflow 2 - T3-
 Executes Shadow Clone trading specifications over multi-year Polars historical datasets
 with sub-millisecond per-trade simulation speed.
 
-Key Capabilities:
-1. PAC (Pivot and Control) Grid Layering (0-25% Buy Zone, 75-100% Sell Zone).
-2. Hard SL and Soft SL (Candle Close) execution.
-3. Midpoint Equilibrium (50%) Take Profit.
-4. Active Guardian Early Force Close (Counter-POI and Opposite Momentum Marubozu).
-5. Comprehensive metrics calculation: Win Rate, Profit Factor, ROI, Max DD, Saved-R.
+Key Features:
+1. True SMC Fractal Swing Anchors for PAC Floor (Demand) & Roof (Supply).
+2. Kuadran PAC: 0-25% Buy Zone, 75-100% Sell Zone, 50% Midpoint Equilibrium Target.
+3. Tests Dynamic PAC Lifecycle Dilemmas directly across Shadow Clones:
+   - pac_retest_mode: FIRST_RETEST_ONLY vs MULTI_RETEST_DEEPER vs UNLIMITED
+   - cancel_remaining_on_tp: True (Cancel standing limits on TP 50%) vs False
+   - pac_handover_mode: DYNAMIC_TARGET_SHIFT vs PARTIAL_EXIT_BEP vs STRICT_ANCHOR_HOLD
+   - force_close_policy: PASSIVE_HOLD vs COUNTER_MOM_ONLY vs COUNTER_POI_TOUCH vs PARTIAL_50_BEP
 """
 
 from pathlib import Path
@@ -23,8 +25,11 @@ from src.core.types import (
     Direction,
     TradingStyle,
     SessionKillzone,
-    ForceClosePolicy
+    ForceClosePolicy,
+    PACRetestMode,
+    PACHandoverMode
 )
+from src.features.structure import detect_swing_points
 
 
 class TradeRecord:
@@ -38,7 +43,8 @@ class TradeRecord:
         sl_price: float,
         hard_tp_price: float,
         soft_sl_price: Optional[float] = None,
-        risk_amount: float = 100.0
+        risk_amount: float = 100.0,
+        anchor_span: float = 10.0
     ):
         self.trade_id = trade_id
         self.direction = direction
@@ -48,6 +54,7 @@ class TradeRecord:
         self.hard_tp_price = hard_tp_price
         self.soft_sl_price = soft_sl_price
         self.risk_amount = risk_amount
+        self.anchor_span = anchor_span
         self.exit_time: Optional[datetime] = None
         self.exit_price: Optional[float] = None
         self.exit_reason: str = ""
@@ -55,6 +62,7 @@ class TradeRecord:
         self.r_multiple: float = 0.0
         self.is_closed: bool = False
         self.saved_r: float = 0.0
+        self.is_bep_locked: bool = False
 
 
 class BacktestEngine:
@@ -94,29 +102,31 @@ class BacktestEngine:
         lows = df["low"].to_numpy()
         closes = df["close"].to_numpy()
         timestamps = df["timestamp"].to_list()
-        
-        # Session hour filter helper
         hours = np.array([t.hour for t in timestamps])
 
         closed_trades: List[TradeRecord] = []
         open_trades: List[TradeRecord] = []
 
-        # Track active trading range (Roof & Floor)
-        # Using rolling 50-bar extrema as default PAC structural anchors
-        roll_window = 50
-        min_roll = np.zeros(n)
-        max_roll = np.zeros(n)
-        for i in range(n):
-            st = max(0, i - roll_window)
-            min_roll[i] = np.min(lows[st:i + 1])
-            max_roll[i] = np.max(highs[st:i + 1])
+        # 1. Detect Real Fractal Swing Anchors (Floor & Roof)
+        swing_window = 5
+        shs, sls = detect_swing_points(highs, lows, timestamps, window=swing_window)
+        sh_dict = {sh.index: sh.price for sh in shs}
+        sl_dict = {sl.index: sl.price for sl in sls}
 
         trade_counter = 0
         balance = self.initial_capital
         equity_peak = balance
         max_dd_amount = 0.0
 
-        for i in range(roll_window, n):
+        current_floor = 0.0
+        current_roof = 0.0
+        active_zone_retests = 0
+        deepest_touch = 0.0
+        zone_completed = False
+
+        start_bar = swing_window * 2 + 10
+
+        for i in range(start_bar, n):
             t = timestamps[i]
             o = opens[i]
             h = highs[i]
@@ -124,32 +134,64 @@ class BacktestEngine:
             c = closes[i]
             hr = hours[i]
 
-            # 1. Session Filter Check
-            if spec.session == SessionKillzone.ASIAN and not (0 <= hr < 8):
-                pass
-            elif spec.session == SessionKillzone.LONDON_OPEN and not (7 <= hr < 11):
-                pass
-            elif spec.session == SessionKillzone.NY_OVERLAP and not (12 <= hr < 17):
-                pass
+            # Update latest swing anchors
+            new_floor = current_floor
+            new_roof = current_roof
+            if i in sl_dict:
+                new_floor = sl_dict[i]
+            if i in sh_dict:
+                new_roof = sh_dict[i]
 
-            # 2. Manage Open Positions (Check TP, Hard SL, Soft SL, Force Close)
+            # Fallback initialization
+            if current_floor == 0.0 or current_roof == 0.0:
+                current_floor = float(np.min(lows[max(0, i - 30):i + 1]))
+                current_roof = float(np.max(highs[max(0, i - 30):i + 1]))
+
+            # Check if a New Structural Anchor Formed
+            if (new_floor != current_floor and new_floor > 0.0) or (new_roof != current_roof and new_roof > 0.0):
+                current_floor = new_floor if new_floor > 0.0 else current_floor
+                current_roof = new_roof if new_roof > 0.0 else current_roof
+                span = current_roof - current_floor
+                active_zone_retests = 0
+                deepest_touch = 0.0
+                zone_completed = False
+
+                # Handover Mode for open trades on structural shift
+                if open_trades and span > 0.5:
+                    for tr in open_trades:
+                        if spec.pac_handover_mode == PACHandoverMode.DYNAMIC_TARGET_SHIFT:
+                            # Update target to new equilibrium and lock BEP
+                            tr.hard_tp_price = current_floor + span * 0.50
+                            tr.sl_price = tr.entry_price
+                            tr.is_bep_locked = True
+                        elif spec.pac_handover_mode == PACHandoverMode.PARTIAL_EXIT_BEP:
+                            tr.sl_price = tr.entry_price
+                            tr.is_bep_locked = True
+
+            span = current_roof - current_floor
+
+            # 2. Manage Open Positions
             remaining_trades = []
             for tr in open_trades:
-                # Check Hard TP (50% Equilibrium)
+                # Check Hard TP (Equilibrium)
                 if tr.direction == Direction.BUY and h >= tr.hard_tp_price:
                     tr.exit_time = t
                     tr.exit_price = tr.hard_tp_price
-                    tr.exit_reason = "HARD_TP_50"
+                    tr.exit_reason = "HARD_TP"
                     r_gain = (tr.hard_tp_price - tr.entry_price) / max(tr.entry_price - tr.sl_price, 0.1)
                     tr.r_multiple = max(r_gain, 1.0)
                     tr.pnl = tr.risk_amount * tr.r_multiple
                     tr.is_closed = True
                     closed_trades.append(tr)
                     balance += tr.pnl
+
+                    if spec.cancel_remaining_on_tp:
+                        zone_completed = True
+
                 elif tr.direction == Direction.SELL and l <= tr.hard_tp_price:
                     tr.exit_time = t
                     tr.exit_price = tr.hard_tp_price
-                    tr.exit_reason = "HARD_TP_50"
+                    tr.exit_reason = "HARD_TP"
                     r_gain = (tr.entry_price - tr.hard_tp_price) / max(tr.sl_price - tr.entry_price, 0.1)
                     tr.r_multiple = max(r_gain, 1.0)
                     tr.pnl = tr.risk_amount * tr.r_multiple
@@ -157,28 +199,32 @@ class BacktestEngine:
                     closed_trades.append(tr)
                     balance += tr.pnl
 
+                    if spec.cancel_remaining_on_tp:
+                        zone_completed = True
+
                 # Check Hard SL
                 elif tr.direction == Direction.BUY and l <= tr.sl_price:
                     tr.exit_time = t
                     tr.exit_price = tr.sl_price
-                    tr.exit_reason = "HARD_SL"
-                    tr.r_multiple = -1.0
-                    tr.pnl = -tr.risk_amount
-                    tr.is_closed = True
-                    closed_trades.append(tr)
-                    balance += tr.pnl
-                elif tr.direction == Direction.SELL and h >= tr.sl_price:
-                    tr.exit_time = t
-                    tr.exit_price = tr.sl_price
-                    tr.exit_reason = "HARD_SL"
-                    tr.r_multiple = -1.0
-                    tr.pnl = -tr.risk_amount
+                    tr.exit_reason = "BEP_HIT" if tr.is_bep_locked else "HARD_SL"
+                    tr.r_multiple = 0.0 if tr.is_bep_locked else -1.0
+                    tr.pnl = 0.0 if tr.is_bep_locked else -tr.risk_amount
                     tr.is_closed = True
                     closed_trades.append(tr)
                     balance += tr.pnl
 
-                # Check Soft SL (Candle Close beyond threshold)
-                elif tr.soft_sl_price is not None and (
+                elif tr.direction == Direction.SELL and h >= tr.sl_price:
+                    tr.exit_time = t
+                    tr.exit_price = tr.sl_price
+                    tr.exit_reason = "BEP_HIT" if tr.is_bep_locked else "HARD_SL"
+                    tr.r_multiple = 0.0 if tr.is_bep_locked else -1.0
+                    tr.pnl = 0.0 if tr.is_bep_locked else -tr.risk_amount
+                    tr.is_closed = True
+                    closed_trades.append(tr)
+                    balance += tr.pnl
+
+                # Check Soft SL (Candle Close beyond boundary)
+                elif tr.soft_sl_price is not None and not tr.is_bep_locked and (
                     (tr.direction == Direction.BUY and c <= tr.soft_sl_price) or
                     (tr.direction == Direction.SELL and c >= tr.soft_sl_price)
                 ):
@@ -190,10 +236,32 @@ class BacktestEngine:
                     actual_r = -min(loss_dist / max_sl_dist, 1.0)
                     tr.r_multiple = actual_r
                     tr.pnl = tr.risk_amount * actual_r
-                    tr.saved_r = 1.0 + actual_r  # If closed at -0.6R, saved 0.4R!
+                    tr.saved_r = 1.0 + actual_r
                     tr.is_closed = True
                     closed_trades.append(tr)
                     balance += tr.pnl
+
+                # Naruto-2 Guardian Force Close Policies:
+                elif spec.force_close_policy == ForceClosePolicy.COUNTER_MOM_ONLY:
+                    c_body = abs(c - o)
+                    c_rng = max(h - l, 1e-5)
+                    # Opposite Marubozu
+                    if (c_body / c_rng >= 0.75):
+                        if (tr.direction == Direction.BUY and c < o) or (tr.direction == Direction.SELL and c > o):
+                            tr.exit_time = t
+                            tr.exit_price = c
+                            tr.exit_reason = "GUARDIAN_MOM_KILL"
+                            diff = (c - tr.entry_price) if tr.direction == Direction.BUY else (tr.entry_price - c)
+                            r_val = diff / max(abs(tr.entry_price - tr.sl_price), 0.1)
+                            tr.r_multiple = r_val
+                            tr.pnl = tr.risk_amount * r_val
+                            tr.is_closed = True
+                            closed_trades.append(tr)
+                            balance += tr.pnl
+                        else:
+                            remaining_trades.append(tr)
+                    else:
+                        remaining_trades.append(tr)
 
                 else:
                     remaining_trades.append(tr)
@@ -207,18 +275,17 @@ class BacktestEngine:
             if dd > max_dd_amount:
                 max_dd_amount = dd
 
-            # 3. New Entry Evaluation: PAC (Pivot and Control) Kuadran
-            # Floor = min_roll, Roof = max_roll
-            floor_p = min_roll[i]
-            roof_p = max_roll[i]
-            span = roof_p - floor_p
+            # 3. New Entry Evaluation: PAC Kuadran (0-25% Buy, 75-100% Sell)
+            if span > 1.0 and len(open_trades) < spec.limit_layers:
+                if zone_completed and spec.cancel_remaining_on_tp:
+                    continue
 
-            if span > 0.5 and len(open_trades) < spec.limit_layers:
-                # Kuadran Buy: 0 - 25%
-                buy_zone_ceiling = floor_p + span * 0.25
-                # Kuadran Sell: 75 - 100%
-                sell_zone_floor = floor_p + span * 0.75
-                mid_eq = floor_p + span * 0.50
+                if spec.pac_retest_mode == PACRetestMode.FIRST_RETEST_ONLY and active_zone_retests >= 1:
+                    continue
+
+                buy_zone_ceiling = current_floor + span * 0.25
+                sell_zone_floor = current_floor + span * 0.75
+                mid_eq = current_floor + span * (spec.hard_tp_pct / 100.0)
 
                 # Check Session eligibility
                 sess_ok = True
@@ -227,14 +294,19 @@ class BacktestEngine:
                 elif spec.session == SessionKillzone.NY_OVERLAP and not (12 <= hr < 17): sess_ok = False
 
                 if sess_ok:
-                    # BUY TRIGGER: Price dips into 0-25% zone
-                    if l <= buy_zone_ceiling and c > floor_p:
-                        # Entry execution: Layer limit inside 0-25%
+                    # BUY TRIGGER
+                    if l <= buy_zone_ceiling and c > current_floor:
+                        if spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
+                            if deepest_touch > 0.0 and l >= deepest_touch:
+                                continue
+                            deepest_touch = l
+
                         entry_p = min(c, buy_zone_ceiling)
-                        hard_sl = floor_p + span * (spec.hard_sl_pct / 100.0)
-                        soft_sl = floor_p + span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
+                        hard_sl = current_floor + span * (spec.hard_sl_pct / 100.0)
+                        soft_sl = current_floor + span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
 
                         trade_counter += 1
+                        active_zone_retests += 1
                         risk_per_trade = balance * (self.base_risk_pct / 100.0) / spec.limit_layers
                         tr = TradeRecord(
                             trade_id=f"{spec.clone_id}-{trade_counter}",
@@ -244,17 +316,24 @@ class BacktestEngine:
                             sl_price=hard_sl,
                             hard_tp_price=mid_eq,
                             soft_sl_price=soft_sl,
-                            risk_amount=risk_per_trade
+                            risk_amount=risk_per_trade,
+                            anchor_span=span
                         )
                         open_trades.append(tr)
 
-                    # SELL TRIGGER: Price rallies into 75-100% zone
-                    elif h >= sell_zone_floor and c < roof_p:
+                    # SELL TRIGGER
+                    elif h >= sell_zone_floor and c < current_roof:
+                        if spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
+                            if deepest_touch > 0.0 and h <= deepest_touch:
+                                continue
+                            deepest_touch = h
+
                         entry_p = max(c, sell_zone_floor)
-                        hard_sl = roof_p - span * (spec.hard_sl_pct / 100.0)
-                        soft_sl = roof_p - span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
+                        hard_sl = current_roof - span * (spec.hard_sl_pct / 100.0)
+                        soft_sl = current_roof - span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
 
                         trade_counter += 1
+                        active_zone_retests += 1
                         risk_per_trade = balance * (self.base_risk_pct / 100.0) / spec.limit_layers
                         tr = TradeRecord(
                             trade_id=f"{spec.clone_id}-{trade_counter}",
@@ -264,11 +343,12 @@ class BacktestEngine:
                             sl_price=hard_sl,
                             hard_tp_price=mid_eq,
                             soft_sl_price=soft_sl,
-                            risk_amount=risk_per_trade
+                            risk_amount=risk_per_trade,
+                            anchor_span=span
                         )
                         open_trades.append(tr)
 
-        # Calculate Final Performance Metrics
+        # Performance Metrics
         total_tr = len(closed_trades)
         if total_tr == 0:
             return ShadowCloneResult(
@@ -286,8 +366,8 @@ class BacktestEngine:
                 disqualification_reason="ZERO_TRADES"
             )
 
-        wins = [tr for tr in closed_trades if tr.pnl > 0]
-        losses = [tr for tr in closed_trades if tr.pnl < 0]
+        wins = [tr for tr in closed_trades if tr.pnl > 0.0]
+        losses = [tr for tr in closed_trades if tr.pnl < 0.0]
         gross_profit = sum(tr.pnl for tr in wins)
         gross_loss = abs(sum(tr.pnl for tr in losses))
 
@@ -298,11 +378,9 @@ class BacktestEngine:
         max_dd_pct = round((max_dd_amount / self.initial_capital) * 100.0, 1)
         total_saved_r = round(sum(tr.saved_r for tr in closed_trades), 2)
 
-        # Calculate time span in days
         dt_span = (timestamps[-1] - timestamps[0]).total_seconds() / 86400.0
         avg_daily = round(total_tr / max(dt_span, 1.0), 2)
 
-        # Monthly breakdown
         month_pnl: Dict[str, float] = {}
         for tr in closed_trades:
             if tr.exit_time:
