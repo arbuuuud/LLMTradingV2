@@ -286,7 +286,7 @@
       "id": "DEC-009",
       "date": "2025-09-22",
       "topic": "Candlestick POI Confirmation Filter",
-      "summary": "Seluruh 4 tipe pola lilin (Engulfing, Pin Bar, Morning/Evening Star, Momentum Marubozu) dihitung secara deterministik dan hanya digambar/diakui jika menyentuh atau berada di dalam area aktif POI (InpFilterOnlyAtPOI = true). Menghindari kebisingan chart dan menyajikan data konfirmasi murni untuk evaluasi matriks Kage Bunshin.",
+      "summary": "Seluruh 4 tipe pola lilin (Engulfing, Pin Bar, Morning/Evening Star, Momentum Marubozu) dihitung secara deterministik dan hanya digambar/diakui jika menyentuh atau berada di dalam area aktif POI (InpFilterOnlyAtPOI = true). Label peran diperingkas menjadi [Reac] untuk pemantulan entry dan [Mom] untuk displacement expansion. Menghindari kebisingan chart dan menyajikan data konfirmasi murni untuk evaluasi matriks Kage Bunshin.",
       "status": "CONFIRMED"
     },
     {
