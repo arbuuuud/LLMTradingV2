@@ -14,6 +14,7 @@ else
     PYTHON_EXEC="python"
 fi
 
+export PORT="$PORT"
 export PYTHONPATH="$SCRIPT_DIR"
 exec "$PYTHON_EXEC" -m src.dashboard.server
 

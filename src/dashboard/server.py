@@ -526,7 +526,9 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
 DashboardHTTPHandler = InstitutionalDashboardHandler
 
 
-def run_dashboard_server(port: int = 8000):
+def run_dashboard_server(port: int = None):
+    if port is None:
+        port = int(os.environ.get("PORT", 8080))
     server_address = ("", port)
     httpd = ThreadingHTTPServer(server_address, InstitutionalDashboardHandler)
     print(f"============================================================")
