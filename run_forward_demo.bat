@@ -10,9 +10,9 @@ echo ============================================================
 
 set PYTHONPATH=%CD%
 if exist .venv\Scripts\python.exe (
-    .venv\Scripts\python.exe src\workflows\forward_daemon.py
+    .venv\Scripts\python.exe src\bridge\server.py
 ) else (
-    python src\workflows\forward_daemon.py
+    python src\bridge\server.py
 )
 
 pause
