@@ -373,6 +373,28 @@ def get_radar_chart_data(tf: str = "M1") -> Dict[str, Any]:
                     "midpoint": round(mid, 2)
                 })
 
+            # Swings & Zones for fallback
+            sw_h = max(x["high"] for x in candles[-20:])
+            sw_l = min(x["low"] for x in candles[-20:])
+            rng = max(1.0, sw_h - sw_l)
+            last_close = candles[-1]["close"]
+            eq_price = round((sw_h + sw_l) / 2.0, 2)
+            buy_top = round(sw_l + (rng * 0.25), 2)
+            sell_bot = round(sw_l + (rng * 0.75), 2)
+            is_buy = last_close <= buy_top
+            is_sell = last_close >= sell_bot
+
+            tf_info_fallback = {
+                "timeframe": tf,
+                "active_setup": is_buy or is_sell,
+                "direction": "BUY" if is_buy else ("SELL" if is_sell else "NEUTRAL"),
+                "equilibrium": eq_price,
+                "sl_hard": round(sw_l - 2.5, 2) if is_buy else round(sw_h + 2.5, 2),
+                "sl_soft": round(sw_l - 0.5, 2) if is_buy else round(sw_h + 0.5, 2),
+                "buy_zone": {"bottom": sw_l, "top": buy_top, "active": is_buy},
+                "sell_zone": {"bottom": sell_bot, "top": sw_h, "active": is_sell}
+            }
+
             # Build realistic equity progression
             eq_curve = [10000.0]
             for i in range(1, len(candles)):
@@ -384,6 +406,7 @@ def get_radar_chart_data(tf: str = "M1") -> Dict[str, Any]:
                 "timeframe": tf,
                 "symbol": "XAUUSD",
                 "candles": candles,
+                "tf_info": tf_info_fallback,
                 "equity_curve": eq_curve,
                 "summary": {
                     "initial_balance": 10000.0,

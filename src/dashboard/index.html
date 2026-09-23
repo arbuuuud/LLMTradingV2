@@ -458,17 +458,17 @@
         if (tfInfo.buy_zone && tfInfo.buy_zone.top && tfInfo.buy_zone.bottom) {
           const yTop = getY(tfInfo.buy_zone.top);
           const yBot = getY(tfInfo.buy_zone.bottom);
-          const hZone = Math.max(4, yBot - yTop);
+          const hZone = Math.max(8, yBot - yTop);
 
-          candleCtx.fillStyle = buyActive ? 'rgba(34, 197, 94, 0.18)' : 'rgba(34, 197, 94, 0.04)';
+          candleCtx.fillStyle = buyActive ? 'rgba(34, 197, 94, 0.25)' : 'rgba(34, 197, 94, 0.06)';
           candleCtx.fillRect(padLeft, yTop, chartW, hZone);
 
-          candleCtx.strokeStyle = buyActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(34, 197, 94, 0.25)';
-          candleCtx.lineWidth = buyActive ? 1.5 : 1.0;
+          candleCtx.strokeStyle = buyActive ? '#22c55e' : 'rgba(34, 197, 94, 0.35)';
+          candleCtx.lineWidth = buyActive ? 2.0 : 1.0;
           candleCtx.strokeRect(padLeft, yTop, chartW, hZone);
 
           // Zone Tag Label
-          candleCtx.fillStyle = buyActive ? '#4ade80' : 'rgba(74, 222, 128, 0.4)';
+          candleCtx.fillStyle = buyActive ? '#4ade80' : 'rgba(74, 222, 128, 0.6)';
           candleCtx.font = buyActive ? 'bold 10px ui-monospace, monospace' : '9px ui-monospace, monospace';
           candleCtx.fillText(buyActive ? '● ACTIVE BUY ZONE (0-25% DISCOUNT)' : 'BUY ZONE (0-25% STANDBY)', padLeft + 10, yTop + 14);
         }
@@ -477,17 +477,17 @@
         if (tfInfo.sell_zone && tfInfo.sell_zone.top && tfInfo.sell_zone.bottom) {
           const yTop = getY(tfInfo.sell_zone.top);
           const yBot = getY(tfInfo.sell_zone.bottom);
-          const hZone = Math.max(4, yBot - yTop);
+          const hZone = Math.max(8, yBot - yTop);
 
-          candleCtx.fillStyle = sellActive ? 'rgba(239, 68, 68, 0.18)' : 'rgba(239, 68, 68, 0.04)';
+          candleCtx.fillStyle = sellActive ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.06)';
           candleCtx.fillRect(padLeft, yTop, chartW, hZone);
 
-          candleCtx.strokeStyle = sellActive ? 'rgba(239, 68, 68, 0.9)' : 'rgba(239, 68, 68, 0.25)';
-          candleCtx.lineWidth = sellActive ? 1.5 : 1.0;
+          candleCtx.strokeStyle = sellActive ? '#ef4444' : 'rgba(239, 68, 68, 0.35)';
+          candleCtx.lineWidth = sellActive ? 2.0 : 1.0;
           candleCtx.strokeRect(padLeft, yTop, chartW, hZone);
 
           // Zone Tag Label
-          candleCtx.fillStyle = sellActive ? '#f87171' : 'rgba(248, 113, 113, 0.4)';
+          candleCtx.fillStyle = sellActive ? '#f87171' : 'rgba(248, 113, 113, 0.6)';
           candleCtx.font = sellActive ? 'bold 10px ui-monospace, monospace' : '9px ui-monospace, monospace';
           candleCtx.fillText(sellActive ? '● ACTIVE SELL ZONE (75-100% PREMIUM)' : 'SELL ZONE (75-100% STANDBY)', padLeft + 10, yTop + 14);
         }
@@ -498,7 +498,7 @@
           candleCtx.save();
           candleCtx.setLineDash([5, 4]);
           candleCtx.strokeStyle = '#fbbf24';
-          candleCtx.lineWidth = 1.5;
+          candleCtx.lineWidth = 2.0;
           candleCtx.beginPath();
           candleCtx.moveTo(padLeft, yEq);
           candleCtx.lineTo(W - padRight, yEq);
@@ -506,25 +506,25 @@
           candleCtx.restore();
 
           candleCtx.fillStyle = '#fbbf24';
-          candleCtx.font = 'bold 9px ui-monospace, monospace';
-          candleCtx.fillText(`50% EQUILIBRIUM TP ($${tfInfo.equilibrium.toFixed(2)})`, padLeft + chartW - 210, yEq - 5);
+          candleCtx.font = 'bold 10px ui-monospace, monospace';
+          candleCtx.fillText(`── 50% EQUILIBRIUM TP ($${tfInfo.equilibrium.toFixed(2)})`, padLeft + chartW - 220, yEq - 5);
         }
 
-        // 3. Hard SL Boundary Line (Crimson)
+        // 3. Hard SL Boundary Line (Crimson Solid/Dash)
         if (tfInfo.sl_hard && tfInfo.sl_hard > 0) {
           const ySl = getY(tfInfo.sl_hard);
           candleCtx.save();
-          candleCtx.setLineDash([4, 2]);
-          candleCtx.strokeStyle = '#f43f5e';
-          candleCtx.lineWidth = 1.8;
+          candleCtx.setLineDash([6, 3]);
+          candleCtx.strokeStyle = '#ef4444';
+          candleCtx.lineWidth = 2.0;
           candleCtx.beginPath();
           candleCtx.moveTo(padLeft, ySl);
           candleCtx.lineTo(W - padRight, ySl);
           candleCtx.stroke();
           candleCtx.restore();
 
-          candleCtx.fillStyle = '#f43f5e';
-          candleCtx.font = 'bold 9px ui-monospace, monospace';
+          candleCtx.fillStyle = '#ef4444';
+          candleCtx.font = 'bold 10px ui-monospace, monospace';
           candleCtx.fillText(`🛑 HARD SL ($${tfInfo.sl_hard.toFixed(2)})`, padLeft + 10, ySl - 4);
         }
 
@@ -532,18 +532,18 @@
         if (tfInfo.sl_soft && tfInfo.sl_soft > 0) {
           const ySoft = getY(tfInfo.sl_soft);
           candleCtx.save();
-          candleCtx.setLineDash([2, 4]);
-          candleCtx.strokeStyle = '#fb923c';
-          candleCtx.lineWidth = 1.2;
+          candleCtx.setLineDash([3, 3]);
+          candleCtx.strokeStyle = '#f97316';
+          candleCtx.lineWidth = 1.6;
           candleCtx.beginPath();
           candleCtx.moveTo(padLeft, ySoft);
           candleCtx.lineTo(W - padRight, ySoft);
           candleCtx.stroke();
           candleCtx.restore();
 
-          candleCtx.fillStyle = '#fb923c';
-          candleCtx.font = '9px ui-monospace, monospace';
-          candleCtx.fillText(`SOFT SL CLOSE ($${tfInfo.sl_soft.toFixed(2)})`, padLeft + 10, ySoft + 11);
+          candleCtx.fillStyle = '#f97316';
+          candleCtx.font = 'bold 9px ui-monospace, monospace';
+          candleCtx.fillText(`⚠️ SOFT SL CLOSE ($${tfInfo.sl_soft.toFixed(2)})`, padLeft + 10, ySoft + 12);
         }
       }
 
@@ -740,7 +740,7 @@
 
         renderRadarTimeframes(data.timeframes);
         renderChecklist(selectedRadarTf);
-        fetchChartData(selectedRadarTf);
+        // Do not force overwrite selectedRadarTf with hardcoded M1
       } catch (err) {
         console.error("Failed to load radar data:", err);
       }
@@ -972,8 +972,11 @@
     }
 
     // Initial Load
-    fetchRadarData();
-    setInterval(fetchRadarData, 15000); // Polling radar every 15s
+    fetchRadarData().then(() => fetchChartData(selectedRadarTf));
+    setInterval(() => {
+      fetchRadarData();
+      fetchChartData(selectedRadarTf);
+    }, 10000); // Polling radar every 10s
   </script>
 </body>
 </html>
