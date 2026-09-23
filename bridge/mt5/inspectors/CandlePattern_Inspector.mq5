@@ -5,14 +5,15 @@
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "1.00"
-#property description "Master Candlestick Inspector: Engulfing, Pin Bar / Rejection Wick, Morning/Evening Star, and Momentum Marubozu (Clean & Filtered strictly at POI zones)"
+#property version   "2.00"
+#property description "Master Candlestick Inspector: Engulfing, Pin Bar, Star, and Marubozu with Auto Internal POI Detection for Strategy Tester & Live Chart"
 
 //--- Inputs
 input group "=== POI Confluence Filter Settings ==="
 input bool     InpFilterOnlyAtPOI      = true;              // Only show candle patterns that touch an active POI (OB/Floor/Roof)
 input int      InpMaxBars              = 500;               // Lookback bars to analyze
-input int      InpMaxPatternsToShow    = 15;                // Max recent pattern badges to draw (anti-clutter)
+input int      InpMaxPatternsToShow    = 25;                // Max recent pattern badges to draw (anti-clutter)
+input bool     InpShowPOIBoxes         = true;              // Draw background POI zones so you can see why the pattern triggered!
 
 input group "=== Pattern Category Toggles ==="
 input bool     InpShowEngulfing        = true;              // Show Bullish & Bearish Engulfing
@@ -25,6 +26,7 @@ input color    InpColorBullishPat      = C'0,255,127';      // Bullish Confirmat
 input color    InpColorBearishPat      = C'255,69,0';       // Bearish Confirmation (OrangeRed)
 input color    InpColorMarubozuBull    = C'30,144,255';     // Bullish Marubozu (DodgerBlue)
 input color    InpColorMarubozuBear    = C'220,20,60';      // Bearish Marubozu (Crimson)
+input color    InpColorPOIBox          = C'40,40,40';       // Internal POI Box Color (Subtle Dark Grey)
 
 #define OBJ_PREFIX "PAT_INSP_"
 
@@ -49,6 +51,15 @@ struct DetectedPattern
    string              label;
    color               clr;
    int                 arrow_code;
+};
+
+struct InternalPOI
+{
+   double   top;
+   double   bottom;
+   datetime time;
+   bool     is_bullish;
+   bool     is_broken;
 };
 
 datetime g_last_bar_time = 0;
@@ -88,15 +99,66 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-//| Check if candle touches any active POI (OB/Floor/Roof) on chart  |
+//| Scan Active POIs directly from rates array                       |
 //+------------------------------------------------------------------+
-bool IsCandleAtActivePOI(double candle_high, double candle_low)
+int ScanInternalPOIs(const MqlRates &rates[], int total_bars, InternalPOI &pois[])
 {
+   int poi_count = 0;
+   ArrayResize(pois, 0);
+
+   for(int i = total_bars - 5; i >= 1; i--)
+   {
+      bool is_bull = (rates[i].low > rates[i + 2].high);
+      bool is_bear = (rates[i].high < rates[i + 2].low);
+      if(!is_bull && !is_bear) continue;
+
+      int origin = i + 2;
+      double top = rates[origin].high;
+      double btm = rates[origin].low;
+
+      // Lifecycle check down to bar 0
+      bool broken = false;
+      for(int k = origin - 1; k >= 0; k--)
+      {
+         if(is_bull && rates[k].close < btm) { broken = true; break; }
+         else if(!is_bull && rates[k].close > top) { broken = true; break; }
+      }
+      if(broken) continue;
+
+      InternalPOI p;
+      p.top = top;
+      p.bottom = btm;
+      p.time = rates[origin].time;
+      p.is_bullish = is_bull;
+      p.is_broken = false;
+
+      ArrayResize(pois, poi_count + 1);
+      pois[poi_count] = p;
+      poi_count++;
+   }
+
+   return poi_count;
+}
+
+//+------------------------------------------------------------------+
+//| Check if candle touches an active internal POI or chart object   |
+//+------------------------------------------------------------------+
+bool IsCandleAtActivePOI(double candle_high, double candle_low, const InternalPOI &pois[], int poi_count)
+{
+   // 1. Check internal standalone POI array (works 100% in Strategy Tester!)
+   for(int p = 0; p < poi_count; p++)
+   {
+      if(candle_low <= pois[p].top && candle_high >= pois[p].bottom)
+      {
+         return true;
+      }
+   }
+
+   // 2. Fallback check for external chart objects if present
    int total_objs = ObjectsTotal(0, 0, OBJ_RECTANGLE);
    for(int i = 0; i < total_objs; i++)
    {
       string name = ObjectName(0, i, 0, OBJ_RECTANGLE);
-      // Check if it's an Order Block or FVG rectangle
       if(StringFind(name, "OB_INSP_") == 0 || StringFind(name, "FVG_INSP_") == 0)
       {
          double p1 = ObjectGetDouble(0, name, OBJPROP_PRICE, 0);
@@ -106,10 +168,11 @@ bool IsCandleAtActivePOI(double candle_high, double candle_low)
 
          if(candle_low <= top && candle_high >= btm)
          {
-            return true; // Candle is inside or touching the POI zone!
+            return true;
          }
       }
    }
+
    return false;
 }
 
@@ -126,7 +189,30 @@ void RedrawPatterns()
 
    MqlRates rates[];
    ArraySetAsSeries(rates, true);
-   if(CopyRates(_Symbol, _Period, 0, bars_to_check, rates) < bars_to_check) return;
+   int copied = CopyRates(_Symbol, _Period, 0, bars_to_check, rates);
+   if(copied < 4) return;
+   bars_to_check = copied;
+
+   datetime current_candle_time = rates[0].time;
+
+   // 1. Scan Internal POI Zones
+   InternalPOI pois[];
+   int poi_count = ScanInternalPOIs(rates, bars_to_check, pois);
+
+   // Optional: Draw subtle POI background boxes so user sees the zone
+   if(InpShowPOIBoxes)
+   {
+      for(int p = 0; p < MathMin(poi_count, 10); p++)
+      {
+         string box_name = OBJ_PREFIX + "POI_" + IntegerToString(p);
+         ObjectCreate(0, box_name, OBJ_RECTANGLE, 0, pois[p].time, pois[p].top, current_candle_time, pois[p].bottom);
+         ObjectSetInteger(0, box_name, OBJPROP_COLOR, InpColorPOIBox);
+         ObjectSetInteger(0, box_name, OBJPROP_STYLE, STYLE_DOT);
+         ObjectSetInteger(0, box_name, OBJPROP_WIDTH, 1);
+         ObjectSetInteger(0, box_name, OBJPROP_BACK, true);
+         ObjectSetInteger(0, box_name, OBJPROP_FILL, true);
+      }
+   }
 
    DetectedPattern patterns[];
    int pat_count = 0;
@@ -199,7 +285,6 @@ void RedrawPatterns()
       // 2. Engulfing
       if(!found && InpShowEngulfing)
       {
-         // Bullish Engulfing
          if(c_prev < o_prev && c > o && c >= o_prev && o <= c_prev)
          {
             p.pat_type = PAT_BULLISH_ENGULFING;
@@ -210,7 +295,6 @@ void RedrawPatterns()
             p.arrow_code = 233;
             found = true;
          }
-         // Bearish Engulfing
          else if(c_prev > o_prev && c < o && c <= o_prev && o >= c_prev)
          {
             p.pat_type = PAT_BEARISH_ENGULFING;
@@ -226,7 +310,6 @@ void RedrawPatterns()
       // 3. Pin Bar / Rejection Wick
       if(!found && InpShowPinBar)
       {
-         // Bullish Pin Bar (Hammer)
          if(lower_wick_ratio >= 0.55 && body_ratio <= 0.40 && upper_wick_ratio <= 0.25)
          {
             p.pat_type = PAT_BULLISH_PIN_BAR;
@@ -237,7 +320,6 @@ void RedrawPatterns()
             p.arrow_code = 233;
             found = true;
          }
-         // Bearish Pin Bar (Shooting Star)
          else if(upper_wick_ratio >= 0.55 && body_ratio <= 0.40 && lower_wick_ratio <= 0.25)
          {
             p.pat_type = PAT_BEARISH_PIN_BAR;
@@ -277,11 +359,10 @@ void RedrawPatterns()
 
       if(found)
       {
-         // Context POI check
-         bool at_poi = IsCandleAtActivePOI(h, l);
+         bool at_poi = IsCandleAtActivePOI(h, l, pois, poi_count);
          if(InpFilterOnlyAtPOI && !at_poi)
          {
-            continue; // Dropped by strict POI filter! Chart remains clean!
+            continue; // Dropped by strict POI filter!
          }
 
          if(at_poi)
