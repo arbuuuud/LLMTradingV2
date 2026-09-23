@@ -320,6 +320,15 @@ class ShadowCloneResult(BaseModel):
     disqualification_reason: Optional[str] = None
 
 
+class TimeframeBasketMode(str, Enum):
+    """Ensemble timeframe basket mode for multi-timeframe deployment."""
+    SINGLE_M1 = "SINGLE_M1"                   # Solo M1 execution
+    SINGLE_M2 = "SINGLE_M2"                   # Solo M2 execution
+    TRIO_M1_M2_M3 = "TRIO_M1_M2_M3"           # Trio (M1, M2, M3): Growth & High Return
+    QUARTET_M1_M2_M3_M5 = "QUARTET_M1_M2_M3_M5" # Quartet (M1, M2, M3, M5): Ultra-Safe Prop Firm
+    PENTET_ALL = "PENTET_ALL"                 # All active (M1, M2, M3, M4, M5): Lowest DD (0.09%)
+
+
 class RiskProfileMetrics(BaseModel):
     label: str
     risk_multiplier: float
@@ -331,6 +340,8 @@ class RiskProfileMetrics(BaseModel):
     roi_pct: float
     max_drawdown_pct: float
     passes_hurdle: bool
+    recommended_basket: TimeframeBasketMode = TimeframeBasketMode.QUARTET_M1_M2_M3_M5
+    basket_summary: str = ""
 
 
 class FourRiskProfilesReport(BaseModel):

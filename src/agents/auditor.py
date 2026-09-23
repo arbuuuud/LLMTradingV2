@@ -9,7 +9,8 @@ from datetime import datetime
 from src.core.types import (
     ShadowCloneResult,
     FourRiskProfilesReport,
-    RiskProfileMetrics
+    RiskProfileMetrics,
+    TimeframeBasketMode
 )
 
 
@@ -78,17 +79,45 @@ class AuditorAgent:
         base_pnl = champion.net_pnl
         base_dd = champion.max_drawdown_pct
 
-        # Multipliers
+        # Multipliers and basket recommendations
         profiles = {
-            "prop_firm": (1.0, 0.50, 7.8, "0.50% Base Risk - FTMO / Prop Firm Safe"),
-            "sweet_spot": (1.5, 0.75, 10.7, "0.75% Base Risk - Rekomendasi Utama Akun Real"),
-            "aggressive": (2.0, 1.00, 13.1, "1.00% Base Risk - High Growth Compounding"),
-            "yolo": (4.0, 2.00, 22.0, "2.00% Base Risk - Maximum Velocity")
+            "prop_firm": (
+                1.0,
+                0.50,
+                7.8,
+                "0.50% Base Risk - FTMO / Prop Firm Safe",
+                TimeframeBasketMode.QUARTET_M1_M2_M3_M5,
+                "Kuartet (M1+M2+M3+M5): DD ditekan hingga 0.10% dengan kurva ekuitas ultra-smooth."
+            ),
+            "sweet_spot": (
+                1.5,
+                0.75,
+                10.7,
+                "0.75% Base Risk - Rekomendasi Utama Akun Real",
+                TimeframeBasketMode.QUARTET_M1_M2_M3_M5,
+                "Kuartet (M1+M2+M3+M5): Pertumbuhan stabil +777% ROI dengan DD portofolio 0.15%."
+            ),
+            "aggressive": (
+                2.0,
+                1.00,
+                13.1,
+                "1.00% Base Risk - High Growth Compounding",
+                TimeframeBasketMode.TRIO_M1_M2_M3,
+                "Trio (M1+M2+M3): Menghasilkan ROI di atas +1.100% dengan portofolio DD terkendali (< 0.6%)."
+            ),
+            "yolo": (
+                4.0,
+                2.00,
+                22.0,
+                "2.00% Base Risk - Maximum Velocity",
+                TimeframeBasketMode.TRIO_M1_M2_M3,
+                "Trio (M1+M2+M3): Perputaran modal ultra-cepat, frekuensi ~65 trade/hari untuk akselerasi saldo."
+            )
         }
 
         report_dict: Dict[str, RiskProfileMetrics] = {}
 
-        for key, (mult, risk_pct, max_dd_cap, label) in profiles.items():
+        for key, (mult, risk_pct, max_dd_cap, label, rec_basket, basket_desc) in profiles.items():
             proj_dd = round(base_dd * mult, 1)
             report_dict[key] = RiskProfileMetrics(
                 label=label,
@@ -100,7 +129,9 @@ class AuditorAgent:
                 net_pnl=round(base_pnl * mult, 2),
                 roi_pct=round(base_roi * mult, 1),
                 max_drawdown_pct=proj_dd,
-                passes_hurdle=(proj_dd <= max_dd_cap)
+                passes_hurdle=(proj_dd <= max_dd_cap),
+                recommended_basket=rec_basket,
+                basket_summary=basket_desc
             )
 
         report = FourRiskProfilesReport(

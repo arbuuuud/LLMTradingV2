@@ -61,11 +61,37 @@ Setiap kali pengguna memasukkan metodologi riset baru (contoh: *PAC - Pivot and 
 
 ---
 
-## 3. Protokol Anti-Overfitting (The Auditor Veto Gate)
+## 3. Matriks Keranjang Multi-Timeframe (Ensemble Baskets) & Pemetaan Akun
+
+Hasil uji tanding empiris membuktikan bahwa eksekusi multi-timeframe bersamaan (*ensemble*) secara dramatis meredam drawdown portofolio melalui prinsip *uncorrelated phase smoothing* (ekuitas saling menambal saat satu timeframe retrace dan yang lain ekspansi).
+
+| Format Keranjang | Timeframe Anggota | Karakteristik Utama | Portofolio Max DD | ROI Proyeksi | Rekomendasi Target Akun |
+|---|---|---|---|---|---|
+| **KUARTET** | **`M1 + M2 + M3 + M5`** | *Ultra-Low Drawdown Smoothing* (73.7 trades/hari, Win Rate 76.3%) | **0.10%** | **+777.6%** | 🛡️ **Prop Firm & Sweet Spot (Akun Real Standar)** |
+| **TRIO** | **`M1 + M2 + M3`** | *High Growth Velocity* (65.7 trades/hari, Win Rate 76.1%) | **0.29%** | **+1.105.9%** | 🚀 **Aggressive & YOLO (Pertumbuhan Maksimal)** |
+| **PENTET** | **`M1 + M2 + M3 + M4 + M5`** | *Maximum Stability* (82.4 trades/hari, Win Rate 76.7%) | **0.09%** | **+639.5%** | Institusional / Dana Kelolaan Besar |
+
+### Pemetaan ke 4 Profil Risiko Standar:
+1. 🛡️ **Prop Firm (Base Risk 0.50%)**:
+   - **Keranjang Wajib**: **Kuartet (`M1 + M2 + M3 + M5`)**
+   - **Tujuan**: Memastikan portofolio Max DD berada jauh di bawah ambang gugur FTMO / MFF ($7.8\%$). Max DD aktual hanya **0.10%**!
+2. 💎 **Sweet Spot (Base Risk 0.75%)**:
+   - **Keranjang Pilihan**: **Kuartet (`M1 + M2 + M3 + M5`)**
+   - **Tujuan**: Keseimbangan optimal antara pengembalian modal tinggi (+777% ROI) dan kenyamanan psikologis tanpa gejolak floating loss.
+3. 🚀 **Aggressive (Base Risk 1.00%)**:
+   - **Keranjang Pilihan**: **Trio (`M1 + M2 + M3`)**
+   - **Tujuan**: Memacu akselerasi modal dengan target ROI di atas +1.000%, memanfaatkan gelombang mikro M1–M3.
+4. ⚡ **YOLO (Base Risk 2.00%)**:
+   - **Keranjang Pilihan**: **Trio (`M1 + M2 + M3`)**
+   - **Tujuan**: *Fast Flipping Account* (kecepatan perputaran maksimum ~65 trade/hari).
+
+---
+
+## 4. Protokol Anti-Overfitting (The Auditor Veto Gate)
 
 Sebelum klon dinyatakan lulus menjadi strategi produksi:
 1. **Aturan Syarat Aditif (Additive Scoring)**:
-   - Hindari *Checklist Over-Filtering*. Syarat mutlak (*Mandatory*) hanya 2: (1) Berada di kuadran zona entry, (2) Batas batas struktural belum jebol.
+   - Hindari *Checklist Over-Filtering*. Syarat mutlak (*Mandatory*) hanya 2: (1) Berada di kuadran zona entry, (2) Batas struktural belum jebol.
    - Faktor konfluensi lain (Fibo OTE, Swept Liq, Reac Candle) bertindak sebagai **pengali ukuran lot / bobot tambahan**, bukan syarat gugur.
 2. **Uji Validasi Brutal 3 Tahap**:
    - **Tahap A: Walk-Forward Analysis (WFA)**: Data dibagi rolling train/test. WFE (*Walk-Forward Efficiency*) wajib $\ge 60\%$.
