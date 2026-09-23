@@ -45,6 +45,12 @@ class LiveMT5BridgeCore:
         self.equity = 10000.0
         self._last_radar_save = 0.0
 
+        # Live Order Dispatching & Notification State
+        self.last_dispatched_order: Optional[Dict[str, Any]] = None
+        self.pending_notifications: List[Dict[str, Any]] = []
+        self._last_order_direction = None
+        self._last_order_time = 0.0
+
         # Callbacks for backward compatibility with test suites
         self.on_handshake_callback = None
         self.on_bar_callback = None
@@ -273,6 +279,11 @@ class LiveMT5BridgeCore:
             in_discount = mid <= buy_zone_top
             in_premium = mid >= sell_zone_bottom
 
+            # Calculate Untouched / Fresh Depth Boundary for Visual Chart
+            # An area is untouched if current/recent bar wicks haven't consumed that depth
+            untouched_buy_top = round(sw_low + (total_range * 0.15), 2)  # Deeper 0-15% fresh zone
+            untouched_sell_bottom = round(sw_low + (total_range * 0.85), 2)  # Higher 85-100% fresh zone
+
             if in_discount:
                 dir_label = "BUY"
                 status_label = "IN_BUY_ZONE"
@@ -327,8 +338,18 @@ class LiveMT5BridgeCore:
                 "swing_high": sw_high,
                 "swing_low": sw_low,
                 "equilibrium": equilibrium,
-                "buy_zone": {"bottom": buy_zone_bottom, "top": buy_zone_top, "active": in_discount},
-                "sell_zone": {"bottom": sell_zone_bottom, "top": sell_zone_top, "active": in_premium},
+                "buy_zone": {
+                    "bottom": buy_zone_bottom,
+                    "top": buy_zone_top,
+                    "untouched_top": untouched_buy_top,
+                    "active": in_discount
+                },
+                "sell_zone": {
+                    "bottom": sell_zone_bottom,
+                    "top": sell_zone_top,
+                    "untouched_bottom": untouched_sell_bottom,
+                    "active": in_premium
+                },
                 "current_price": mid,
                 "sl_hard": hard_sl,
                 "sl_soft": soft_sl,
@@ -344,6 +365,50 @@ class LiveMT5BridgeCore:
                 ]
             }
 
+        # Auto-trigger Limit Order Dispatch when M1/M3 setup is Active
+        now_time = time.time()
+        m1_setup = tf_dict.get("M1", {})
+        if m1_setup.get("active_setup") and self.active_writers:
+            dir_cmd = m1_setup["direction"]
+            # Cooldown: 1 order event per direction change or every 60s
+            if (dir_cmd != self._last_order_direction) or (now_time - self._last_order_time > 60.0):
+                self._last_order_direction = dir_cmd
+                self._last_order_time = now_time
+
+                side = "BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"
+                limit_p = round(m1_setup["buy_zone"]["untouched_top"] if dir_cmd == "BUY" else m1_setup["sell_zone"]["untouched_bottom"], 2)
+                sl = m1_setup["sl_hard"]
+                tp = m1_setup["tp_midpoint"]
+
+                order_cmd = {
+                    "action": "ORDER",
+                    "symbol": "XAUUSD",
+                    "side": side,
+                    "lots": 0.05,
+                    "price": limit_p,
+                    "sl": sl,
+                    "tp": tp,
+                    "magic": 1001,
+                    "comment": "PAC_AUTO_LIMIT"
+                }
+
+                # Dispatch over socket to MT5 EA
+                asyncio.create_task(self.broadcast(order_cmd))
+
+                # Push instant Snackbar Notification for Dashboard
+                notif = {
+                    "id": int(now_time * 1000),
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "title": f"🚀 {side} Dispatched to MT5!",
+                    "message": f"Target: ${limit_p:.2f} | SL: ${sl:.2f} | TP: ${tp:.2f} (Lot: 0.05)",
+                    "type": "BUY" if dir_cmd == "BUY" else "SELL",
+                    "price": limit_p
+                }
+                self.pending_notifications.append(notif)
+                if len(self.pending_notifications) > 10:
+                    self.pending_notifications.pop(0)
+                logger.info(f"⚡ [AUTO-DISPATCH] Sent {side} order to MT5 EA at ${limit_p:.2f} (SL: ${sl:.2f}, TP: ${tp:.2f})")
+
         now_utc = datetime.now(timezone.utc)
         curr_h = now_utc.hour
         session_label = "Asian Session" if 0 <= curr_h < 8 else ("London Open" if 8 <= curr_h < 13 else ("NY Session" if 13 <= curr_h < 21 else "Off-Hours"))
@@ -356,6 +421,7 @@ class LiveMT5BridgeCore:
             "ask": ask,
             "session": f"{session_label} (LIVE MT5: {bid:.2f}/{ask:.2f})",
             "updated_at": now_utc.isoformat(),
+            "notifications": list(self.pending_notifications),
             "account": {
                 "id": self.active_account_id,
                 "company": self.account_company,
