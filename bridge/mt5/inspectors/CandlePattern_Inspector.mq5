@@ -414,6 +414,16 @@ void RedrawPatterns()
             p.label += " [★ AT POI]";
          }
 
+         // Short role prefix: [Reac] vs [Mom]
+         if(p.pat_type == PAT_MARUBOZU_BULL || p.pat_type == PAT_MARUBOZU_BEAR)
+         {
+            p.label = "[Mom] " + p.label;
+         }
+         else
+         {
+            p.label = "[Reac] " + p.label;
+         }
+
          ArrayResize(patterns, pat_count + 1);
          patterns[pat_count] = p;
          pat_count++;
