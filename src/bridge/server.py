@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 # Ensure project root in sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -44,6 +44,12 @@ class LiveMT5BridgeCore:
         self.balance = 10000.0
         self.equity = 10000.0
         self._last_radar_save = 0.0
+
+        # Callbacks for backward compatibility with test suites
+        self.on_handshake_callback = None
+        self.on_bar_callback = None
+        self.on_tick_callback = None
+        self.on_order_status_callback = None
 
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
@@ -119,22 +125,33 @@ class LiveMT5BridgeCore:
 
         # 1. REGISTER / HANDSHAKE
         if msg_type in ("REGISTER", "HANDSHAKE"):
-            acc_id = str(msg.get("account_id") or msg.get("data", {}).get("account_number") or self.active_account_id)
-            company = str(msg.get("company") or msg.get("data", {}).get("broker_name") or "MetaQuotes")
-            server = str(msg.get("server") or msg.get("data", {}).get("server") or "MetaQuotes-Demo")
-            balance = float(msg.get("balance") or msg.get("data", {}).get("balance") or 10000.0)
-            equity = float(msg.get("equity") or msg.get("data", {}).get("equity") or balance)
+            data_dict = msg.get("data", {}) if isinstance(msg.get("data"), dict) else {}
+            acc_id = str(msg.get("account_id") or data_dict.get("account_number") or self.active_account_id)
+            company = str(msg.get("company") or data_dict.get("broker_name") or "MetaQuotes")
+            server = str(msg.get("server") or data_dict.get("server") or "MetaQuotes-Demo")
+            balance = float(msg.get("balance") or data_dict.get("balance") or 10000.0)
+            equity = float(msg.get("equity") or data_dict.get("equity") or balance)
 
             self.active_account_id = acc_id
             self.account_company = company
             self.balance = balance
             self.equity = equity
 
+            if self.on_handshake_callback:
+                self.on_handshake_callback(data_dict or msg)
+
             logger.info(f"📥 [MT5 HANDSHAKE] Account #{acc_id} ({company}) registered! Balance: ${balance:.2f} | Equity: ${equity:.2f}")
             self._auto_register_account(acc_id, company, server, balance, equity)
             self._save_radar_state()
 
-        # 2. BAR_SYNC (Bulk Historical Bars from MT5)
+        # 2. BAR / BAR_SYNC
+        elif msg_type == "BAR":
+            symbol = msg.get("symbol", "XAUUSD")
+            data = msg.get("data", {})
+            if self.on_bar_callback:
+                self.on_bar_callback(symbol, data)
+
+        # 3. BAR_SYNC (Bulk Historical Bars from MT5)
         elif msg_type == "BAR_SYNC":
             bars = msg.get("bars", [])
             batch = msg.get("batch", 1)
@@ -301,6 +318,16 @@ class LiveMT5BridgeCore:
         except Exception as e:
             logger.debug(f"Failed to persist radar state: {e}")
 
+    async def broadcast(self, message: Any):
+        payload = message.model_dump_json() if hasattr(message, "model_dump_json") else json.dumps(message)
+        payload = (payload + "\n").encode("utf-8")
+        for writer in list(self.active_writers):
+            try:
+                writer.write(payload)
+                await writer.drain()
+            except Exception:
+                pass
+
     async def start(self):
         self.server = await asyncio.start_server(self._handle_client, self.host, self.port)
         logger.info("============================================================")
@@ -318,6 +345,29 @@ class LiveMT5BridgeCore:
         if self.server:
             self.server.close()
             await self.server.wait_closed()
+
+
+MT5BridgeServer = LiveMT5BridgeCore
+
+
+class BridgeMessageType:
+    HANDSHAKE = "HANDSHAKE"
+    BAR = "BAR"
+    TICK = "TICK"
+    ORDER_REQUEST = "ORDER_REQUEST"
+    ORDER_STATUS = "ORDER_STATUS"
+    HEARTBEAT = "HEARTBEAT"
+    ERROR = "ERROR"
+
+
+class BridgeMessage:
+    def __init__(self, type=None, symbol=None, data=None):
+        self.type = type
+        self.symbol = symbol
+        self.data = data or {}
+
+    def model_dump_json(self):
+        return json.dumps({"type": self.type, "symbol": self.symbol, "data": self.data})
 
 
 async def main():
