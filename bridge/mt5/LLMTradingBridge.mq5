@@ -536,9 +536,11 @@ void OnTick()
    double spread = ask - bid;
    long   timeMs = (long)TimeCurrent() * 1000;
 
-   // Count open positions for our dual engines (1001 Scalp / 2001 Intraday)
+   // 1. Scan and serialize all OPEN POSITIONS
    int openCount = 0;
    double totalUnrealized = 0.0;
+   string positionsJson = "";
+
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       if(m_position.SelectByIndex(i))
@@ -547,16 +549,63 @@ void OnTick()
          if((posMagic == 1001 || posMagic == 2001 || posMagic == InpMagicNumber) && m_position.Symbol() == _Symbol)
          {
             openCount++;
-            totalUnrealized += m_position.Profit();
+            double pnl = m_position.Profit();
+            totalUnrealized += pnl;
+
+            string posItem = StringFormat(
+               "{\"ticket\":%I64u,\"magic\":%I64u,\"symbol\":\"%s\",\"type\":\"%s\",\"lots\":%.2f,\"entry_price\":%.2f,\"current_price\":%.2f,\"sl\":%.2f,\"tp\":%.2f,\"profit\":%.2f}",
+               m_position.Ticket(), posMagic, m_position.Symbol(),
+               (m_position.PositionType() == POSITION_TYPE_BUY) ? "BUY" : "SELL",
+               m_position.Volume(), m_position.PriceOpen(), m_position.PriceCurrent(),
+               m_position.StopLoss(), m_position.TakeProfit(), pnl
+            );
+
+            if(positionsJson != "") positionsJson += ",";
+            positionsJson += posItem;
          }
       }
    }
 
-   // Format JSON tick payload with Account ID for multi-account governance
+   // 2. Scan and serialize all PENDING LIMIT ORDERS
+   int pendingCount = 0;
+   string pendingOrdersJson = "";
+
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = OrderGetTicket(i);
+      if(ticket > 0)
+      {
+         long ordMagic = OrderGetInteger(ORDER_MAGIC);
+         string ordSym = OrderGetString(ORDER_SYMBOL);
+         if((ordMagic == 1001 || ordMagic == 2001 || ordMagic == (long)InpMagicNumber) && ordSym == _Symbol)
+         {
+            pendingCount++;
+            ENUM_ORDER_TYPE ordType = (ENUM_ORDER_TYPE)OrderGetInteger(ORDER_TYPE);
+            string typeStr = "PENDING";
+            if(ordType == ORDER_TYPE_BUY_LIMIT) typeStr = "BUY_LIMIT";
+            else if(ordType == ORDER_TYPE_SELL_LIMIT) typeStr = "SELL_LIMIT";
+            else if(ordType == ORDER_TYPE_BUY_STOP) typeStr = "BUY_STOP";
+            else if(ordType == ORDER_TYPE_SELL_STOP) typeStr = "SELL_STOP";
+
+            string ordItem = StringFormat(
+               "{\"ticket\":%I64u,\"magic\":%I64d,\"symbol\":\"%s\",\"type\":\"%s\",\"lots\":%.2f,\"price\":%.2f,\"sl\":%.2f,\"tp\":%.2f}",
+               ticket, ordMagic, ordSym, typeStr,
+               OrderGetDouble(ORDER_VOLUME_CURRENT), OrderGetDouble(ORDER_PRICE_OPEN),
+               OrderGetDouble(ORDER_SL), OrderGetDouble(ORDER_TP)
+            );
+
+            if(pendingOrdersJson != "") pendingOrdersJson += ",";
+            pendingOrdersJson += ordItem;
+         }
+      }
+   }
+
+   // 3. Format complete JSON telemetry packet to Python Brain
    string tickJson = StringFormat(
-      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"unrealized\":%.2f}\n",
+      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"positions\":[%s],\"orders\":[%s]}\n",
       AccountInfoInteger(ACCOUNT_LOGIN), _Symbol, bid, ask, spread, timeMs,
-      m_account.Equity(), m_account.Balance(), openCount, totalUnrealized
+      m_account.Equity(), m_account.Balance(), openCount, pendingCount, totalUnrealized,
+      positionsJson, pendingOrdersJson
    );
 
    SendString(tickJson);

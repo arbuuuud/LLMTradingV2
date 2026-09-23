@@ -54,6 +54,11 @@ class LiveMT5BridgeCore:
         self._last_order_time = 0.0
         self._last_account_persist = 0.0
 
+        # Live Open Positions & Pending Orders Telemetry from MT5
+        self.live_open_positions: List[Dict[str, Any]] = []
+        self.live_pending_orders: List[Dict[str, Any]] = []
+        self.unrealized_pnl: float = 0.0
+
         # Callbacks for backward compatibility with test suites
         self.on_handshake_callback = None
         self.on_bar_callback = None
@@ -233,6 +238,13 @@ class LiveMT5BridgeCore:
             self.active_account_id = acc_id
             self.equity = float(msg.get("equity", self.equity))
             self.balance = float(msg.get("balance", self.balance))
+            self.unrealized_pnl = float(msg.get("unrealized", 0.0))
+
+            # Ingest live open positions & pending limit orders
+            if "positions" in msg and isinstance(msg["positions"], list):
+                self.live_open_positions = msg["positions"]
+            if "orders" in msg and isinstance(msg["orders"], list):
+                self.live_pending_orders = msg["orders"]
 
             # Dynamically persist updated Live Equity and Balance to accounts.yaml every 5 seconds
             now_t = time.time()
@@ -480,7 +492,10 @@ class LiveMT5BridgeCore:
                 "id": self.active_account_id,
                 "company": self.account_company,
                 "balance": self.balance,
-                "equity": self.equity
+                "equity": self.equity,
+                "unrealized_pnl": self.unrealized_pnl,
+                "open_positions": list(self.live_open_positions),
+                "pending_orders": list(self.live_pending_orders)
             },
             "bars": tf_candles.get("M1", []),
             "timeframe_bars": tf_candles,
