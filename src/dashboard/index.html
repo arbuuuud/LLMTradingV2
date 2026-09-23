@@ -359,7 +359,8 @@
 
     function resizeCanvases() {
       if (candleCanvas && candleCanvas.parentElement) {
-        candleCanvas.width = candleCanvas.parentElement.clientWidth;
+        candleCanvas.width = candleCanvas.parentElement.clientWidth || 800;
+        candleCanvas.height = 420;
       }
       if (currentChartData) {
         drawCandleChart(currentChartData);
@@ -369,15 +370,11 @@
 
     async function fetchChartData(tf) {
       try {
-        document.getElementById('chart-tf-badge').innerText = tf;
-        document.getElementById('equity-tf-badge').innerText = tf;
+        const badge = document.getElementById('chart-tf-badge');
+        if (badge) badge.innerText = tf;
         const res = await fetch(`/api/radar/chart?tf=${tf}`);
         const data = await res.json();
         currentChartData = data;
-
-        document.getElementById('stat-equity').innerText = `$${data.summary.current_equity.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-        const sign = data.summary.total_return_pct >= 0 ? '+' : '';
-        document.getElementById('stat-gain').innerText = `${sign}${data.summary.total_return_pct}%`;
 
         resizeCanvases();
       } catch (err) {
