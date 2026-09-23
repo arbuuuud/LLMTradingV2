@@ -75,6 +75,46 @@
             <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
               ENGINE: PAC SCALPER (XAUUSD)
             </span>
+
+            <!-- Info Hover Icon for Mathematical Rules -->
+            <div class="relative group cursor-pointer inline-flex items-center">
+              <div class="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-blue-400 text-xs hover:border-blue-500 transition">
+                <i class="fa-solid fa-info"></i>
+              </div>
+              <!-- Tooltip Box -->
+              <div class="absolute left-0 top-8 hidden group-hover:block z-50 w-80 p-4 rounded-xl glass-card border border-blue-500/40 shadow-2xl backdrop-blur-xl text-xs space-y-2">
+                <div class="font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+                  <i class="fa-solid fa-shield-virus text-indigo-400"></i> Mathematical Rules Enforced
+                </div>
+                <ul class="space-y-2 text-slate-300">
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                    <span><strong>Kuadran 0-25%:</strong> Eksekusi Buy strictly di zona diskon harga.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                    <span><strong>Kuadran 75-100%:</strong> Eksekusi Sell strictly di zona premium harga.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                    <span><strong>Equilibrium 50% TP:</strong> Hard Take Profit wajib dipasang di titik tengah channel.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                    <span><strong>Deeper Retest:</strong> Order limit dipasang bertingkat pada penetrasi lebih dalam.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                    <span><strong>Cancel on TP:</strong> Sisa limit dibatalkan seketika saat TP 50% tersentuh.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                    <span><strong>Handover BEP:</strong> Kunci BEP dan proteksi modal saat zona baru terbentuk.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
             <span id="radar-session" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
               Active Session
             </span>
@@ -103,85 +143,50 @@
         <!-- Rendered dynamically by JS -->
       </div>
 
-      <!-- Interactive PAC Candlestick & Equity Graph Canvas -->
-      <div class="space-y-4">
-        <!-- 1. Candlestick & PAC Bands Canvas -->
-        <div class="glass-card rounded-2xl p-5 border border-slate-800">
+      <!-- Main Tactical Cockpit: Side-by-Side (Chart Kiri, Active Checklist Kanan) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Chart Candlestick & PAC Bands (Kiri, Lebar 2 Kolom) -->
+        <div class="lg:col-span-2 glass-card rounded-2xl p-5 border border-slate-800 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
               <span class="text-sm font-bold text-white flex items-center gap-2 font-mono">
-                <i class="fa-solid fa-chart-candlestick text-blue-400"></i> XAUUSD <span id="chart-tf-badge" class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">M1</span> Live PAC Channel & Trajectory
+                <i class="fa-solid fa-chart-candlestick text-blue-400"></i> XAUUSD <span id="chart-tf-badge" class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">M1</span> Live PAC Channel
               </span>
-              <span class="text-xs text-slate-400">
-                <span class="text-emerald-400">● Bullish</span> • <span class="text-rose-400">● Bearish</span> • <span class="text-blue-400">── PAC Bands</span> • <span class="text-amber-400">-- 50% Midpoint</span>
+              <span class="text-xs text-slate-400 hidden sm:inline">
+                <span class="text-emerald-400">● Buy Zone</span> • <span class="text-rose-400">● Sell Zone</span> • <span class="text-amber-400">-- 50% TP</span> • <span class="text-red-400">🛑 SL</span>
               </span>
             </div>
             <div class="text-xs text-slate-400 font-mono">
-              Hover candle for OHLC & PAC levels
+              Live MT5 Terminal Feed
             </div>
           </div>
           <div class="relative w-full overflow-hidden rounded-xl bg-slate-950/80 border border-slate-800/80">
-            <canvas id="candle-canvas" height="380" class="w-full block"></canvas>
+            <canvas id="candle-canvas" height="420" class="w-full block"></canvas>
             <div id="chart-tooltip" class="absolute hidden pointer-events-none bg-slate-900/95 border border-slate-700 px-3 py-2 rounded-lg text-[11px] font-mono shadow-2xl text-slate-200 z-10"></div>
           </div>
         </div>
 
-        <!-- 2. Account Equity Curve Canvas -->
-        <div class="glass-card rounded-2xl p-5 border border-slate-800">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-bold text-white flex items-center gap-2 font-mono">
-              <i class="fa-solid fa-chart-line text-emerald-400"></i> Live Account Equity Curve (<span id="equity-tf-badge">M1</span> PAC Scalper)
+        <!-- Active Confluence Checklist Panel (Kanan, 1 Kolom Samping Chart) -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 flex flex-col">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-blue-400"></i> Confluence Checklist
+            </h3>
+            <span class="px-2 py-0.5 rounded font-mono text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+              <span id="checklist-tf-label">M1</span> Setup
             </span>
-            <div class="flex items-center gap-4 text-xs font-mono">
-              <span class="text-slate-400">Balance: <strong class="text-white">$10,000.00</strong></span>
-              <span class="text-slate-400">Equity: <strong id="stat-equity" class="text-emerald-400 font-bold">$10,248.50</strong></span>
-              <span class="text-slate-400">Gain: <strong id="stat-gain" class="text-emerald-400 font-bold">+2.48%</strong></span>
-              <span class="text-slate-400">Max DD: <strong class="text-emerald-400">0.28%</strong></span>
-            </div>
           </div>
-          <div class="w-full overflow-hidden rounded-xl bg-slate-950/80 border border-slate-800/80">
-            <canvas id="equity-canvas" height="140" class="w-full block"></canvas>
-          </div>
-        </div>
-      </div>
 
-      <!-- Live Detailed Checklist & Confluence Rules -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 glass-card rounded-2xl p-5 border border-slate-800">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-list-check text-blue-400"></i> Active Confluence Checklist (<span id="checklist-tf-label">M1</span> Focus)
-          </h3>
-          <div id="checklist-container" class="space-y-2.5">
+          <div id="checklist-container" class="space-y-3 flex-1 flex flex-col justify-center">
             <!-- Checklist Items -->
           </div>
-        </div>
 
-        <div class="glass-card rounded-2xl p-5 border border-slate-800">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-shield-virus text-indigo-400"></i> Mathematical Rules Enforced
-          </h3>
-          <ul class="text-xs space-y-2.5 text-slate-300">
-            <li class="flex items-start gap-2">
-              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-              <span><strong>Kuadran 0-25%:</strong> Eksekusi Buy strictly di zona diskon harga.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-              <span><strong>Equilibrium 50% TP:</strong> Hard Take Profit wajib dipasang di titik tengah channel.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-              <span><strong>Deeper Retest:</strong> Hanya mengeksekusi order jika terjadi penetrasi lebih dalam.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-              <span><strong>Cancel on TP:</strong> Sisa limit order seketika dibatalkan begitu TP 50% tersentuh.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-              <span><strong>Handover BEP:</strong> Kunci BEP dan proteksi modal saat zona baru terbentuk.</span>
-            </li>
-          </ul>
+          <div class="pt-4 mt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Minimum Gate Score: <strong class="text-white font-mono">8.0 / 10</strong></span>
+            <span class="text-emerald-400 font-semibold font-mono flex items-center gap-1">
+              <i class="fa-solid fa-lock text-[10px]"></i> FAIL-SAFE ARMED
+            </span>
+          </div>
         </div>
       </div>
     </section>
@@ -350,20 +355,14 @@
     // Canvas Elements
     const candleCanvas = document.getElementById('candle-canvas');
     const candleCtx = candleCanvas.getContext('2d');
-    const eqCanvas = document.getElementById('equity-canvas');
-    const eqCtx = eqCanvas.getContext('2d');
     const chartTooltip = document.getElementById('chart-tooltip');
 
     function resizeCanvases() {
       if (candleCanvas && candleCanvas.parentElement) {
         candleCanvas.width = candleCanvas.parentElement.clientWidth;
       }
-      if (eqCanvas && eqCanvas.parentElement) {
-        eqCanvas.width = eqCanvas.parentElement.clientWidth;
-      }
       if (currentChartData) {
         drawCandleChart(currentChartData);
-        drawEquityChart(currentChartData);
       }
     }
     window.addEventListener('resize', resizeCanvases);
