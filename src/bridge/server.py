@@ -50,6 +50,7 @@ class LiveMT5BridgeCore:
         self.pending_notifications: List[Dict[str, Any]] = []
         self._last_order_direction = None
         self._last_order_time = 0.0
+        self._last_account_persist = 0.0
 
         # Callbacks for backward compatibility with test suites
         self.on_handshake_callback = None
@@ -92,6 +93,26 @@ class LiveMT5BridgeCore:
             logger.info(f"✨ [AUTO-REGISTER] Live MT5 Account #{acc_id} ({company}) synced to accounts.yaml! Balance=${balance:.2f} Equity=${equity:.2f}")
         except Exception as e:
             logger.error(f"Error auto-registering account #{acc_id}: {e}")
+
+    def _update_account_equity(self, acc_id: str, balance: float, equity: float):
+        if not ACCOUNTS_CONFIG_PATH.exists():
+            return
+        try:
+            import yaml
+            with open(ACCOUNTS_CONFIG_PATH, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+
+            accounts = cfg.setdefault("accounts", {})
+            acc_key = f"ACC-{acc_id}"
+            if acc_key in accounts:
+                accounts[acc_key]["balance"] = round(balance, 2)
+                accounts[acc_key]["equity"] = round(equity, 2)
+                accounts[acc_key]["status"] = "CONNECTED"
+                accounts[acc_key]["updated_at"] = datetime.now().isoformat()
+                with open(ACCOUNTS_CONFIG_PATH, "w", encoding="utf-8") as f:
+                    yaml.dump(cfg, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        except Exception as e:
+            logger.debug(f"Failed to update account equity in accounts.yaml: {e}")
 
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         client_addr = writer.get_extra_info("peername")
@@ -199,6 +220,12 @@ class LiveMT5BridgeCore:
             self.active_account_id = acc_id
             self.equity = float(msg.get("equity", self.equity))
             self.balance = float(msg.get("balance", self.balance))
+
+            # Dynamically persist updated Live Equity and Balance to accounts.yaml every 5 seconds
+            now_t = time.time()
+            if now_t - self._last_account_persist >= 5.0:
+                self._last_account_persist = now_t
+                self._update_account_equity(acc_id, self.balance, self.equity)
 
             # Maintain active candle in history_m1
             t_sec = int(msg.get("time", time.time() * 1000) / 1000)

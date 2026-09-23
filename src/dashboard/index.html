@@ -1071,7 +1071,10 @@
     setInterval(() => {
       fetchRadarData();
       fetchChartData(selectedRadarTf);
-    }, 10000); // Polling radar every 10s
+      if (activeTab === 'accounts') {
+        fetchAccountsData();
+      }
+    }, 5000); // Polling radar & accounts every 5s
   </script>
 </body>
 </html>
