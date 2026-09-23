@@ -658,7 +658,7 @@ void RedrawZones()
                if(htf_raw[h].is_fully_used) continue;
 
                // If we need floors, add unmitigated H1 demand below current price
-               if(local_below < InpMaxZonesBelow && htf_raw[h].is_bullish && htf_raw[h].top < current_price)
+               if(htf_raw[h].is_bullish && htf_raw[h].top < current_price)
                {
                   ArrayResize(candidates, cand_count + 1);
                   candidates[cand_count] = htf_raw[h];
@@ -666,7 +666,7 @@ void RedrawZones()
                   local_below++;
                }
                // If we need roofs, add unmitigated H1 supply above current price
-               else if(local_above < InpMaxZonesAbove && !htf_raw[h].is_bullish && htf_raw[h].bottom > current_price)
+               else if(!htf_raw[h].is_bullish && htf_raw[h].bottom > current_price)
                {
                   ArrayResize(candidates, cand_count + 1);
                   candidates[cand_count] = htf_raw[h];
@@ -753,6 +753,16 @@ void RedrawZones()
    }
 
    ProcessAndRenderCandidates(candidates, cand_count, current_price, current_candle_time, "[Local]");
+   if(MQLInfoInteger(MQL_TESTER))
+   {
+      static datetime last_dbg_time = 0;
+      if(current_candle_time - last_dbg_time >= 3600)
+      {
+         last_dbg_time = current_candle_time;
+         PrintFormat("[OB Inspector] BarTime: %s, Price: %.2f, TotalCands: %d, LocalBelow: %d, LocalAbove: %d",
+                     TimeToString(current_candle_time), current_price, cand_count, local_below, local_above);
+      }
+   }
    ChartRedraw();
 }
 
