@@ -28,6 +28,42 @@ int OnInit()
 }
 
 //+------------------------------------------------------------------+
+//| Send Recent Historical Bars on Connect                           |
+//+------------------------------------------------------------------+
+void SendHistorySync(int count = 120)
+{
+   MqlRates rates[];
+   ArraySetAsSeries(rates, true);
+   int copied = CopyRates(_Symbol, _Period, 1, count, rates);
+   if(copied <= 0) return;
+
+   // Send oldest to newest
+   for(int i = copied - 1; i >= 0; i--)
+   {
+      MqlDateTime dt;
+      TimeToStruct(rates[i].time, dt);
+      string time_str = StringFormat("%04d-%02d-%02dT%02d:%02d:%02d",
+         dt.year, dt.mon, dt.day, dt.hour, dt.min, dt.sec);
+
+      string bar_json = StringFormat(
+         "{\"type\":\"BAR\",\"symbol\":\"%s\",\"data\":{"
+         "\"timestamp\":\"%s\","
+         "\"open\":%.5f,\"high\":%.5f,\"low\":%.5f,\"close\":%.5f,"
+         "\"volume\":%d,\"spread\":%d,"
+         "\"bid\":%.5f,\"ask\":%.5f}}",
+         InpCanonicalSymbol,
+         time_str,
+         rates[i].open, rates[i].high, rates[i].low, rates[i].close,
+         rates[i].tick_volume, rates[i].spread,
+         SymbolInfoDouble(_Symbol, SYMBOL_BID),
+         SymbolInfoDouble(_Symbol, SYMBOL_ASK)
+      );
+      SendJSON(bar_json);
+   }
+   PrintFormat("Synced %d historical bars to Python Bridge.", copied);
+}
+
+//+------------------------------------------------------------------+
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
@@ -58,6 +94,7 @@ bool ConnectToBridge()
 
    Print("Connected to Python Bridge on ", InpServerHost, ":", InpServerPort);
    SendHandshake();
+   SendHistorySync(120);
    return true;
 }
 
