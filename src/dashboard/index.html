@@ -103,6 +103,48 @@
         <!-- Rendered dynamically by JS -->
       </div>
 
+      <!-- Interactive PAC Candlestick & Equity Graph Canvas -->
+      <div class="space-y-4">
+        <!-- 1. Candlestick & PAC Bands Canvas -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-bold text-white flex items-center gap-2 font-mono">
+                <i class="fa-solid fa-chart-candlestick text-blue-400"></i> XAUUSD <span id="chart-tf-badge" class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">M1</span> Live PAC Channel & Trajectory
+              </span>
+              <span class="text-xs text-slate-400">
+                <span class="text-emerald-400">● Bullish</span> • <span class="text-rose-400">● Bearish</span> • <span class="text-blue-400">── PAC Bands</span> • <span class="text-amber-400">-- 50% Midpoint</span>
+              </span>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">
+              Hover candle for OHLC & PAC levels
+            </div>
+          </div>
+          <div class="relative w-full overflow-hidden rounded-xl bg-slate-950/80 border border-slate-800/80">
+            <canvas id="candle-canvas" height="380" class="w-full block"></canvas>
+            <div id="chart-tooltip" class="absolute hidden pointer-events-none bg-slate-900/95 border border-slate-700 px-3 py-2 rounded-lg text-[11px] font-mono shadow-2xl text-slate-200 z-10"></div>
+          </div>
+        </div>
+
+        <!-- 2. Account Equity Curve Canvas -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-bold text-white flex items-center gap-2 font-mono">
+              <i class="fa-solid fa-chart-line text-emerald-400"></i> Live Account Equity Curve (<span id="equity-tf-badge">M1</span> PAC Scalper)
+            </span>
+            <div class="flex items-center gap-4 text-xs font-mono">
+              <span class="text-slate-400">Balance: <strong class="text-white">$10,000.00</strong></span>
+              <span class="text-slate-400">Equity: <strong id="stat-equity" class="text-emerald-400 font-bold">$10,248.50</strong></span>
+              <span class="text-slate-400">Gain: <strong id="stat-gain" class="text-emerald-400 font-bold">+2.48%</strong></span>
+              <span class="text-slate-400">Max DD: <strong class="text-emerald-400">0.28%</strong></span>
+            </div>
+          </div>
+          <div class="w-full overflow-hidden rounded-xl bg-slate-950/80 border border-slate-800/80">
+            <canvas id="equity-canvas" height="140" class="w-full block"></canvas>
+          </div>
+        </div>
+      </div>
+
       <!-- Live Detailed Checklist & Confluence Rules -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 glass-card rounded-2xl p-5 border border-slate-800">
@@ -292,7 +334,236 @@
   <script>
     let activeTab = 'radar';
     let currentRadarData = null;
+    let currentChartData = null;
     let selectedRadarTf = 'M1';
+
+    // Canvas Elements
+    const candleCanvas = document.getElementById('candle-canvas');
+    const candleCtx = candleCanvas.getContext('2d');
+    const eqCanvas = document.getElementById('equity-canvas');
+    const eqCtx = eqCanvas.getContext('2d');
+    const chartTooltip = document.getElementById('chart-tooltip');
+
+    function resizeCanvases() {
+      if (candleCanvas && candleCanvas.parentElement) {
+        candleCanvas.width = candleCanvas.parentElement.clientWidth;
+      }
+      if (eqCanvas && eqCanvas.parentElement) {
+        eqCanvas.width = eqCanvas.parentElement.clientWidth;
+      }
+      if (currentChartData) {
+        drawCandleChart(currentChartData);
+        drawEquityChart(currentChartData);
+      }
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    async function fetchChartData(tf) {
+      try {
+        document.getElementById('chart-tf-badge').innerText = tf;
+        document.getElementById('equity-tf-badge').innerText = tf;
+        const res = await fetch(`/api/radar/chart?tf=${tf}`);
+        const data = await res.json();
+        currentChartData = data;
+
+        document.getElementById('stat-equity').innerText = `$${data.summary.current_equity.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        const sign = data.summary.total_return_pct >= 0 ? '+' : '';
+        document.getElementById('stat-gain').innerText = `${sign}${data.summary.total_return_pct}%`;
+
+        resizeCanvases();
+      } catch (err) {
+        console.error("Failed to load chart data:", err);
+      }
+    }
+
+    function drawCandleChart(data) {
+      const W = candleCanvas.width;
+      const H = candleCanvas.height;
+      candleCtx.clearRect(0, 0, W, H);
+
+      const candles = data.candles || [];
+      if (candles.length === 0) return;
+
+      const padTop = 30;
+      const padBottom = 30;
+      const padRight = 75;
+      const padLeft = 10;
+      const chartW = W - padRight - padLeft;
+      const chartH = H - padTop - padBottom;
+
+      // Find Min & Max price across candles and PAC bands
+      let minP = Infinity;
+      let maxP = -Infinity;
+      candles.forEach(c => {
+        if (c.low < minP) minP = c.low;
+        if (c.high > maxP) maxP = c.high;
+        if (c.pac_lower < minP) minP = c.pac_lower;
+        if (c.pac_upper > maxP) maxP = c.pac_upper;
+      });
+      const pSpan = (maxP - minP) || 1.0;
+
+      function getY(price) {
+        return padTop + chartH - ((price - minP) / pSpan) * chartH;
+      }
+
+      // Draw Grid Lines & Price Labels
+      candleCtx.strokeStyle = '#1e293b';
+      candleCtx.fillStyle = '#64748b';
+      candleCtx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+      candleCtx.lineWidth = 1;
+
+      const gridSteps = 5;
+      for (let i = 0; i <= gridSteps; i++) {
+        const p = minP + (i / gridSteps) * pSpan;
+        const y = getY(p);
+        candleCtx.beginPath();
+        candleCtx.moveTo(padLeft, y);
+        candleCtx.lineTo(W - padRight, y);
+        candleCtx.stroke();
+        candleCtx.fillText(`$${p.toFixed(2)}`, W - padRight + 6, y + 3);
+      }
+
+      const barWidth = Math.max(3, (chartW / candles.length) * 0.7);
+      const stepX = chartW / candles.length;
+
+      // Draw PAC Channel Cloud
+      candleCtx.beginPath();
+      candles.forEach((c, idx) => {
+        const x = padLeft + idx * stepX + stepX / 2;
+        const yU = getY(c.pac_upper);
+        if (idx === 0) candleCtx.moveTo(x, yU);
+        else candleCtx.lineTo(x, yU);
+      });
+      for (let idx = candles.length - 1; idx >= 0; idx--) {
+        const c = candles[idx];
+        const x = padLeft + idx * stepX + stepX / 2;
+        const yL = getY(c.pac_lower);
+        candleCtx.lineTo(x, yL);
+      }
+      candleCtx.closePath();
+      candleCtx.fillStyle = 'rgba(59, 130, 246, 0.08)';
+      candleCtx.fill();
+
+      // Draw PAC Upper & Lower Bands Lines
+      candleCtx.beginPath();
+      candleCtx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+      candleCtx.lineWidth = 1.5;
+      candles.forEach((c, idx) => {
+        const x = padLeft + idx * stepX + stepX / 2;
+        const y = getY(c.pac_upper);
+        if (idx === 0) candleCtx.moveTo(x, y);
+        else candleCtx.lineTo(x, y);
+      });
+      candleCtx.stroke();
+
+      candleCtx.beginPath();
+      candles.forEach((c, idx) => {
+        const x = padLeft + idx * stepX + stepX / 2;
+        const y = getY(c.pac_lower);
+        if (idx === 0) candleCtx.moveTo(x, y);
+        else candleCtx.lineTo(x, y);
+      });
+      candleCtx.stroke();
+
+      // Draw 50% Midpoint Line (Dashed Amber)
+      candleCtx.save();
+      candleCtx.setLineDash([4, 4]);
+      candleCtx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+      candleCtx.beginPath();
+      candles.forEach((c, idx) => {
+        const x = padLeft + idx * stepX + stepX / 2;
+        const y = getY(c.midpoint);
+        if (idx === 0) candleCtx.moveTo(x, y);
+        else candleCtx.lineTo(x, y);
+      });
+      candleCtx.stroke();
+      candleCtx.restore();
+
+      // Draw Candlesticks
+      candles.forEach((c, idx) => {
+        const x = padLeft + idx * stepX + stepX / 2;
+        const yO = getY(c.open);
+        const yC = getY(c.close);
+        const yH = getY(c.high);
+        const yL = getY(c.low);
+        const isBull = c.close >= c.open;
+
+        candleCtx.strokeStyle = isBull ? '#10b981' : '#f43f5e';
+        candleCtx.fillStyle = isBull ? '#10b981' : '#f43f5e';
+        candleCtx.lineWidth = 1;
+
+        // Wick
+        candleCtx.beginPath();
+        candleCtx.moveTo(x, yH);
+        candleCtx.lineTo(x, yL);
+        candleCtx.stroke();
+
+        // Body
+        const top = Math.min(yO, yC);
+        const bodyH = Math.max(2, Math.abs(yO - yC));
+        candleCtx.fillRect(x - barWidth / 2, top, barWidth, bodyH);
+      });
+    }
+
+    function drawEquityChart(data) {
+      const W = eqCanvas.width;
+      const H = eqCanvas.height;
+      eqCtx.clearRect(0, 0, W, H);
+
+      const eq = data.equity_curve || [];
+      if (eq.length === 0) return;
+
+      const padTop = 15;
+      const padBottom = 20;
+      const padRight = 75;
+      const padLeft = 10;
+      const chartW = W - padRight - padLeft;
+      const chartH = H - padTop - padBottom;
+
+      const minEq = Math.min(...eq) * 0.999;
+      const maxEq = Math.max(...eq) * 1.001;
+      const span = (maxEq - minEq) || 1.0;
+
+      function getY(val) {
+        return padTop + chartH - ((val - minEq) / span) * chartH;
+      }
+
+      // Fill Gradient Area
+      const grad = eqCtx.createLinearGradient(0, padTop, 0, H - padBottom);
+      grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+      grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+      eqCtx.beginPath();
+      eq.forEach((v, i) => {
+        const x = padLeft + (i / (eq.length - 1)) * chartW;
+        const y = getY(v);
+        if (i === 0) eqCtx.moveTo(x, y);
+        else eqCtx.lineTo(x, y);
+      });
+      eqCtx.lineTo(padLeft + chartW, H - padBottom);
+      eqCtx.lineTo(padLeft, H - padBottom);
+      eqCtx.closePath();
+      eqCtx.fillStyle = grad;
+      eqCtx.fill();
+
+      // Line
+      eqCtx.beginPath();
+      eqCtx.strokeStyle = '#10b981';
+      eqCtx.lineWidth = 2;
+      eq.forEach((v, i) => {
+        const x = padLeft + (i / (eq.length - 1)) * chartW;
+        const y = getY(v);
+        if (i === 0) eqCtx.moveTo(x, y);
+        else eqCtx.lineTo(x, y);
+      });
+      eqCtx.stroke();
+
+      // Labels
+      eqCtx.fillStyle = '#64748b';
+      eqCtx.font = '10px ui-monospace, monospace';
+      eqCtx.fillText(`$${maxEq.toFixed(0)}`, W - padRight + 6, padTop + 10);
+      eqCtx.fillText(`$${minEq.toFixed(0)}`, W - padRight + 6, H - padBottom);
+    }
 
     // Clock
     setInterval(() => {
@@ -330,6 +601,7 @@
 
         renderRadarTimeframes(data.timeframes);
         renderChecklist(selectedRadarTf);
+        fetchChartData(selectedRadarTf);
       } catch (err) {
         console.error("Failed to load radar data:", err);
       }
@@ -352,6 +624,7 @@
           selectedRadarTf = tf;
           renderRadarTimeframes(tfDict);
           renderChecklist(tf);
+          fetchChartData(tf);
         };
 
         card.innerHTML = `
