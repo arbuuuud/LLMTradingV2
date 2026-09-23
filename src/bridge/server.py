@@ -17,6 +17,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
+from src.data.adapter import BrokerAdapter, BrokerSpec
+
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -57,6 +59,17 @@ class LiveMT5BridgeCore:
         self.on_bar_callback = None
         self.on_tick_callback = None
         self.on_order_status_callback = None
+
+        # Institutional Broker Adapter for Dynamic Lot Sizing
+        self.adapter = BrokerAdapter(BrokerSpec(
+            broker_name="MetaQuotes",
+            broker_symbol="XAUUSD",
+            point=0.01,
+            contract_size=100.0,
+            min_lot=0.01,
+            max_lot=100.0,
+            lot_step=0.01
+        ))
 
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
@@ -407,11 +420,25 @@ class LiveMT5BridgeCore:
                 sl = m1_setup["sl_hard"]
                 tp = m1_setup["tp_midpoint"]
 
+                # Dynamic Risk-Based Lot Sizing based on real Account Equity
+                sl_distance = max(1.0, abs(limit_p - sl))
+                sl_dist_points = sl_distance / self.adapter.spec.point  # point = 0.01
+                # Standard Prop Firm / Sweet Spot risk: 0.50% of equity
+                calculated_raw_lot = self.adapter.calculate_lot(
+                    equity=max(100.0, self.equity),
+                    risk_pct=0.50,
+                    sl_distance_points=sl_dist_points
+                )
+                dynamic_lots = self.adapter.normalize_lot(calculated_raw_lot)
+                # Fallback safeguard minimum lot
+                if dynamic_lots <= 0.0:
+                    dynamic_lots = 0.01
+
                 order_cmd = {
                     "action": "ORDER",
                     "symbol": "XAUUSD",
                     "side": side,
-                    "lots": 0.05,
+                    "lots": dynamic_lots,
                     "price": limit_p,
                     "sl": sl,
                     "tp": tp,
@@ -427,14 +454,14 @@ class LiveMT5BridgeCore:
                     "id": int(now_time * 1000),
                     "timestamp": datetime.now().strftime("%H:%M:%S"),
                     "title": f"🚀 {side} Dispatched to MT5!",
-                    "message": f"Target: ${limit_p:.2f} | SL: ${sl:.2f} | TP: ${tp:.2f} (Lot: 0.05)",
+                    "message": f"Target: ${limit_p:.2f} | SL: ${sl:.2f} | TP: ${tp:.2f} (Lot: {dynamic_lots:.2f} on ${self.equity:,.0f} Eq)",
                     "type": "BUY" if dir_cmd == "BUY" else "SELL",
                     "price": limit_p
                 }
                 self.pending_notifications.append(notif)
                 if len(self.pending_notifications) > 10:
                     self.pending_notifications.pop(0)
-                logger.info(f"⚡ [AUTO-DISPATCH] Sent {side} order to MT5 EA at ${limit_p:.2f} (SL: ${sl:.2f}, TP: ${tp:.2f})")
+                logger.info(f"⚡ [AUTO-DISPATCH] Sent {side} order to MT5 EA at ${limit_p:.2f} (SL: ${sl:.2f}, TP: ${tp:.2f}) | Dynamic Lot: {dynamic_lots:.2f} (Equity: ${self.equity:.2f})")
 
         now_utc = datetime.now(timezone.utc)
         curr_h = now_utc.hour
