@@ -223,6 +223,112 @@ class ChecklistEvaluation(BaseModel):
     rationale: Optional[str] = None
 
 
+class TradingStyle(str, Enum):
+    SCALPING = "SCALPING"
+    INTRADAY = "INTRADAY"
+    SWING = "SWING"
+
+
+class SessionKillzone(str, Enum):
+    ASIAN = "ASIAN"                 # 00:00 - 08:00 UTC
+    LONDON_OPEN = "LONDON_OPEN"     # 07:00 - 11:00 UTC
+    NY_OVERLAP = "NY_OVERLAP"       # 12:00 - 17:00 UTC
+    ALL_DAY = "ALL_DAY"
+
+
+class ForceClosePolicy(str, Enum):
+    INSTANT_KILL = "INSTANT_KILL"                 # Exit 100% on counter-signal
+    PARTIAL_50_BEP = "PARTIAL_50_BEP"             # Close 50% lot and move SL to BEP
+    COUNTER_MOM_ONLY = "COUNTER_MOM_ONLY"         # Close only if opposite Momentum Marubozu occurs
+    COUNTER_POI_TOUCH = "COUNTER_POI_TOUCH"       # Close when price touches new opposing POI
+
+
+class MethodologyInput(BaseModel):
+    """User input defining a core trading methodology and research objective."""
+    name: str = "PAC"                             # Pivot and Control
+    trading_style: TradingStyle = TradingStyle.SCALPING
+    daily_profit_target_pct: float = 1.0          # 1% per day
+    monthly_profit_target_pct: float = 20.0       # 20% per month
+    description: str = ""
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ShadowCloneSpec(BaseModel):
+    """Independent specification of a single Shadow Clone in the Kage Bunshin matrix."""
+    clone_id: str
+    methodology: str
+    timeframe: str = "M1"
+    trading_style: TradingStyle = TradingStyle.SCALPING
+
+    # Dimensi 1: Structure & Wave
+    wave_regime: str = "ALL"                      # IMPULSIVE, PULLBACK, SIDEWAY, ALL
+    require_bos_or_choch: bool = False
+    require_fibo_ote: bool = False
+
+    # Dimensi 2: POI Selection
+    poi_types: List[str] = Field(default_factory=lambda: ["OB", "CONTINUATION_SD", "CONFLUENCE"])
+    require_swept_liquidity: bool = False
+    max_touch_count: int = 2
+
+    # Dimensi 3: Execution & Candlesticks
+    execution_mode: str = "LIMIT_GRID"            # LIMIT_GRID or CONFIRMED_REACTION
+    limit_layers: int = 5                         # 3, 5, or 10 layers in 0-25% zone
+    hard_sl_pct: float = -20.0                    # Distance below Floor (0%) in %
+    soft_sl_candle_close_pct: Optional[float] = -5.0
+    hard_tp_pct: float = 50.0                     # Midpoint Equilibrium
+    force_close_policy: ForceClosePolicy = ForceClosePolicy.PARTIAL_50_BEP
+
+    # Dimensi 4: Session
+    session: SessionKillzone = SessionKillzone.ALL_DAY
+
+    # Anti-Overfitting Safeguards
+    min_trades_per_month: int = 30                # Disqualify if dormant
+
+
+class ShadowCloneResult(BaseModel):
+    """Performance evaluation output of a single Shadow Clone."""
+    clone_id: str
+    spec: ShadowCloneSpec
+    total_trades: int
+    win_rate_pct: float
+    profit_factor: float
+    net_pnl: float
+    roi_pct: float
+    max_drawdown_pct: float
+    avg_trades_per_day: float
+    monthly_green_pct: float
+    saved_r_amount: float = 0.0
+    is_disqualified: bool = False
+    disqualification_reason: Optional[str] = None
+
+
+class RiskProfileMetrics(BaseModel):
+    label: str
+    risk_multiplier: float
+    base_risk_pct: float
+    total_trades: int
+    win_rate_pct: float
+    profit_factor: float
+    net_pnl: float
+    roi_pct: float
+    max_drawdown_pct: float
+    passes_hurdle: bool
+
+
+class FourRiskProfilesReport(BaseModel):
+    """Production evaluation mapping winning strategy to 4 standardized risk tiers."""
+    strategy_id: str
+    methodology: str
+    timeframe: str
+    generated_at: datetime
+    prop_firm: RiskProfileMetrics      # 0.50% Base Risk (FTMO Safe, Max DD <= 7.8%)
+    sweet_spot: RiskProfileMetrics     # 0.75% Base Risk (Live Account Recommendation, Max DD <= 10.7%)
+    aggressive: RiskProfileMetrics     # 1.00% Base Risk (Compounding, Max DD <= 13.1%)
+    yolo: RiskProfileMetrics           # 2.00% Base Risk (Max Velocity, Max DD <= 22.0%)
+    champion_clone_id: str
+    robustness_score: float = 0.0      # Scale 0 - 100
+
+
 class ForceCloseTrigger(BaseModel):
     """Instruction emitted by ForceClose Guardian Agent to manage open positions."""
     position_id: str
