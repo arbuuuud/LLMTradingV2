@@ -394,32 +394,34 @@
       const candles = data.candles || [];
       if (candles.length === 0) return;
 
-      const padTop = 30;
-      const padBottom = 30;
-      const padRight = 75;
-      const padLeft = 10;
+      const padTop = 35;
+      const padBottom = 35;
+      const padRight = 85;
+      const padLeft = 15;
       const chartW = W - padRight - padLeft;
       const chartH = H - padTop - padBottom;
 
-      // Find Min & Max price across candles and PAC bands
+      // Price Scaling strictly tailored for Candlesticks
       let minP = Infinity;
       let maxP = -Infinity;
       candles.forEach(c => {
         if (c.low < minP) minP = c.low;
         if (c.high > maxP) maxP = c.high;
-        if (c.pac_lower < minP) minP = c.pac_lower;
-        if (c.pac_upper > maxP) maxP = c.pac_upper;
       });
-      const pSpan = (maxP - minP) || 1.0;
+      // Add slight padding around candles
+      const rawSpan = (maxP - minP) || 1.0;
+      minP -= rawSpan * 0.08;
+      maxP += rawSpan * 0.08;
+      const pSpan = maxP - minP;
 
       function getY(price) {
         return padTop + chartH - ((price - minP) / pSpan) * chartH;
       }
 
-      // Draw Grid Lines & Price Labels
-      candleCtx.strokeStyle = '#1e293b';
-      candleCtx.fillStyle = '#64748b';
-      candleCtx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+      // Background Grid Lines & Price Labels
+      candleCtx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
+      candleCtx.fillStyle = '#94a3b8';
+      candleCtx.font = '11px ui-monospace, SFMono-Regular, monospace';
       candleCtx.lineWidth = 1;
 
       const gridSteps = 5;
@@ -430,66 +432,68 @@
         candleCtx.moveTo(padLeft, y);
         candleCtx.lineTo(W - padRight, y);
         candleCtx.stroke();
-        candleCtx.fillText(`$${p.toFixed(2)}`, W - padRight + 6, y + 3);
+        candleCtx.fillText(`$${p.toFixed(2)}`, W - padRight + 8, y + 4);
       }
 
-      const barWidth = Math.max(3, (chartW / candles.length) * 0.7);
       const stepX = chartW / candles.length;
+      const barWidth = Math.max(3, Math.min(10, stepX * 0.7));
 
-      // Draw PAC Channel Cloud
-      candleCtx.beginPath();
-      candles.forEach((c, idx) => {
-        const x = padLeft + idx * stepX + stepX / 2;
-        const yU = getY(c.pac_upper);
-        if (idx === 0) candleCtx.moveTo(x, yU);
-        else candleCtx.lineTo(x, yU);
-      });
-      for (let idx = candles.length - 1; idx >= 0; idx--) {
-        const c = candles[idx];
-        const x = padLeft + idx * stepX + stepX / 2;
-        const yL = getY(c.pac_lower);
-        candleCtx.lineTo(x, yL);
+      // Draw PAC Channel Cloud (if present)
+      if (candles[0].pac_upper && candles[0].pac_lower) {
+        candleCtx.beginPath();
+        candles.forEach((c, idx) => {
+          const x = padLeft + idx * stepX + stepX / 2;
+          const yU = getY(Math.min(maxP, Math.max(minP, c.pac_upper)));
+          if (idx === 0) candleCtx.moveTo(x, yU);
+          else candleCtx.lineTo(x, yU);
+        });
+        for (let idx = candles.length - 1; idx >= 0; idx--) {
+          const c = candles[idx];
+          const x = padLeft + idx * stepX + stepX / 2;
+          const yL = getY(Math.min(maxP, Math.max(minP, c.pac_lower)));
+          candleCtx.lineTo(x, yL);
+        }
+        candleCtx.closePath();
+        candleCtx.fillStyle = 'rgba(59, 130, 246, 0.07)';
+        candleCtx.fill();
+
+        // PAC Upper & Lower Lines
+        candleCtx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+        candleCtx.lineWidth = 1.2;
+        candleCtx.beginPath();
+        candles.forEach((c, idx) => {
+          const x = padLeft + idx * stepX + stepX / 2;
+          const y = getY(Math.min(maxP, Math.max(minP, c.pac_upper)));
+          if (idx === 0) candleCtx.moveTo(x, y);
+          else candleCtx.lineTo(x, y);
+        });
+        candleCtx.stroke();
+
+        candleCtx.beginPath();
+        candles.forEach((c, idx) => {
+          const x = padLeft + idx * stepX + stepX / 2;
+          const y = getY(Math.min(maxP, Math.max(minP, c.pac_lower)));
+          if (idx === 0) candleCtx.moveTo(x, y);
+          else candleCtx.lineTo(x, y);
+        });
+        candleCtx.stroke();
+
+        // Midpoint Line
+        candleCtx.save();
+        candleCtx.setLineDash([4, 4]);
+        candleCtx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+        candleCtx.beginPath();
+        candles.forEach((c, idx) => {
+          const x = padLeft + idx * stepX + stepX / 2;
+          const y = getY(Math.min(maxP, Math.max(minP, c.midpoint)));
+          if (idx === 0) candleCtx.moveTo(x, y);
+          else candleCtx.lineTo(x, y);
+        });
+        candleCtx.stroke();
+        candleCtx.restore();
       }
-      candleCtx.closePath();
-      candleCtx.fillStyle = 'rgba(59, 130, 246, 0.08)';
-      candleCtx.fill();
 
-      // Draw PAC Upper & Lower Bands Lines
-      candleCtx.beginPath();
-      candleCtx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
-      candleCtx.lineWidth = 1.5;
-      candles.forEach((c, idx) => {
-        const x = padLeft + idx * stepX + stepX / 2;
-        const y = getY(c.pac_upper);
-        if (idx === 0) candleCtx.moveTo(x, y);
-        else candleCtx.lineTo(x, y);
-      });
-      candleCtx.stroke();
-
-      candleCtx.beginPath();
-      candles.forEach((c, idx) => {
-        const x = padLeft + idx * stepX + stepX / 2;
-        const y = getY(c.pac_lower);
-        if (idx === 0) candleCtx.moveTo(x, y);
-        else candleCtx.lineTo(x, y);
-      });
-      candleCtx.stroke();
-
-      // Draw 50% Midpoint Line (Dashed Amber)
-      candleCtx.save();
-      candleCtx.setLineDash([4, 4]);
-      candleCtx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
-      candleCtx.beginPath();
-      candles.forEach((c, idx) => {
-        const x = padLeft + idx * stepX + stepX / 2;
-        const y = getY(c.midpoint);
-        if (idx === 0) candleCtx.moveTo(x, y);
-        else candleCtx.lineTo(x, y);
-      });
-      candleCtx.stroke();
-      candleCtx.restore();
-
-      // Draw Candlesticks
+      // Draw Candlesticks (High Definition Sharp Institutional Styling)
       candles.forEach((c, idx) => {
         const x = padLeft + idx * stepX + stepX / 2;
         const yO = getY(c.open);
@@ -498,21 +502,37 @@
         const yL = getY(c.low);
         const isBull = c.close >= c.open;
 
-        candleCtx.strokeStyle = isBull ? '#10b981' : '#f43f5e';
-        candleCtx.fillStyle = isBull ? '#10b981' : '#f43f5e';
-        candleCtx.lineWidth = 1;
+        const bodyColor = isBull ? '#22c55e' : '#ef4444';
+        const wickColor = isBull ? '#4ade80' : '#f87171';
 
-        // Wick
+        // Sumbu Candlestick (Wick)
+        candleCtx.strokeStyle = wickColor;
+        candleCtx.lineWidth = 1.2;
         candleCtx.beginPath();
         candleCtx.moveTo(x, yH);
         candleCtx.lineTo(x, yL);
         candleCtx.stroke();
 
-        // Body
+        // Badan Candlestick (Body)
         const top = Math.min(yO, yC);
         const bodyH = Math.max(2, Math.abs(yO - yC));
+        candleCtx.fillStyle = bodyColor;
         candleCtx.fillRect(x - barWidth / 2, top, barWidth, bodyH);
+
+        // Border body
+        candleCtx.strokeStyle = isBull ? '#16a34a' : '#dc2626';
+        candleCtx.lineWidth = 0.8;
+        candleCtx.strokeRect(x - barWidth / 2, top, barWidth, bodyH);
       });
+
+      // Latest Price Banner
+      const lastC = candles[candles.length - 1];
+      const lastY = getY(lastC.close);
+      candleCtx.fillStyle = lastC.close >= lastC.open ? '#22c55e' : '#ef4444';
+      candleCtx.fillRect(W - padRight, lastY - 9, padRight - 5, 18);
+      candleCtx.fillStyle = '#ffffff';
+      candleCtx.font = 'bold 10px ui-monospace, monospace';
+      candleCtx.fillText(`$${lastC.close.toFixed(2)}`, W - padRight + 6, lastY + 3.5);
     }
 
     function drawEquityChart(data) {
