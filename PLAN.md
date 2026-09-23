@@ -10,9 +10,9 @@
 ## 📊 Ringkasan Progress Proyek
 
 - **Total Tasks Terencana**: 22 tasks
-- **Tasks Selesai**: 20 tasks (90.9%)
-- **Tasks Sedang Berjalan**: 0 task
-- **Tasks Antrian**: 2 tasks
+- **Tasks Selesai**: 17 tasks (77.3%)
+- **Tasks Sedang Berjalan**: 2 tasks (Fase 4: Reviewing Live Integration)
+- **Tasks Antrian**: 3 tasks
 
 ---
 
@@ -69,8 +69,9 @@
 - [x] **T3-2**: Kage Bunshin (Shadow Clone) Parallel Matrix Runner (`src/workflows/kage_bunshin.py`). Mengorkestrasi eksekusi paralel multi-core CPU hingga 3.840 klon independen, diaudit oleh Auditor Agent dan dipetakan ke 4 Profil Risiko Standar. *(VERIFIED & COMPLETED)*
 - [x] **T3-3**: ForceClose Benchmark & Saved-R Analytics (`src/workflows/force_close_benchmark.py`). Menjalankan uji tanding ablation head-to-head untuk membuktikan efektivitas Guardian Force Close dalam meredam drawdown dan menyelamatkan modal. *(VERIFIED & COMPLETED)*
 
-### ✅ Fase 4: Forward Test Staging & Live Trading Engine (Workflow 4 & 3) (LENGKAP 100%)
-- [x] **T4-1**: Incubation Staging Gate (Demo / Paper Trading Validator 50 trades) (`src/workflows/incubation.py`). Memvalidasi toleransi degradasi performa $\le 15\%$ dan audit slippage sebelum promosi live. *(VERIFIED & COMPLETED)*
+### ⏳ Fase 4: Forward Test Staging & Live Trading Engine (Workflow 4 & 3)
+- [x] **T4-1A**: Incubation Staging Gate Out-of-Sample Audit (`scripts/run_oos_forward_test.py`, `reports/forward_test_oos_report.md`). Mengaudit performa di 10.000 bars data tak terlihat dengan injeksi friksi spread & slippage nyata (359 trades, WR 78.0%, PF 437.7, Lulus degradasi $\le 15\%$). *(VERIFIED & COMPLETED)*
+- [ ] **T4-1B**: Live Demo MT5 Incubation Forward Test (Workflow 4 Opsi B). Menjalankan EA Bridge di MT5 akun demo secara berkala untuk memanen 50 trade riil. *(WAITING USER DEMO EXECUTION)*
 - [x] **T4-2**: Live Execution Pipeline (`src/workflows/live_execution.py`). Mengorkestrasi rantai eksekusi: Tactician Agent $\to$ Risk Governor Veto $\to$ Broker Adapter Normalizer $\to$ Order Dispatch Command. *(VERIFIED & COMPLETED)*
 - [x] **T4-3**: Independent Circuit Breaker Sentinel (`src/workflows/live_execution.py`). Daemon pengawas mandiri dengan proteksi Hard Daily Drawdown (Max 3.0%) dan Manual Emergency Handbrake file lock. *(VERIFIED & COMPLETED)*
 

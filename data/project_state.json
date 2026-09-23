@@ -5,9 +5,9 @@
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
     "total_tasks": 22,
-    "completed_tasks": 20,
-    "in_progress_tasks": 0,
-    "pending_tasks": 2
+    "completed_tasks": 17,
+    "in_progress_tasks": 2,
+    "pending_tasks": 3
   },
   "phases": [
     {
@@ -192,14 +192,21 @@
     {
       "id": "phase-4",
       "title": "Fase 4: Forward Test Staging & Live Trading Engine (Workflow 4 & 3)",
-      "status": "COMPLETED",
+      "status": "IN_PROGRESS",
       "tasks": [
         {
-          "id": "T4-1",
-          "title": "Incubation Staging Gate (Demo/Paper Validator)",
+          "id": "T4-1A",
+          "title": "Incubation Staging Gate (OOS Audit Simulation - Opsi A)",
           "status": "COMPLETED",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified: IncubationStagingGate memvalidasi batas toleransi degradasi 15% (WinRate, PF, DD) dan slippage audit minimal 50 trades sebelum diizinkan promosi ke live."
+          "notes": "Verified: OOS 10.000 bars menghasilkan 359 trades dengan degradasi hanya 2.1% (WR 78.0%), slippage 0.08 pts, dan lolos status GRADUATED_LIVE."
+        },
+        {
+          "id": "T4-1B",
+          "title": "Live Demo MT5 Incubation Forward Test (Opsi B)",
+          "status": "PENDING",
+          "branch": "feat/poi-structure-matrix-subtasks",
+          "notes": "Forward test live demo di terminal MT5 untuk mengumpulkan closed trades real-time."
         },
         {
           "id": "T4-2",
