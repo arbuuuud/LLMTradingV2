@@ -466,6 +466,61 @@ void ProcessCommand(string cmdJson)
       SendString(receipt);
       PrintFormat("[LLM Bridge] Close All -> Closed %d positions, deleted %d pending orders", closedPos, deletedOrders);
    }
+   else if(action == "MODIFY_POSITION")
+   {
+      ulong ticket = (ulong)ExtractJsonDouble(cmdJson, "ticket");
+      double newSL = ExtractJsonDouble(cmdJson, "sl");
+      double newTP = ExtractJsonDouble(cmdJson, "tp");
+
+      bool modSuccess = false;
+      if(ticket > 0 && m_position.SelectByTicket(ticket))
+      {
+         modSuccess = m_trade.PositionModify(ticket, newSL, (newTP > 0) ? newTP : m_position.TakeProfit());
+         PrintFormat("[LLM Bridge] Position #%I64u Modified: SL -> %.2f, TP -> %.2f (Result: %s)",
+                     ticket, newSL, newTP, modSuccess ? "OK" : "FAILED");
+      }
+      else
+      {
+         // If no exact ticket, modify all positions matching symbol & magic
+         string symbol = ExtractJsonString(cmdJson, "symbol");
+         long magic = (long)ExtractJsonDouble(cmdJson, "magic");
+         for(int i = PositionsTotal() - 1; i >= 0; i--)
+         {
+            if(m_position.SelectByIndex(i))
+            {
+               bool matchMagic = (magic <= 0) || (m_position.Magic() == (ulong)magic);
+               if(matchMagic && (symbol == "" || m_position.Symbol() == symbol))
+               {
+                  if(m_trade.PositionModify(m_position.Ticket(), newSL, (newTP > 0) ? newTP : m_position.TakeProfit()))
+                     modSuccess = true;
+               }
+            }
+         }
+         PrintFormat("[LLM Bridge] All Matching Positions Modified: SL -> %.2f (Result: %s)", newSL, modSuccess ? "OK" : "FAILED");
+      }
+   }
+   else if(action == "CANCEL_PENDING")
+   {
+      string symbol = ExtractJsonString(cmdJson, "symbol");
+      long magic = (long)ExtractJsonDouble(cmdJson, "magic");
+      int deletedCount = 0;
+      for(int i = OrdersTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = OrderGetTicket(i);
+         if(ticket > 0)
+         {
+            long ordMagic = OrderGetInteger(ORDER_MAGIC);
+            string ordSym = OrderGetString(ORDER_SYMBOL);
+            bool matchMagic = (magic <= 0) || (ordMagic == magic);
+            if(matchMagic && (symbol == "" || ordSym == symbol))
+            {
+               if(m_trade.OrderDelete(ticket))
+                  deletedCount++;
+            }
+         }
+      }
+      PrintFormat("[LLM Bridge] Cancel Pending -> Deleted %d pending orders for %s", deletedCount, symbol);
+   }
 }
 
 //+------------------------------------------------------------------+
