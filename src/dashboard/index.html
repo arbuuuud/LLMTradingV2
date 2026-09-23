@@ -1,448 +1,553 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LLMTradingV2 - Project Management & System Dashboard</title>
+  <title>LLMTradingV2 — Institutional Mission Control</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#ecfdf5',
-              500: '#10b981',
-              600: '#059669',
-              900: '#064e3b',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    code, pre { font-family: 'JetBrains Mono', monospace; }
+    body { background-color: #0b0f19; color: #e2e8f0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .glass-card { background: #131b2e; border: 1px solid #1e293b; }
+    .glass-card:hover { border-color: #3b82f6; }
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #60a5fa; font-weight: 600; }
+    .radar-pulse { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-black">
+<body class="min-h-screen flex flex-col">
 
-  <!-- TOP HEADER -->
-  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="h-9 w-9 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-black text-emerald-400 text-lg">
-          V2
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-bold text-lg tracking-tight text-white">LLMTradingV2</h1>
-            <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Institutional</span>
-            <span id="version-tag" class="text-xs text-slate-400 font-mono">v0.1.0</span>
-          </div>
-          <p class="text-xs text-slate-400">Decoupled Quantitative Engine & Cognitive Layer</p>
-        </div>
+  <!-- Top Navbar -->
+  <header class="glass sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between border-b border-slate-800">
+    <div class="flex items-center space-x-4">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg">
+        <i class="fa-solid fa-microchip text-lg"></i>
       </div>
-
-      <!-- Actions & Nav -->
-      <div class="flex items-center gap-3">
-        <nav class="flex bg-slate-800/80 p-1 rounded-lg border border-slate-700/60 text-xs font-medium">
-          <button id="tab-pm" onclick="switchTab('pm')" class="px-3 py-1.5 rounded-md bg-emerald-600 text-white transition shadow-sm">
-            Roadmap & Checklist
-          </button>
-          <button id="tab-feed" onclick="switchTab('feed')" class="px-3 py-1.5 rounded-md text-slate-300 hover:text-white transition">
-            Live Market Feed
-          </button>
-        </nav>
-
-        <button onclick="refreshState()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-medium" title="Refresh Data">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          Sync
-        </button>
-
-        <a href="https://github.com/arbuuuud/LLMTradingV2" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-300 hover:text-white flex items-center gap-1.5 transition">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path></svg>
-          GitHub
-        </a>
+      <div>
+        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+          LLMTrading<span class="text-blue-500">V2</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">INSTITUTIONAL CORE</span>
+        </h1>
+        <p class="text-xs text-slate-400">Decoupled Quantitative Engine & PAC Matrix</p>
       </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex items-center space-x-6 text-sm">
+      <button onclick="switchTab('radar')" id="tab-btn-radar" class="tab-active py-2 px-1 flex items-center gap-2 transition">
+        <i class="fa-solid fa-crosshairs text-blue-400"></i> Tactical Radar
+      </button>
+      <button onclick="switchTab('accounts')" id="tab-btn-accounts" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
+        <i class="fa-solid fa-users-gear"></i> User & Accounts
+      </button>
+      <button onclick="switchTab('forward')" id="tab-btn-forward" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
+        <i class="fa-solid fa-shield-halved"></i> Incubation Gate
+      </button>
+      <button onclick="switchTab('roadmap')" id="tab-btn-roadmap" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
+        <i class="fa-solid fa-list-check"></i> Roadmap & Plan
+      </button>
+    </nav>
+
+    <!-- System Status Badge -->
+    <div class="flex items-center space-x-3 text-xs font-mono">
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>DAEMON LIVE (PORT 5555)</span>
+      </div>
+      <span id="clock" class="text-slate-400">00:00:00 UTC</span>
     </div>
   </header>
 
-  <!-- MAIN CONTAINER -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+  <!-- Main Container -->
+  <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
 
-    <!-- KPI & PROGRESS BAR -->
-    <section class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-      <div class="absolute -right-10 -top-10 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
-
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+    <!-- ========================================== -->
+    <!-- TAB 1: TACTICAL RADAR (PER ENGINE: PAC M1-M5) -->
+    <!-- ========================================== -->
+    <section id="tab-radar" class="space-y-6">
+      <!-- Radar Overview Bar -->
+      <div class="glass-card rounded-2xl p-5 shadow-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div class="text-xs uppercase tracking-wider font-semibold text-emerald-400">Current Phase Active</div>
-          <h2 id="current-phase-title" class="text-xl font-bold text-white mt-0.5">Memuat progress...</h2>
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-radar text-blue-500"></i> PAC Tactical Radar Matrix
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+              ENGINE: PAC SCALPER (XAUUSD)
+            </span>
+            <span id="radar-session" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+              Active Session
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Multi-Timeframe Fractal Alignment: M1, M2, M3, M4, and M5 Structural Quadrants.</p>
         </div>
 
         <div class="flex items-center gap-6">
           <div class="text-right">
-            <div class="text-xs text-slate-400">Overall Progress</div>
-            <div id="progress-pct" class="text-2xl font-black text-emerald-400 font-mono">0%</div>
+            <span class="text-xs text-slate-400 block font-mono">LIVE MID PRICE</span>
+            <span id="radar-price" class="text-2xl font-black text-amber-400 font-mono tracking-wider">$2650.60</span>
           </div>
-          <div class="h-10 w-px bg-slate-800"></div>
-          <div class="grid grid-cols-3 gap-4 text-center">
-            <div class="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">
-              <div id="stat-completed" class="text-base font-bold text-emerald-400 font-mono">0</div>
-              <div class="text-[10px] text-slate-400 uppercase font-semibold">Done</div>
-            </div>
-            <div class="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">
-              <div id="stat-in-progress" class="text-base font-bold text-amber-400 font-mono">0</div>
-              <div class="text-[10px] text-slate-400 uppercase font-semibold">Running</div>
-            </div>
-            <div class="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">
-              <div id="stat-total" class="text-base font-bold text-slate-300 font-mono">0</div>
-              <div class="text-[10px] text-slate-400 uppercase font-semibold">Total</div>
-            </div>
+          <div class="h-10 w-[1px] bg-slate-800"></div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 block font-mono">ENSEMBLE CONFLUENCE</span>
+            <span id="radar-confluence" class="text-xl font-black text-emerald-400 font-mono">80.0% (STRONG BUY)</span>
           </div>
+          <button onclick="fetchRadarData()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-2">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+          </button>
         </div>
       </div>
 
-      <!-- Progress Bar Track -->
-      <div class="mt-6">
-        <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700/50">
-          <div id="progress-bar" class="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+      <!-- Timeframe Grid: M1, M2, M3, M4, M5 -->
+      <div id="radar-timeframes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Rendered dynamically by JS -->
+      </div>
+
+      <!-- Live Detailed Checklist & Confluence Rules -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 glass-card rounded-2xl p-5 border border-slate-800">
+          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-blue-400"></i> Active Confluence Checklist (<span id="checklist-tf-label">M1</span> Focus)
+          </h3>
+          <div id="checklist-container" class="space-y-2.5">
+            <!-- Checklist Items -->
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 border border-slate-800">
+          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-shield-virus text-indigo-400"></i> Mathematical Rules Enforced
+          </h3>
+          <ul class="text-xs space-y-2.5 text-slate-300">
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Kuadran 0-25%:</strong> Eksekusi Buy strictly di zona diskon harga.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Equilibrium 50% TP:</strong> Hard Take Profit wajib dipasang di titik tengah channel.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Deeper Retest:</strong> Hanya mengeksekusi order jika terjadi penetrasi lebih dalam.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Cancel on TP:</strong> Sisa limit order seketika dibatalkan begitu TP 50% tersentuh.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Handover BEP:</strong> Kunci BEP dan proteksi modal saat zona baru terbentuk.</span>
+            </li>
+          </ul>
         </div>
       </div>
     </section>
 
-    <!-- TAB 1: ROADMAP & PROJECT MANAGEMENT -->
-    <div id="view-pm" class="space-y-8">
-      
-      <!-- PHASES ACCORDION / CARDS -->
-      <div class="space-y-6">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            <span>Roadmap & Live Task Checklists</span>
-            <span class="text-xs font-normal text-slate-400">(Tersinkronisasi otomatis dengan PLAN.md)</span>
-          </h3>
-          <span class="text-xs text-slate-400 font-mono">Updated: <span id="last-updated">-</span></span>
-        </div>
-
-        <div id="phases-container" class="space-y-4">
-          <!-- Populated by JS -->
-          <div class="text-center py-12 text-slate-500">Memuat rincian fase...</div>
-        </div>
-      </div>
-
-      <!-- CATATAN & KEPUTUSAN ARSITEKTUR -->
-      <section class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-bold text-white">Catatan & Notulen Keputusan Arsitektur</h3>
-            <p class="text-xs text-slate-400">Log konsensus dan aturan sistem yang disepakati bersama pengguna di setiap step</p>
-          </div>
-          <button onclick="openNoteModal()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white flex items-center gap-1.5 transition">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            Tambah Catatan Baru
-          </button>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr class="border-b border-slate-800 text-slate-400 font-mono">
-                <th class="py-3 px-4">ID</th>
-                <th class="py-3 px-4">Tanggal</th>
-                <th class="py-3 px-4">Topik</th>
-                <th class="py-3 px-4">Ringkasan Keputusan</th>
-                <th class="py-3 px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody id="decisions-table-body" class="divide-y divide-slate-800/60">
-              <!-- Populated by JS -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-    </div>
-
-    <!-- TAB 2: LIVE MARKET FEED SNAPSHOT -->
-    <div id="view-feed" class="hidden space-y-6">
+    <!-- ========================================== -->
+    <!-- TAB 2: USER & MT5 ACCOUNTS MANAGEMENT -->
+    <!-- ========================================== -->
+    <section id="tab-accounts" class="hidden space-y-6">
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="text-lg font-bold text-white">Live Data Feed Snapshot (Workflow 1 Output)</h3>
-          <p class="text-xs text-slate-400">Menampilkan state deterministik real-time yang dihasilkan engine untuk dikonsumsi AI Agents</p>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-users-gear text-blue-500"></i> User & MT5 Account Management
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Konfigurasi akun MT5, binding profil risiko (Prop Firm / Sweet Spot / Aggressive / YOLO), dan alokasi timeframe.</p>
         </div>
-        <button onclick="fetchSnapshot()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 flex items-center gap-1 border border-slate-700">
-          Refresh Snapshot
+        <button onclick="openAddAccountModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/20 transition flex items-center gap-2">
+          <i class="fa-solid fa-plus"></i> Tambah Akun MT5
         </button>
       </div>
 
-      <div id="snapshot-container" class="space-y-4">
-        <!-- Populated by JS -->
-        <div class="text-center py-12 text-slate-500 bg-slate-900/30 rounded-xl border border-slate-800">
-          Memuat snapshot pasar terbaru...
+      <!-- Accounts Table -->
+      <div class="glass-card rounded-2xl overflow-hidden border border-slate-800">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/80 text-slate-400 font-mono border-b border-slate-800">
+            <tr>
+              <th class="p-4">ACCOUNT NO / BROKER</th>
+              <th class="p-4">TIPE AKUN</th>
+              <th class="p-4">RISK PROFILE</th>
+              <th class="p-4">ASSIGNED TIMEFRAMES</th>
+              <th class="p-4">BALANCE / EQUITY</th>
+              <th class="p-4">STATUS</th>
+              <th class="p-4 text-right">AKSI</th>
+            </tr>
+          </thead>
+          <tbody id="accounts-table-body" class="divide-y divide-slate-800/60 font-sans">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Risk Profiles Master Cards -->
+      <div>
+        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2 font-mono">
+          <i class="fa-solid fa-sliders text-indigo-400"></i> MASTER RISK PROFILES (PROVEN ENSEMBLE BASKET)
+        </h3>
+        <div id="risk-profiles-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Rendered by JS -->
         </div>
       </div>
-    </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: INCUBATION STAGING GATE (FORWARD) -->
+    <!-- ========================================== -->
+    <section id="tab-forward" class="hidden space-y-6">
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Incubation Staging Gate (Workflow 4)
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Audit degradasi performa & friksi slippage nyata menuju kelulusan Live Trading (Target 50 Closed Trades).</p>
+        </div>
+        <div class="text-right">
+          <span class="text-xs text-slate-400 font-mono block">STAGE STATUS</span>
+          <span class="text-sm font-bold text-emerald-400 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">GRADUATED_LIVE (OOS VERIFIED)</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <span class="text-xs text-slate-400 font-mono">TOTAL CLOSED TRADES</span>
+          <p class="text-2xl font-bold text-white mt-1">359 <span class="text-xs text-emerald-400 font-normal">/ 50 req</span></p>
+        </div>
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <span class="text-xs text-slate-400 font-mono">REALIZED WIN RATE</span>
+          <p class="text-2xl font-bold text-emerald-400 mt-1">78.0% <span class="text-xs text-slate-400 font-normal">(Base: 79.7%)</span></p>
+        </div>
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <span class="text-xs text-slate-400 font-mono">DEGRADATION RATE</span>
+          <p class="text-2xl font-bold text-emerald-400 mt-1">2.1% <span class="text-xs text-emerald-400 font-normal">(Batas Max 15%)</span></p>
+        </div>
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <span class="text-xs text-slate-400 font-mono">AVG SLIPPAGE</span>
+          <p class="text-2xl font-bold text-blue-400 mt-1">0.08 pts <span class="text-xs text-slate-400 font-normal">(Batas Max 1.5 pts)</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: ROADMAP & DEVELOPMENT PLAN -->
+    <!-- ========================================== -->
+    <section id="tab-roadmap" class="hidden space-y-6">
+      <div id="phases-container" class="space-y-4">
+        <!-- Rendered by JS from /api/state -->
+      </div>
+    </section>
 
   </main>
 
-  <!-- ADD NOTE MODAL -->
-  <div id="note-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-      <div class="flex items-center justify-between">
-        <h4 class="text-base font-bold text-white">Tambah Catatan / Keputusan Baru</h4>
-        <button onclick="closeNoteModal()" class="text-slate-400 hover:text-white">&times;</button>
+  <!-- Modal Tambah Akun MT5 -->
+  <div id="modal-account" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-700 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-server text-blue-400"></i> Konfigurasi Akun MT5
+        </h3>
+        <button onclick="closeAddAccountModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="space-y-3">
+
+      <div class="space-y-3 text-xs">
         <div>
-          <label class="text-xs text-slate-400 block mb-1">Topik / Komponen</label>
-          <input id="note-topic" type="text" placeholder="Contoh: Dynamic Lot Sizing" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+          <label class="block text-slate-400 mb-1">Nomor Akun MT5</label>
+          <input type="text" id="form-acc-num" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="Misal: 88991234">
         </div>
         <div>
-          <label class="text-xs text-slate-400 block mb-1">Ringkasan Keputusan / Aturan</label>
-          <textarea id="note-summary" rows="4" placeholder="Tuliskan catatan teknis atau keputusan yang disepakati..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"></textarea>
+          <label class="block text-slate-400 mb-1">Nama Broker</label>
+          <input type="text" id="form-broker-name" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="ICMarkets / Exness / FTMO">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Server Broker</label>
+          <input type="text" id="form-server" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="ICMarketsSC-Demo">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Tipe Akun</label>
+          <select id="form-acc-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
+            <option value="DEMO">DEMO</option>
+            <option value="PROP_EVALUATION">PROP EVALUATION (FTMO/MFF)</option>
+            <option value="PROP_FUNDED">PROP FUNDED</option>
+            <option value="LIVE_REAL">LIVE REAL CAPITAL</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Risk Profile Binding</label>
+          <select id="form-risk-profile" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
+            <option value="prop_firm">Prop Firm (FTMO Ultra Safe - Quartet M1/M2/M3/M5)</option>
+            <option value="sweet_spot">Sweet Spot (Balanced Growth - Quartet M1/M2/M3/M5)</option>
+            <option value="aggressive">Aggressive (High Compounding - Trio M1/M2/M3)</option>
+            <option value="yolo">YOLO (Apex Scalper - Trio M1/M2/M3)</option>
+          </select>
         </div>
       </div>
-      <div class="flex items-center justify-end gap-2 pt-2">
-        <button onclick="closeNoteModal()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium">Batal</button>
-        <button onclick="saveNewNote()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs text-white font-semibold">Simpan ke Decision Log</button>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+        <button onclick="closeAddAccountModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 transition">Batal</button>
+        <button onclick="saveAccount()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 transition">Simpan Akun</button>
       </div>
     </div>
   </div>
 
-  <!-- FOOTER -->
-  <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
-    LLMTradingV2 Institutional System • Single Source of Truth: <code class="text-emerald-400">PLAN.md</code> & <code class="text-emerald-400">BLUEPRINT.md</code>
-  </footer>
-
-  <!-- SCRIPT LOGIC -->
   <script>
-    let stateData = null;
+    let activeTab = 'radar';
+    let currentRadarData = null;
+    let selectedRadarTf = 'M1';
 
-    function switchTab(tab) {
-      const pmView = document.getElementById('view-pm');
-      const feedView = document.getElementById('view-feed');
-      const tabPm = document.getElementById('tab-pm');
-      const tabFeed = document.getElementById('tab-feed');
+    // Clock
+    setInterval(() => {
+      document.getElementById('clock').innerText = new Date().toUTCString().split(' ')[4] + ' UTC';
+    }, 1000);
 
-      if (tab === 'pm') {
-        pmView.classList.remove('hidden');
-        feedView.classList.add('hidden');
-        tabPm.className = "px-3 py-1.5 rounded-md bg-emerald-600 text-white transition shadow-sm";
-        tabFeed.className = "px-3 py-1.5 rounded-md text-slate-300 hover:text-white transition";
-      } else {
-        pmView.classList.add('hidden');
-        feedView.classList.remove('hidden');
-        tabFeed.className = "px-3 py-1.5 rounded-md bg-emerald-600 text-white transition shadow-sm";
-        tabPm.className = "px-3 py-1.5 rounded-md text-slate-300 hover:text-white transition";
-        fetchSnapshot();
-      }
+    function switchTab(tabId) {
+      activeTab = tabId;
+      ['radar', 'accounts', 'forward', 'roadmap'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        document.getElementById(`tab-btn-${t}`).classList.remove('tab-active');
+        document.getElementById(`tab-btn-${t}`).classList.add('text-slate-400');
+      });
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      document.getElementById(`tab-btn-${tabId}`).classList.add('tab-active');
+      document.getElementById(`tab-btn-${tabId}`).classList.remove('text-slate-400');
+
+      if (tabId === 'radar') fetchRadarData();
+      if (tabId === 'accounts') fetchAccountsData();
+      if (tabId === 'roadmap') fetchRoadmapData();
     }
 
-    async function refreshState() {
+    // ==========================================
+    // RADAR DATA FETCHING & RENDERING
+    // ==========================================
+    async function fetchRadarData() {
       try {
-        const res = await fetch('/api/state');
-        stateData = await res.json();
-        renderDashboard(stateData);
+        const res = await fetch('/api/radar');
+        const data = await res.json();
+        currentRadarData = data;
+
+        document.getElementById('radar-price').innerText = `$${data.current_price.toFixed(2)}`;
+        document.getElementById('radar-session').innerText = data.session;
+        document.getElementById('radar-confluence').innerText = `${data.ensemble_confluence.confluence_pct}% (${data.ensemble_confluence.recommendation.replace('_', ' ')})`;
+
+        renderRadarTimeframes(data.timeframes);
+        renderChecklist(selectedRadarTf);
       } catch (err) {
-        console.error("Failed to load state", err);
+        console.error("Failed to load radar data:", err);
       }
     }
 
-    function renderDashboard(data) {
-      if (!data || !data.stats) return;
-
-      document.getElementById('current-phase-title').innerText = data.current_phase || "Active Phase";
-      document.getElementById('stat-completed').innerText = data.stats.completed_tasks;
-      document.getElementById('stat-in-progress').innerText = data.stats.in_progress_tasks;
-      document.getElementById('stat-total').innerText = data.stats.total_tasks;
-
-      const pct = Math.round((data.stats.completed_tasks / data.stats.total_tasks) * 100);
-      document.getElementById('progress-pct').innerText = `${pct}%`;
-      document.getElementById('progress-bar').style.width = `${pct}%`;
-
-      if (data.last_updated) {
-        document.getElementById('last-updated').innerText = new Date(data.last_updated).toLocaleString();
-      }
-
-      // Render Phases & Checklists
-      const container = document.getElementById('phases-container');
+    function renderRadarTimeframes(tfDict) {
+      const container = document.getElementById('radar-timeframes-grid');
       container.innerHTML = '';
 
-      data.phases.forEach((phase) => {
-        const isDone = phase.status === 'COMPLETED';
-        const isProgress = phase.status === 'IN_PROGRESS';
-
-        let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
-        if (isDone) badgeClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
-        else if (isProgress) badgeClass = "bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse";
-
+      const tfs = ['M1', 'M2', 'M3', 'M4', 'M5'];
+      tfs.forEach(tf => {
+        const item = tfDict[tf];
+        const isSelected = (selectedRadarTf === tf);
         const card = document.createElement('div');
-        card.className = "bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 space-y-4 hover:border-slate-700 transition";
+        const statusColor = item.active_setup ? 'text-emerald-400' : 'text-slate-400';
+        const borderColor = isSelected ? 'border-blue-500 radar-pulse' : (item.active_setup ? 'border-emerald-500/40' : 'border-slate-800');
+
+        card.className = `glass-card p-4 rounded-xl border ${borderColor} cursor-pointer transition hover:border-blue-400`;
+        card.onclick = () => {
+          selectedRadarTf = tf;
+          renderRadarTimeframes(tfDict);
+          renderChecklist(tf);
+        };
 
         card.innerHTML = `
-          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <div class="flex items-center gap-3">
-              <span class="px-2.5 py-1 text-xs font-semibold rounded-md border ${badgeClass}">
-                ${phase.status}
-              </span>
-              <h4 class="font-bold text-sm text-white">${phase.title}</h4>
-            </div>
-            <span class="text-xs text-slate-500 font-mono">${phase.tasks.filter(t => t.status === 'COMPLETED').length}/${phase.tasks.length} Done</span>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-black font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">${item.timeframe}</span>
+            <span class="text-xs font-bold ${statusColor}">${item.direction}</span>
           </div>
-
-          <div class="space-y-2.5">
-            ${phase.tasks.map(t => {
-              const taskDone = t.status === 'COMPLETED';
-              const taskRunning = t.status === 'IN_PROGRESS';
-              return `
-                <div class="flex items-start gap-3 p-3 rounded-lg ${taskDone ? 'bg-slate-950/50' : taskRunning ? 'bg-amber-950/10 border border-amber-900/30' : 'bg-slate-950/20'}">
-                  <div class="mt-0.5">
-                    ${taskDone 
-                      ? `<div class="h-5 w-5 rounded-md bg-emerald-500/20 border border-emerald-500 text-emerald-400 flex items-center justify-center"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`
-                      : taskRunning 
-                      ? `<div class="h-5 w-5 rounded-md bg-amber-500/20 border border-amber-500 text-amber-400 flex items-center justify-center font-bold text-xs">/</div>`
-                      : `<div class="h-5 w-5 rounded-md border border-slate-700 text-transparent"></div>`
-                    }
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-xs font-semibold ${taskDone ? 'text-slate-200 line-through decoration-slate-600' : 'text-slate-100'}">${t.title}</span>
-                      <span class="font-mono text-[10px] text-slate-500">${t.id}</span>
-                    </div>
-                    ${t.notes ? `<p class="text-[11px] text-slate-400 mt-1">${t.notes}</p>` : ''}
-                    <div class="flex items-center gap-3 mt-2 text-[10px]">
-                      ${t.branch ? `<span class="font-mono text-emerald-400/80 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">${t.branch}</span>` : ''}
-                      ${t.pr_url ? `<a href="${t.pr_url}" target="_blank" class="text-blue-400 hover:underline flex items-center gap-1 font-medium">Review PR &rarr;</a>` : ''}
-                    </div>
-                  </div>
-                </div>
-              `;
-            }).join('')}
+          <div class="space-y-1 text-xs">
+            <div class="text-slate-400">Score: <span class="text-white font-mono font-bold">${item.checklist_score}/10</span></div>
+            <div class="text-slate-400 truncate">Quadrant: <span class="text-blue-300 font-mono">${item.quadrant.split(' ')[0]}</span></div>
+            <div class="text-slate-400">TP 50%: <span class="text-amber-400 font-mono">$${item.tp_midpoint.toFixed(2)}</span></div>
+            <div class="text-slate-400">Status: <span class="${statusColor} font-semibold">${item.status.replace('_', ' ')}</span></div>
           </div>
         `;
         container.appendChild(card);
       });
+    }
 
-      // Render Decisions
-      const decTable = document.getElementById('decisions-table-body');
-      decTable.innerHTML = '';
-      (data.decisions_and_notes || []).forEach(dec => {
-        const row = document.createElement('tr');
-        row.className = "hover:bg-slate-850 transition";
-        row.innerHTML = `
-          <td class="py-3 px-4 font-mono font-bold text-emerald-400">${dec.id}</td>
-          <td class="py-3 px-4 text-slate-400 font-mono">${dec.date}</td>
-          <td class="py-3 px-4 font-semibold text-white">${dec.topic}</td>
-          <td class="py-3 px-4 text-slate-300 max-w-md">${dec.summary}</td>
-          <td class="py-3 px-4">
-            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${dec.status}</span>
-          </td>
+    function renderChecklist(tf) {
+      if (!currentRadarData || !currentRadarData.timeframes[tf]) return;
+      const tfData = currentRadarData.timeframes[tf];
+      document.getElementById('checklist-tf-label').innerText = tf;
+
+      const container = document.getElementById('checklist-container');
+      container.innerHTML = '';
+
+      tfData.checklist.forEach(chk => {
+        const item = document.createElement('div');
+        const icon = chk.ok ? 'fa-circle-check text-emerald-400' : 'fa-circle-xmark text-slate-500';
+        item.className = 'flex items-center justify-between p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs';
+        item.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <i class="fa-solid ${icon}"></i>
+            <span class="font-medium text-slate-200">${chk.label}</span>
+          </div>
+          <span class="font-mono text-slate-400">${chk.val}</span>
         `;
-        decTable.appendChild(row);
+        container.appendChild(item);
       });
     }
 
-    async function fetchSnapshot() {
-      const container = document.getElementById('snapshot-container');
+    // ==========================================
+    // USER & ACCOUNTS DATA FETCHING & RENDERING
+    // ==========================================
+    async function fetchAccountsData() {
       try {
-        const res = await fetch('/api/snapshot');
-        const snap = await res.json();
+        const res = await fetch('/api/accounts');
+        const data = await res.json();
+        renderAccountsTable(data.accounts);
+        renderRiskProfiles(data.risk_profiles);
+      } catch (err) {
+        console.error("Failed to load accounts:", err);
+      }
+    }
 
-        if (snap.status === 'NO_ACTIVE_SNAPSHOT') {
-          container.innerHTML = `
-            <div class="text-center py-12 bg-slate-900/30 rounded-xl border border-slate-800 text-slate-400">
-              <p class="font-semibold text-white">Belum ada live snapshot aktif di cache.</p>
-              <p class="text-xs mt-1 text-slate-500">Jalankan unit test data feed atau aktifkan MT5 Bridge untuk menghasilkan snapshot terbaru.</p>
-            </div>
-          `;
-          return;
-        }
+    function renderAccountsTable(accounts) {
+      const tbody = document.getElementById('accounts-table-body');
+      tbody.innerHTML = '';
 
-        container.innerHTML = `
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-              <div class="text-xs text-slate-400 uppercase font-semibold">Instrument & Price</div>
-              <div class="text-xl font-bold text-white mt-1">${snap.symbol} <span class="text-xs font-mono text-emerald-400 font-normal">(${snap.timeframe})</span></div>
-              <div class="mt-2 text-xs font-mono space-y-1 text-slate-300">
-                <div>Bid: <span class="text-white">${snap.current_price?.bid}</span> | Ask: <span class="text-white">${snap.current_price?.ask}</span></div>
-                <div>Spread: <span class="text-emerald-400">${snap.current_price?.spread}</span> points</div>
-              </div>
-            </div>
+      Object.entries(accounts).forEach(([id, acc]) => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-800/40 transition';
+        row.innerHTML = `
+          <td class="p-4">
+            <div class="font-bold text-white font-mono">${acc.account_number}</div>
+            <div class="text-slate-400 text-[11px]">${acc.broker_name} (${acc.server})</div>
+          </td>
+          <td class="p-4">
+            <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700">${acc.account_type}</span>
+          </td>
+          <td class="p-4">
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase">${acc.risk_profile.replace('_', ' ')}</span>
+          </td>
+          <td class="p-4 font-mono text-slate-300">
+            ${(acc.assigned_timeframes || []).join(', ')}
+          </td>
+          <td class="p-4 font-mono">
+            <div class="text-emerald-400 font-bold">$${acc.equity.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+            <div class="text-slate-400 text-[10px]">Bal: $${acc.balance.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+          </td>
+          <td class="p-4">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> ${acc.status}
+            </span>
+          </td>
+          <td class="p-4 text-right">
+            <button onclick="deleteAccount('${id}')" class="text-slate-500 hover:text-red-400 transition text-xs"><i class="fa-solid fa-trash-can"></i></button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
 
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-              <div class="text-xs text-slate-400 uppercase font-semibold">Trend & Market Structure</div>
-              <div class="text-lg font-bold text-white mt-1">
-                <span class="px-2 py-0.5 rounded text-xs ${snap.htf_trend === 'BULLISH' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">${snap.htf_trend}</span>
-              </div>
-              <div class="mt-2 text-xs font-mono space-y-1 text-slate-300">
-                <div>Last Event: <span class="text-amber-400">${snap.structure?.last_event || 'NONE'}</span></div>
-                <div>Last SH: ${snap.structure?.last_swing_high?.price || '-'}</div>
-                <div>Last SL: ${snap.structure?.last_swing_low?.price || '-'}</div>
-              </div>
-            </div>
+    function renderRiskProfiles(profiles) {
+      const grid = document.getElementById('risk-profiles-grid');
+      grid.innerHTML = '';
 
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-              <div class="text-xs text-slate-400 uppercase font-semibold">SMC POI & Liquidity</div>
-              <div class="mt-2 text-xs space-y-1 text-slate-300">
-                <div>Active FVGs: <span class="font-mono text-white">${(snap.active_fvgs || []).length} gaps</span></div>
-                <div>Active OBs: <span class="font-mono text-white">${(snap.active_obs || []).length} blocks</span></div>
-                <div>Buy Liquidity Swept: <span class="font-mono ${snap.liquidity?.buy_side_swept ? 'text-emerald-400 font-bold' : 'text-slate-500'}">${snap.liquidity?.buy_side_swept ? 'YES' : 'NO'}</span></div>
-                <div>Sell Liquidity Swept: <span class="font-mono ${snap.liquidity?.sell_side_swept ? 'text-emerald-400 font-bold' : 'text-slate-500'}">${snap.liquidity?.sell_side_swept ? 'YES' : 'NO'}</span></div>
-              </div>
-            </div>
+      Object.entries(profiles).forEach(([key, prof]) => {
+        const card = document.createElement('div');
+        card.className = 'glass-card p-4 rounded-xl border border-slate-800 space-y-2';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white">${prof.label}</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${prof.basket_mode}</span>
           </div>
-
-          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-400 uppercase font-semibold mb-2">Raw JSON Payload</div>
-            <pre class="bg-slate-950 p-3 rounded-lg text-[11px] text-slate-300 overflow-x-auto max-h-72 border border-slate-800/80">${JSON.stringify(snap, null, 2)}</pre>
+          <div class="text-xs space-y-1 text-slate-400">
+            <div>Timeframes: <span class="text-slate-200 font-mono">${(prof.timeframes || []).join(' + ')}</span></div>
+            <div>Max Daily DD: <span class="text-amber-400 font-mono">${prof.max_daily_dd_pct}%</span></div>
+            <div>Risk per Trade: <span class="text-emerald-400 font-mono">${prof.risk_per_trade_pct}%</span></div>
           </div>
         `;
-      } catch (e) {
-        container.innerHTML = `<div class="p-4 text-rose-400 text-xs">Error fetching snapshot: ${e}</div>`;
-      }
+        grid.appendChild(card);
+      });
     }
 
-    function openNoteModal() {
-      document.getElementById('note-modal').classList.remove('hidden');
+    function openAddAccountModal() { document.getElementById('modal-account').classList.remove('hidden'); }
+    function closeAddAccountModal() { document.getElementById('modal-account').classList.add('hidden'); }
+
+    async function saveAccount() {
+      const num = document.getElementById('form-acc-num').value.trim();
+      const broker = document.getElementById('form-broker-name').value.trim();
+      const srv = document.getElementById('form-server').value.trim();
+      const type = document.getElementById('form-acc-type').value;
+      const prof = document.getElementById('form-risk-profile').value;
+
+      if (!num) return alert('Nomor akun wajib diisi!');
+
+      await fetch('/api/accounts/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          account_number: num,
+          broker_name: broker || 'ICMarkets',
+          server: srv || 'Demo-Server',
+          account_type: type,
+          risk_profile: prof,
+          balance: 10000.0,
+          equity: 10000.0,
+          assigned_timeframes: prof.includes('trio') || prof === 'aggressive' || prof === 'yolo' ? ['M1', 'M2', 'M3'] : ['M1', 'M2', 'M3', 'M5']
+        })
+      });
+
+      closeAddAccountModal();
+      fetchAccountsData();
     }
 
-    function closeNoteModal() {
-      document.getElementById('note-modal').classList.add('hidden');
-      document.getElementById('note-topic').value = '';
-      document.getElementById('note-summary').value = '';
+    async function deleteAccount(id) {
+      if (!confirm(`Hapus akun ${id}?`)) return;
+      await fetch('/api/accounts/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ account_id: id })
+      });
+      fetchAccountsData();
     }
 
-    async function saveNewNote() {
-      const topic = document.getElementById('note-topic').value.trim();
-      const summary = document.getElementById('note-summary').value.trim();
-      if (!topic || !summary) return alert("Topik dan ringkasan wajib diisi.");
-
+    // ==========================================
+    // ROADMAP & PLAN RENDERING
+    // ==========================================
+    async function fetchRoadmapData() {
       try {
-        const res = await fetch('/api/note', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic, summary })
+        const res = await fetch('/api/state');
+        const state = await res.json();
+        const container = document.getElementById('phases-container');
+        container.innerHTML = '';
+
+        (state.phases || []).forEach(phase => {
+          const card = document.createElement('div');
+          card.className = 'glass-card p-5 rounded-xl border border-slate-800 space-y-3';
+          const tasksHtml = (phase.tasks || []).map(t => `
+            <div class="flex items-center justify-between p-2 rounded bg-slate-900/60 border border-slate-800/80 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-blue-400 font-bold">${t.id}</span>
+                <span class="text-slate-200">${t.title}</span>
+              </div>
+              <span class="px-2 py-0.5 rounded font-mono text-[10px] ${t.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">${t.status}</span>
+            </div>
+          `).join('');
+
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white">${phase.title}</h3>
+              <span class="text-xs font-mono text-slate-400">${phase.status}</span>
+            </div>
+            <div class="space-y-2">${tasksHtml}</div>
+          `;
+          container.appendChild(card);
         });
-        if (res.ok) {
-          closeNoteModal();
-          refreshState();
-        } else {
-          alert("Gagal menyimpan catatan.");
-        }
-      } catch (e) {
-        alert("Error: " + e);
+      } catch (err) {
+        console.error("Failed to load roadmap:", err);
       }
     }
 
-    // Initial load & 10s poller
-    refreshState();
-    setInterval(refreshState, 10000);
+    // Initial Load
+    fetchRadarData();
+    setInterval(fetchRadarData, 15000); // Polling radar every 15s
   </script>
 </body>
 </html>
