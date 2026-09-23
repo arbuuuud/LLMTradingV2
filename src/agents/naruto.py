@@ -1,14 +1,16 @@
 """
 Naruto Agent - Master Kage Bunshin Orchestrator.
-Receives user methodology input (e.g. PAC) and autonomously generates a multi-dimensional
-Shadow Clone search space based on the 4 Core Dimensions:
+Receives user methodology input (e.g. PAC) and autonomously generates a massive,
+multi-dimensional Shadow Clone search space (hundreds to thousands of independent clones)
+exploring all permutations across the 4 Core Dimensions:
 1. Market Structure & Wave State
 2. POI Characteristics & Selection
 3. Candlestick Role (Execution Trigger vs Guardian Force Close)
 4. Trading Sessions & Killzones
+5. Order Layering & Risk/Reward Variations
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from src.core.types import (
     MethodologyInput,
     ShadowCloneSpec,
@@ -19,15 +21,19 @@ from src.core.types import (
 
 
 class NarutoAgent:
-    """Master Orchestrator Agent that divides itself into Shadow Clones."""
+    """Master Orchestrator Agent capable of mass Shadow Clone replication (Ratusan / Ribuan Klon)."""
 
     def __init__(self, agent_name: str = "NarutoMasterBrain"):
         self.agent_name = agent_name
 
-    def spawn_clones(self, methodology: MethodologyInput) -> List[ShadowCloneSpec]:
+    def spawn_clones(
+        self,
+        methodology: MethodologyInput,
+        intensity: str = "MASSIVE"  # FAST (~150 clones), MASSIVE (~500 - 1,200 clones), TAZA_HUNDREDS
+    ) -> List[ShadowCloneSpec]:
         """
-        Takes a core methodology (e.g. PAC) and autonomously splits into a matrix
-        of diverse Shadow Clones exploring all 4 dimensions.
+        Takes a core methodology (e.g. PAC) and autonomously splits into hundreds or thousands
+        of diverse Shadow Clones exploring the complete multi-dimensional hypothesis space.
         """
         clones: List[ShadowCloneSpec] = []
         name = methodology.name.upper()
@@ -37,63 +43,75 @@ class NarutoAgent:
             {"wave_regime": "ALL", "bos_choch": False, "fibo_ote": False, "tag": "StructureAll"},
             {"wave_regime": "IMPULSIVE", "bos_choch": True, "fibo_ote": False, "tag": "ImpulseBOS"},
             {"wave_regime": "SIDEWAY", "bos_choch": False, "fibo_ote": False, "tag": "SidewayRange"},
-            {"wave_regime": "ALL", "bos_choch": False, "fibo_ote": True, "tag": "FiboOTE"},
+            {"wave_regime": "PULLBACK", "bos_choch": False, "fibo_ote": True, "tag": "PullbackFiboOTE"},
+            {"wave_regime": "ALL", "bos_choch": True, "fibo_ote": True, "tag": "BOSPlusFibo"},
         ]
 
-        # Dimension 2: POI Types & Freshness
+        # Dimension 2: POI Types, Freshness & Liquidity
         poi_variations = [
             {"types": ["OB", "CONTINUATION_SD", "CONFLUENCE"], "swept": False, "touches": 2, "tag": "AllPOIs"},
-            {"types": ["CONFLUENCE"], "swept": True, "touches": 0, "tag": "HighConvictionCluster"},
-            {"types": ["OB"], "swept": True, "touches": 1, "tag": "ReversalOBSwept"},
-            {"types": ["FVG"], "swept": False, "touches": 1, "tag": "FVGGaps"},
+            {"types": ["CONFLUENCE"], "swept": True, "touches": 1, "tag": "HighConvictionCluster"},
+            {"types": ["OB"], "swept": True, "touches": 0, "tag": "ReversalOBSweptVirgin"},
+            {"types": ["OB"], "swept": False, "touches": 2, "tag": "ReversalOBTested"},
+            {"types": ["CONTINUATION_SD"], "swept": False, "touches": 1, "tag": "ContinuationSDOnly"},
+            {"types": ["FVG"], "swept": False, "touches": 1, "tag": "FVGGapsOnly"},
         ]
 
-        # Dimension 3: Execution, Layers & Force Close Policy
+        # Dimension 3: Execution, Layering, SL/TP & Force Close Policy
         exec_variations = [
-            {
-                "mode": "LIMIT_GRID",
-                "layers": 5,
-                "hard_sl": -20.0,
-                "soft_sl": -5.0,
-                "fc": ForceClosePolicy.PARTIAL_50_BEP,
-                "tag": "Grid5L_PartialBEP"
-            },
-            {
-                "mode": "LIMIT_GRID",
-                "layers": 3,
-                "hard_sl": -15.0,
-                "soft_sl": 0.0,
-                "fc": ForceClosePolicy.COUNTER_MOM_ONLY,
-                "tag": "Grid3L_MomKill"
-            },
-            {
-                "mode": "CONFIRMED_REACTION",
-                "layers": 1,
-                "hard_sl": -25.0,
-                "soft_sl": -5.0,
-                "fc": ForceClosePolicy.COUNTER_POI_TOUCH,
-                "tag": "ReacEntry_CounterPoi"
-            },
+            # Grid 5 Layers with diverse SL and Force Close
+            {"mode": "LIMIT_GRID", "layers": 5, "hard_sl": -15.0, "soft_sl": -5.0, "tp": 50.0, "fc": ForceClosePolicy.PARTIAL_50_BEP, "tag": "Grid5L_SL15_PartialBEP"},
+            {"mode": "LIMIT_GRID", "layers": 5, "hard_sl": -20.0, "soft_sl": -5.0, "tp": 50.0, "fc": ForceClosePolicy.COUNTER_MOM_ONLY, "tag": "Grid5L_SL20_MomKill"},
+            {"mode": "LIMIT_GRID", "layers": 5, "hard_sl": -25.0, "soft_sl": 0.0, "tp": 50.0, "fc": ForceClosePolicy.COUNTER_POI_TOUCH, "tag": "Grid5L_SL25_CounterPoi"},
+            # Grid 3 Layers (Tighter, higher frequency)
+            {"mode": "LIMIT_GRID", "layers": 3, "hard_sl": -10.0, "soft_sl": 0.0, "tp": 50.0, "fc": ForceClosePolicy.PARTIAL_50_BEP, "tag": "Grid3L_SL10_PartialBEP"},
+            {"mode": "LIMIT_GRID", "layers": 3, "hard_sl": -15.0, "soft_sl": -5.0, "tp": 50.0, "fc": ForceClosePolicy.COUNTER_MOM_ONLY, "tag": "Grid3L_SL15_MomKill"},
+            # Grid 10 Layers (Deep accumulation scalping)
+            {"mode": "LIMIT_GRID", "layers": 10, "hard_sl": -25.0, "soft_sl": -10.0, "tp": 50.0, "fc": ForceClosePolicy.PARTIAL_50_BEP, "tag": "Grid10L_SL25_PartialBEP"},
+            # Confirmed Candlestick Reaction (Zero grid, single sniper entry on [Reac])
+            {"mode": "CONFIRMED_REACTION", "layers": 1, "hard_sl": -15.0, "soft_sl": -5.0, "tp": 50.0, "fc": ForceClosePolicy.PARTIAL_50_BEP, "tag": "ReacEntry_SL15_PartialBEP"},
+            {"mode": "CONFIRMED_REACTION", "layers": 1, "hard_sl": -20.0, "soft_sl": 0.0, "tp": 60.0, "fc": ForceClosePolicy.COUNTER_MOM_ONLY, "tag": "ReacEntry_SL20_MomKill"},
         ]
 
-        # Dimension 4: Time Sessions
+        # Dimension 4: Time Sessions & Killzones
         session_variations = [
             {"session": SessionKillzone.ALL_DAY, "tag": "AllDay"},
             {"session": SessionKillzone.ASIAN, "tag": "Asian"},
+            {"session": SessionKillzone.LONDON_OPEN, "tag": "LondonOpen"},
             {"session": SessionKillzone.NY_OVERLAP, "tag": "NYOverlap"},
         ]
 
         # Target Timeframes for Scalping
-        timeframes = ["M1", "M3", "M5"] if methodology.trading_style == TradingStyle.SCALPING else ["M15", "H1"]
+        if methodology.trading_style == TradingStyle.SCALPING:
+            timeframes = ["M1", "M2", "M3", "M5"]
+        elif methodology.trading_style == TradingStyle.INTRADAY:
+            timeframes = ["M5", "M15", "M30", "H1"]
+        else:
+            timeframes = ["H1", "H4", "D1"]
 
-        # Autonomous Matrix Permutation (Curated multi-dimensional grid)
+        # Selection based on requested intensity
+        if intensity == "FAST":
+            # Compact representative batch (~100 - 150 clones)
+            s_list = structure_variations[:3]
+            p_list = poi_variations[:3]
+            e_list = exec_variations[:3]
+            sess_list = session_variations[:2]
+            tfs = timeframes[:2]
+        else:
+            # MASSIVE / FULL KAGE BUNSHIN: Hundreds to Thousands of Clones!
+            s_list = structure_variations
+            p_list = poi_variations
+            e_list = exec_variations
+            sess_list = session_variations
+            tfs = timeframes
+
         idx = 1
-        for tf in timeframes:
-            for s_var in structure_variations:
-                for p_var in poi_variations[:2]:  # Top representative POIs
-                    for e_var in exec_variations[:2]:  # Top representative execution setups
-                        for sess_var in session_variations:  # All sessions (AllDay, Asian, NYOverlap)
-                            clone_id = f"CLONE-{name}-{tf}-{idx:03d}-{s_var['tag']}-{p_var['tag']}-{e_var['tag']}-{sess_var['tag']}"
+        for tf in tfs:
+            for s_var in s_list:
+                for p_var in p_list:
+                    for e_var in e_list:
+                        for sess_var in sess_list:
+                            clone_id = f"CLONE-{name}-{tf}-{idx:04d}-{s_var['tag']}-{p_var['tag']}-{e_var['tag']}-{sess_var['tag']}"
                             spec = ShadowCloneSpec(
                                 clone_id=clone_id,
                                 methodology=methodology.name,
@@ -109,7 +127,7 @@ class NarutoAgent:
                                 limit_layers=e_var["layers"],
                                 hard_sl_pct=e_var["hard_sl"],
                                 soft_sl_candle_close_pct=e_var["soft_sl"],
-                                hard_tp_pct=50.0,
+                                hard_tp_pct=e_var["tp"],
                                 force_close_policy=e_var["fc"],
                                 session=sess_var["session"],
                                 min_trades_per_month=30
