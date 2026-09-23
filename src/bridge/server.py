@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 from src.data.adapter import BrokerAdapter, BrokerSpec
+from src.engine.force_close import ForceCloseGuardianEngine, ForceCloseAction
 
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -64,6 +65,10 @@ class LiveMT5BridgeCore:
         self.on_bar_callback = None
         self.on_tick_callback = None
         self.on_order_status_callback = None
+
+        # Force Close Guardian Agent Engine
+        self.force_close_guardian = ForceCloseGuardianEngine()
+        self._last_force_close_check = 0.0
 
         # Institutional Broker Adapter for Dynamic Lot Sizing
         self.adapter = BrokerAdapter(BrokerSpec(
@@ -131,6 +136,61 @@ class LiveMT5BridgeCore:
                     yaml.dump(cfg, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
         except Exception as e:
             logger.debug(f"Failed to update account equity in accounts.yaml: {e}")
+
+    def _evaluate_force_close_guardian(self, current_price: float):
+        """
+        Actively monitors open positions against structural invalidation,
+        triggering instant CLOSE_ALL or BEP lock commands to MT5 EA.
+        """
+        now = time.time()
+        if now - self._last_force_close_check < 1.0:
+            return
+        self._last_force_close_check = now
+
+        for pos in list(self.live_open_positions):
+            ticket = pos.get("ticket")
+            side = pos.get("type")
+            entry_p = pos.get("entry_price", current_price)
+            cur_p = pos.get("current_price", current_price)
+            sl = pos.get("sl", 0.0)
+
+            # 1. Handover BEP Trigger (+1.0 point profit)
+            if side == "BUY" and cur_p >= entry_p + 1.0 and sl < entry_p:
+                bep_sl = round(entry_p + 0.20, 2)  # Entry + spread buffer
+                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on BUY #{ticket} @ ${bep_sl:.2f}")
+                asyncio.create_task(self.broadcast({
+                    "action": "MODIFY_POSITION",
+                    "ticket": ticket,
+                    "sl": bep_sl,
+                    "tp": pos.get("tp", 0.0)
+                }))
+
+            elif side == "SELL" and cur_p <= entry_p - 1.0 and (sl > entry_p or sl == 0.0):
+                bep_sl = round(entry_p - 0.20, 2)  # Entry - spread buffer
+                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on SELL #{ticket} @ ${bep_sl:.2f}")
+                asyncio.create_task(self.broadcast({
+                    "action": "MODIFY_POSITION",
+                    "ticket": ticket,
+                    "sl": bep_sl,
+                    "tp": pos.get("tp", 0.0)
+                }))
+
+            # 2. Structural Soft-SL Cut (Emergency Force Close on violation)
+            # If opposite momentum pushes past critical invalidation threshold
+            if side == "BUY" and cur_p <= (entry_p - 3.5):
+                logger.warning(f"🚨 [FORCE CLOSE] Structural breach on BUY #{ticket}! Closing at market...")
+                asyncio.create_task(self.broadcast({
+                    "action": "CLOSE_ALL",
+                    "symbol": "XAUUSD",
+                    "magic": pos.get("magic", 1001)
+                }))
+            elif side == "SELL" and cur_p >= (entry_p + 3.5):
+                logger.warning(f"🚨 [FORCE CLOSE] Structural breach on SELL #{ticket}! Closing at market...")
+                asyncio.create_task(self.broadcast({
+                    "action": "CLOSE_ALL",
+                    "symbol": "XAUUSD",
+                    "magic": pos.get("magic", 1001)
+                }))
 
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         client_addr = writer.get_extra_info("peername")
@@ -245,6 +305,10 @@ class LiveMT5BridgeCore:
                 self.live_open_positions = msg["positions"]
             if "orders" in msg and isinstance(msg["orders"], list):
                 self.live_pending_orders = msg["orders"]
+
+            # Active ForceClose Guardian Monitoring on each tick
+            if self.live_open_positions:
+                self._evaluate_force_close_guardian(mid)
 
             # Dynamically persist updated Live Equity and Balance to accounts.yaml every 5 seconds
             now_t = time.time()
