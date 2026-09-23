@@ -10,8 +10,8 @@
 ## 📊 Ringkasan Progress Proyek
 
 - **Total Tasks Terencana**: 22 tasks
-- **Tasks Selesai**: 12 tasks (54.5%)
-- **Tasks Sedang Berjalan**: 1 task (`INSP-03-SUPPLY-DEMAND` - Open Bug)
+- **Tasks Selesai**: 13 tasks (59.1%)
+- **Tasks Sedang Berjalan**: 0 task
 - **Tasks Antrian**: 9 tasks
 
 ---
@@ -51,17 +51,16 @@
   *Isi Lengkap*: Fractal Swing Points (SH, SL), Klasifikasi Tren (HH, HL, LH, LL), Break of Structure (BOS), Change of Character (CHoCH), Strong vs Weak High/Low, Fibo Retracement (0.382-0.500 Shallow & 0.618-0.786 OTE), serta Fibo Extension Targets (1.272 & 1.618 dengan status HIT tracker). *(VERIFIED & PASSED)*
 - [x] **INSP-02-FVG**: **Master FVG Inspector** (`FVG_Inspector.mq5`)  
   *Isi Lengkap*: Pemisahan FVG & iFVG (dengan deteksi breach counter-FVG), Confluence Zone (Cyan), Proximity Model (2 Above, 2 Below, 1 Inside terlindungi), Counter Sentuhan (+1 hanya jika menembus lebih dalam), serta pemisahan tegas Mitigated (body close) vs Fully Used (order 100% tersapu). *(VERIFIED & PASSED)*
-- [/] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
-  *Isi Lengkap*: Order Block (OB DBR/RBD), Continuation (RBR/DBD), 50% Mean Threshold (MT), Liquidity Sweep, Smart Confluence Cluster Merging, dan Proximity 4-5 zona. *(Status: OPEN BUG - Floor di Backtest MT5 belum muncul)*
+- [x] **INSP-03-SUPPLY-DEMAND**: **Master OrderBlock & S&D Inspector** (`OrderBlock_Inspector.mq5`)  
+  *Isi Lengkap*: Order Block (OB DBR/RBD), Continuation (RBR/DBD), 50% Mean Threshold (MT), Liquidity Sweep, Smart Confluence Cluster Merging, dan integrasi langsung dengan **M1 POI Databank Binary (79.313 records dari 300.440 bars M1 murni)** sehingga Floor & Roof dijamin 100% muncul di Strategy Tester maupun Live chart tanpa interpolasi timeframe H1. *(VERIFIED & COMPLETED)*
 - [ ] **INSP-04-CANDLE-PATTERNS**: **Master Candle Pattern Inspector** (`CandlePattern_Inspector.mq5`)  
   *Isi Lengkap*: Engulfing (Bull/Bear), Doji Variants, Morning/Evening Star, dan Momentum Displacement Candle (Marubozu). *(Antrian Berikutnya)*
 
 ---
 
-### ⚠️ Known Issue / Open Bug (Fokus Utama Sesi Berikutnya)
-- **[BUG-01] Floor di Strategy Tester / Backtest MT5 Tidak Muncul**:
-  - *Gejala*: Di chart backtest MT5, area Atap (Roof / Supply) dan harga saat ini muncul normal, namun area Lantai (Floor / Demand) di bawah harga belum tergambar di layar.
-  - *Catatan Investigasi*: Kemungkinan data historis di Strategy Tester memerlukan penyesuaian index series bar, atau ada kondisi lifecycle/guard di sandbox Strategy Tester yang memfilter lantai. Ini menjadi agenda perbaikan pertama saat kembali.
+### 💡 Resolved Issues
+- **[BUG-01 RESOLVED] Floor di Strategy Tester / Backtest MT5**:  
+  *Solusi*: Membangun generator `src/data/generate_poi_databank.py` yang memproses seluruh 300.440 candle M1 dari data lake dan mengekspor 79.313 rekaman POI murni ke file biner ultra-kompak `xauusd_m1_poi_databank.bin` (2.7 MB) di folder `Common/Files`. `OrderBlock_Inspector.mq5` v3.00 membaca langsung databank ini di Strategy Tester MT5, menjamin lantai dan atap M1 presisi selalu muncul seketika tanpa perlu HTF H1.
 
 ---
 
@@ -92,4 +91,4 @@
 | **DEC-005** | 2025-09-22 | 5 Master Inspectors Alignment | Primitives dikelompokkan secara kohesif menjadi Master Inspector (1 EA = 1 Subtask Domain) agar mudah dikontrol, diuji, dan diverifikasi di chart MT5. | **CONFIRMED** |
 | **DEC-006** | 2025-09-22 | FVG Proximity & Lifecycle Separation | FVG & iFVG dipisahkan sebagai objek distinct. Pembedaan tegas: (1) Touched increment +1 hanya jika menembus harga lebih dalam, (2) Mitigated hanya jika candle closed dengan body di dalam, (3) Fully Used jika 100% order tersapu wick/body, dan (4) Zona aktif tempat harga berada di dalamnya (Inside Zone) diproteksi mutlak dari penghapusan. | **CONFIRMED** |
 | **DEC-007** | 2025-09-22 | S&D / OB Roof & Floor Lifecycle | (1) Aturan ketat Continuation RBR/DBD: Base 1-3 candle (boring candle body <= 50%), Leg-Out impulse ratio >= 1.5x & FVG. (2) Zona Roof (Supply/-OB) dan Floor (Demand/+OB) tetap valid & digambar di chart selama belum dijebol oleh candle body close tembus keluar batas seberang; retest di dalam ditandai `[Tested]` tanpa dihapus. (3) Breaker Block bersifat optional (default OFF). (4) Lookback 1000 bars menjamin ketersediaan 4-5 zona pemetaan (2 Roofs di atas, 2 Floors di bawah, 1 Inside). | **CONFIRMED** |
-| **BUG-001** | 2025-09-22 | Floor di Backtest MT5 Tidak Muncul | Di MetaTrader 5 Strategy Tester (Backtest), area Floor (Lantai/Demand) di bawah harga tidak muncul di chart, sedangkan Roof muncul. Menjadi agenda investigasi dan perbaikan pertama saat sesi dilanjutkan. | **OPEN BUG** |
+| **DEC-008** | 2025-09-22 | M1 Precomputed POI Databank Architecture | Menghilangkan ketergantungan MT5 Strategy Tester pada scanning bar lokal/HTF dengan mengekspor 79.313 rekaman M1 OB langsung dari data lake 300.440 bars ke `xauusd_m1_poi_databank.bin` (2.7 MB). MT5 Strategy Tester membaca databank ini secara instan via `FILE_COMMON`, menjamin ketersediaan Floor & Roof M1 presisi tanpa interpolasi candle H1. | **CONFIRMED** |

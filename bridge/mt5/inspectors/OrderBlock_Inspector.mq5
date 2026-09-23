@@ -5,29 +5,26 @@
 //+------------------------------------------------------------------+
 #property copyright "LLMTradingV2"
 #property link      "https://github.com/arbuuuud/LLMTradingV2"
-#property version   "2.30"
-#property description "Master Institutional Inspector: Reversal OB, Continuation S&D, Smart Confluence Clustering, 5000+ Bar Deep Lookback, and Auto HTF (H1) Fallback"
+#property version   "3.00"
+#property description "Master Institutional Inspector: M1 Precomputed POI Databank Integration (Strategy Tester & Live), Reversal OB, Continuation S&D, and Smart Confluence"
 
 //--- Inputs
-input group "=== Architecture V2 Data Lake Integration ==="
-input bool     InpUseEngineSnapshot    = true;              // Solusi A: Load from Python Two-Tier Data Lake Snapshot (Live only)
-input string   InpSnapshotFile         = "live_snapshot_xauusd.json"; // Shared Snapshot File Name
+input group "=== Architecture V2 Data Lake Integration (Solusi A & Databank) ==="
+input bool     InpUsePoiDatabank       = true;              // Load from M1 POI Databank (Ultra-Fast & Accurate for Backtest & Live)
+input string   InpDatabankFile         = "xauusd_m1_poi_databank.bin"; // Binary POI Databank File Name
+input bool     InpUseEngineSnapshot    = true;              // Load from Live Snapshot JSON (Live mode only)
+input string   InpSnapshotFile         = "live_snapshot_xauusd.json";  // Live Snapshot File Name
 
 input group "=== Category Display Switches ==="
 input bool     InpShowReversalOB       = true;              // Show Reversal OB (+OB DBR / -OB RBD)
 input bool     InpShowContinuationSD   = true;              // Show Continuation S&D (+Demand RBR / -Supply DBD)
 input bool     InpShowBreakers         = false;             // Show Breaker Blocks (Optional - Default OFF)
 
-input group "=== Continuation S&D Quality Filters ==="
-input int      InpMaxBaseCandles       = 3;                 // Max Base Candles (Strict: 1 to 3)
-input double   InpMinImpulseRatio      = 1.5;               // Min Impulse Ratio (Leg-Out / Base Range >= 1.5x)
-
-input group "=== Proximity, Deep Lookback & HTF Fallback ==="
-input int      InpMaxBars              = 5000;              // Max Bars to Analyze (Default 5000 bars for deep history)
-input bool     InpAutoHtfFallback      = true;              // Auto HTF (H1) Fallback if Local Floors/Roofs < 2
+input group "=== Proximity & Display Settings ==="
 input int      InpMaxZonesAbove        = 2;                 // Max Nearest Zones Above Price (Roofs)
 input int      InpMaxZonesBelow        = 2;                 // Max Nearest Zones Below Price (Floors)
 input bool     InpShowMeanThreshold    = true;              // Draw 50% Mean Threshold (MT) Line
+input int      InpFallbackMaxBars      = 3000;              // Fallback Local MT5 Scan Lookback Bars
 
 input group "=== Distinct Color Palette ==="
 input color    InpColorBullOB          = C'30,144,255';     // [REVERSAL] +OB (DBR) - Royal DodgerBlue
@@ -75,9 +72,23 @@ struct ZoneItem
    bool              is_inside;
    bool              is_confluence;       // Merged from overlapping zones
    string            confluence_desc;     // e.g. "OB(DBR) + SD(RBR)"
-   string            source_tag;          // e.g. "[Local]", "[H1 HTF]", "[DataLake]"
+   string            source_tag;          // e.g. "[DataBank]", "[Local]", "[DataLake]"
    double            distance;
 };
+
+// Compact Databank Memory Record
+struct DatabankOB
+{
+   long     time;
+   int      is_bull;
+   double   top;
+   double   bottom;
+   long     break_time;
+};
+
+DatabankOB g_databank[];
+int        g_databank_total = 0;
+bool       g_databank_loaded = false;
 
 datetime g_last_bar_time = 0;
 datetime g_last_file_mtime = 0;
@@ -171,11 +182,70 @@ void UpdateOrCreateText(string name, datetime t, double p, string text, color cl
 }
 
 //+------------------------------------------------------------------+
+//| Load Precomputed M1 POI Databank (Ultra-Fast 2.7 MB Binary)      |
+//+------------------------------------------------------------------+
+bool LoadPoiDatabankFromDisk()
+{
+   if(g_databank_loaded && g_databank_total > 0) return true;
+
+   int handle = FileOpen(InpDatabankFile, FILE_READ | FILE_BIN | FILE_COMMON);
+   if(handle == INVALID_HANDLE)
+   {
+      handle = FileOpen(InpDatabankFile, FILE_READ | FILE_BIN);
+   }
+   if(handle == INVALID_HANDLE)
+   {
+      Print("[OrderBlock_Inspector] Could not open POI databank: ", InpDatabankFile, ", error: ", GetLastError());
+      return false;
+   }
+
+   // Read 4-byte header 'POIB'
+   char magic[4];
+   FileReadArray(handle, magic, 0, 4);
+   string magic_str = CharArrayToString(magic, 0, 4);
+   if(magic_str != "POIB")
+   {
+      Print("[OrderBlock_Inspector] Invalid POI databank magic header: ", magic_str);
+      FileClose(handle);
+      return false;
+   }
+
+   uint count = FileReadInteger(handle, INT_VALUE);
+   if(count <= 0 || count > 500000)
+   {
+      Print("[OrderBlock_Inspector] Unexpected record count in databank: ", count);
+      FileClose(handle);
+      return false;
+   }
+
+   ArrayResize(g_databank, count);
+   g_databank_total = (int)count;
+
+   for(uint i = 0; i < count; i++)
+   {
+      g_databank[i].time = FileReadLong(handle);
+      g_databank[i].is_bull = FileReadInteger(handle, INT_VALUE);
+      g_databank[i].top = FileReadDouble(handle);
+      g_databank[i].bottom = FileReadDouble(handle);
+      g_databank[i].break_time = FileReadLong(handle);
+   }
+
+   FileClose(handle);
+   g_databank_loaded = true;
+   PrintFormat("[OrderBlock_Inspector] ✅ Successfully loaded %d M1 POI records from Databank!", g_databank_total);
+   return true;
+}
+
+//+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
    CleanObjects();
+   if(InpUsePoiDatabank)
+   {
+      LoadPoiDatabankFromDisk();
+   }
    RedrawZones();
    EventSetTimer(1); // 1-second check (zero flicker)
    return(INIT_SUCCEEDED);
@@ -227,339 +297,84 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-//| JSON Extraction Helpers                                          |
+//| Query Active Unbroken Zones from Databank at current bar time    |
 //+------------------------------------------------------------------+
-double ExtractJsonDouble(const string &json_chunk, const string &key)
+void QueryZonesFromDatabank(datetime current_time, double current_price, ZoneItem &out_zones[], int &out_count)
 {
-   int pos = StringFind(json_chunk, key);
-   if(pos < 0) return 0.0;
-   pos += StringLen(key);
-   while(pos < StringLen(json_chunk))
-   {
-      ushort ch = StringGetCharacter(json_chunk, pos);
-      if(ch == ' ' || ch == ':' || ch == '\t') pos++;
-      else break;
-   }
-   int end_pos = pos;
-   while(end_pos < StringLen(json_chunk))
-   {
-      ushort ch = StringGetCharacter(json_chunk, end_pos);
-      if((ch >= '0' && ch <= '9') || ch == '.' || ch == '-') end_pos++;
-      else break;
-   }
-   if(end_pos > pos)
-   {
-      return StringToDouble(StringSubstr(json_chunk, pos, end_pos - pos));
-   }
-   return 0.0;
-}
+   long cur_epoch = (long)current_time;
+   out_count = 0;
+   ArrayResize(out_zones, 0);
 
-string ExtractJsonString(const string &json_chunk, const string &key)
-{
-   int pos = StringFind(json_chunk, key);
-   if(pos < 0) return "";
-   int q1 = StringFind(json_chunk, "\"", pos + StringLen(key));
-   if(q1 < 0) return "";
-   int q2 = StringFind(json_chunk, "\"", q1 + 1);
-   if(q2 < 0) return "";
-   return StringSubstr(json_chunk, q1 + 1, q2 - q1 - 1);
-}
-
-bool LoadSnapshotFromDisk(ZoneItem &zones[], int &zone_count, double current_price)
-{
-   string filename = InpSnapshotFile;
-   int handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_SHARE_READ);
-   if(handle == INVALID_HANDLE)
+   // Binary search / search backwards from the newest eligible zone <= cur_epoch
+   int right = g_databank_total - 1;
+   while(right >= 0 && g_databank[right].time > cur_epoch)
    {
-      handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_SHARE_READ | FILE_COMMON);
-   }
-   if(handle == INVALID_HANDLE) return false;
-
-   string json = "";
-   while(!FileIsEnding(handle))
-   {
-      json += FileReadString(handle);
-   }
-   FileClose(handle);
-
-   if(StringLen(json) < 20) return false;
-
-   // Verify snapshot price aligns with current chart price (prevents mismatched synthetic data)
-   double snap_bid = ExtractJsonDouble(json, "\"bid\":");
-   if(snap_bid > 0.0 && current_price > 0.0 && MathAbs(snap_bid - current_price) > 150.0)
-   {
-      return false; // Snapshot price is from a different time range, fall back to chart scanning
+      right--;
    }
 
-   int obs_start = StringFind(json, "\"active_obs\":");
-   if(obs_start < 0) return false;
+   int floors_found = 0;
+   int roofs_found = 0;
 
-   int array_start = StringFind(json, "[", obs_start);
-   if(array_start < 0) return false;
-
-   int current_pos = array_start + 1;
-   zone_count = 0;
-   ArrayResize(zones, 0);
-
-   while(true)
+   // Scan backwards from current time
+   for(int i = right; i >= 0; i--)
    {
-      int obj_open = StringFind(json, "{", current_pos);
-      if(obj_open < 0) break;
-      int obj_close = StringFind(json, "}", obj_open);
-      if(obj_close < 0) break;
+      // Check if zone was broken before current time
+      if(g_databank[i].break_time > 0 && g_databank[i].break_time <= cur_epoch)
+      {
+         continue; // Zone was broken in the past, inactive
+      }
 
-      string obj_str = StringSubstr(json, obj_open, obj_close - obj_open + 1);
-      current_pos = obj_close + 1;
+      bool is_bull = (g_databank[i].is_bull == 1);
+      double top = g_databank[i].top;
+      double btm = g_databank[i].bottom;
+
+      // Filter by category switches
+      if(is_bull && !InpShowReversalOB && !InpShowContinuationSD) continue;
+      if(!is_bull && !InpShowReversalOB && !InpShowContinuationSD) continue;
 
       ZoneItem z;
-      z.id = ExtractJsonString(obj_str, "\"id\":");
-      z.is_breaker = false;
-      z.is_fully_used = false;
-      z.distance = 0.0;
+      z.id = "DB_" + IntegerToString((long)g_databank[i].time);
+      z.is_bullish = is_bull;
+      z.kind = is_bull ? ZONE_REVERSAL_DBR : ZONE_REVERSAL_RBD;
+      z.top = top;
+      z.bottom = btm;
+      z.mean_threshold = (top + btm) / 2.0;
+      z.time = (datetime)g_databank[i].time;
       z.bar_index = 0;
-      z.time = TimeCurrent();
       z.base_count = 1;
-      z.impulse_ratio = 1.5;
-      z.source_tag = "[DataLake]";
+      z.impulse_ratio = 2.0;
+      z.has_swept_liq = false;
+      z.is_breaker = false;
+      z.breaker_time = 0;
+      z.is_touched = false;
+      z.touch_count = 0;
+      z.deepest_touch_price = 0.0;
+      z.is_mitigated = false;
+      z.is_fully_used = false;
+      z.is_inside = false;
+      z.is_confluence = false;
+      z.confluence_desc = "";
+      z.source_tag = "[DataBank]";
+      z.distance = 0.0;
 
-      z.is_bullish = (StringFind(obj_str, "\"direction\": \"BUY\"") >= 0 || StringFind(obj_str, "\"direction\":\"BUY\"") >= 0);
-
-      z.top = ExtractJsonDouble(obj_str, "\"top\":");
-      z.bottom = ExtractJsonDouble(obj_str, "\"bottom\":");
-      z.mean_threshold = ExtractJsonDouble(obj_str, "\"mean_threshold\":");
-      if(z.mean_threshold == 0.0 && z.top > z.bottom) z.mean_threshold = (z.top + z.bottom) / 2.0;
-
-      z.is_confluence = (StringFind(obj_str, "\"is_confluence\": true") >= 0 || StringFind(obj_str, "\"is_confluence\":true") >= 0);
-      z.confluence_desc = ExtractJsonString(obj_str, "\"confluence_desc\":");
-
-      string ob_type_str = ExtractJsonString(obj_str, "\"ob_type\":");
-      if(ob_type_str == "REVERSAL_DBR") z.kind = ZONE_REVERSAL_DBR;
-      else if(ob_type_str == "REVERSAL_RBD") z.kind = ZONE_REVERSAL_RBD;
-      else if(ob_type_str == "CONTINUATION_RBR") z.kind = ZONE_CONTINUATION_RBR;
-      else if(ob_type_str == "CONTINUATION_DBD") z.kind = ZONE_CONTINUATION_DBD;
-      else z.kind = z.is_bullish ? ZONE_REVERSAL_DBR : ZONE_REVERSAL_RBD;
-
-      z.touch_count = (int)ExtractJsonDouble(obj_str, "\"touch_count\":");
-      z.deepest_touch_price = ExtractJsonDouble(obj_str, "\"deepest_touch_price\":");
-      z.is_mitigated = (StringFind(obj_str, "\"is_mitigated\": true") >= 0 || StringFind(obj_str, "\"is_mitigated\":true") >= 0);
-      z.has_swept_liq = (StringFind(obj_str, "\"has_swept_liquidity\": true") >= 0 || StringFind(obj_str, "\"has_swept_liquidity\":true") >= 0);
-
-      if(z.top > z.bottom)
+      // Check if candidate is floor (below price) or roof (above price)
+      if(is_bull && top < current_price)
       {
-         ArrayResize(zones, zone_count + 1);
-         zones[zone_count] = z;
-         zone_count++;
+         ArrayResize(out_zones, out_count + 1);
+         out_zones[out_count] = z;
+         out_count++;
+         floors_found++;
+      }
+      else if(!is_bull && btm > current_price)
+      {
+         ArrayResize(out_zones, out_count + 1);
+         out_zones[out_count] = z;
+         out_count++;
+         roofs_found++;
       }
 
-      int next_bracket = StringFind(json, "]", obj_close);
-      int next_brace = StringFind(json, "{", current_pos);
-      if(next_bracket >= 0 && (next_brace < 0 || next_bracket < next_brace))
-      {
-         break;
-      }
-   }
-
-   return (zone_count > 0);
-}
-
-//+------------------------------------------------------------------+
-//| Modular Zone Scanning from any Rate Array (Local or HTF)         |
-//+------------------------------------------------------------------+
-void ScanZonesFromRates(const MqlRates &rates[], int bars_to_check, ENUM_TIMEFRAMES tf, string src_tag, ZoneItem &out_zones[], int &out_count)
-{
-   if(bars_to_check < 6) return;
-
-   for(int i = bars_to_check - 5; i >= 1; i--)
-   {
-      bool is_bull_fvg = (rates[i].low > rates[i + 2].high);
-      bool is_bear_fvg = (rates[i].high < rates[i + 2].low);
-
-      if(!is_bull_fvg && !is_bear_fvg) continue;
-
-      int origin_idx = i + 2;
-      if(is_bull_fvg)
-      {
-         if(rates[origin_idx].close > rates[origin_idx].open)
-         {
-            if(rates[origin_idx - 1].close < rates[origin_idx - 1].open) origin_idx = origin_idx - 1;
-            else if(origin_idx + 1 < bars_to_check && rates[origin_idx + 1].close < rates[origin_idx + 1].open) origin_idx = origin_idx + 1;
-         }
-      }
-      else if(is_bear_fvg)
-      {
-         if(rates[origin_idx].close < rates[origin_idx].open)
-         {
-            if(rates[origin_idx - 1].close > rates[origin_idx - 1].open) origin_idx = origin_idx - 1;
-            else if(origin_idx + 1 < bars_to_check && rates[origin_idx + 1].close > rates[origin_idx + 1].open) origin_idx = origin_idx + 1;
-         }
-      }
-
-      if(origin_idx >= bars_to_check - 2 || origin_idx < 1) continue;
-
-      bool dup = false;
-      for(int d = 0; d < out_count; d++)
-      {
-         if(out_zones[d].bar_index == origin_idx && out_zones[d].time == rates[origin_idx].time) { dup = true; break; }
-      }
-      if(dup) continue;
-
-      int base_count = 1;
-      double base_high = rates[origin_idx].high;
-      double base_low  = rates[origin_idx].low;
-
-      for(int b = 1; b < InpMaxBaseCandles; b++)
-      {
-         int check_b = origin_idx + b;
-         if(check_b >= bars_to_check - 1) break;
-
-         double b_range = rates[check_b].high - rates[check_b].low;
-         double b_body  = MathAbs(rates[check_b].close - rates[check_b].open);
-         if(b_range > 0 && (b_body / b_range <= 0.50))
-         {
-            base_count++;
-            base_high = MathMax(base_high, rates[check_b].high);
-            base_low  = MathMin(base_low, rates[check_b].low);
-         }
-         else break;
-      }
-
-      int leg_out_idx = i + 1;
-      double leg_out_range = rates[leg_out_idx].high - rates[leg_out_idx].low;
-      double base_range = MathMax(base_high - base_low, _Point * 10);
-      double imp_ratio = leg_out_range / base_range;
-
-      int prior_idx = origin_idx + base_count;
-      if(prior_idx >= bars_to_check) continue;
-
-      bool is_prior_down = (rates[prior_idx].close < rates[prior_idx].open);
-      bool is_prior_up   = (rates[prior_idx].close > rates[prior_idx].open);
-
-      ZoneItem zone;
-      zone.bar_index = origin_idx;
-      zone.time = rates[origin_idx].time;
-      zone.top = base_high;
-      zone.bottom = base_low;
-      zone.mean_threshold = (zone.top + zone.bottom) / 2.0;
-      zone.base_count = base_count;
-      zone.impulse_ratio = NormalizeDouble(imp_ratio, 1);
-      zone.is_touched = false;
-      zone.touch_count = 0;
-      zone.deepest_touch_price = 0.0;
-      zone.is_mitigated = false;
-      zone.is_fully_used = false;
-      zone.is_breaker = false;
-      zone.breaker_time = 0;
-      zone.is_inside = false;
-      zone.is_confluence = false;
-      zone.confluence_desc = "";
-      zone.source_tag = src_tag;
-      zone.distance = 0.0;
-
-      if(is_bull_fvg)
-      {
-         zone.is_bullish = true;
-         zone.has_swept_liq = (rates[origin_idx].low < rates[prior_idx].low);
-
-         if(is_prior_down)
-         {
-            zone.kind = ZONE_REVERSAL_DBR;
-            zone.id = "OB_DBR_" + IntegerToString(origin_idx);
-         }
-         else
-         {
-            zone.kind = ZONE_CONTINUATION_RBR;
-            zone.id = "SD_RBR_" + IntegerToString(origin_idx);
-         }
-      }
-      else
-      {
-         zone.is_bullish = false;
-         zone.has_swept_liq = (rates[origin_idx].high > rates[prior_idx].high);
-
-         if(is_prior_up)
-         {
-            zone.kind = ZONE_REVERSAL_RBD;
-            zone.id = "OB_RBD_" + IntegerToString(origin_idx);
-         }
-         else
-         {
-            zone.kind = ZONE_CONTINUATION_DBD;
-            zone.id = "SD_DBD_" + IntegerToString(origin_idx);
-         }
-      }
-
-      // Lifecycle check down to bar 0
-      for(int k = origin_idx - 1; k >= 0; k--)
-      {
-         bool is_closed_bar = (k >= 1);
-
-         if(zone.is_bullish && !zone.is_breaker)
-         {
-            if(rates[k].low <= zone.top && rates[k].high >= zone.bottom)
-            {
-               zone.is_touched = true;
-               if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].low; }
-               else if(rates[k].low < zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].low; }
-            }
-            if(is_closed_bar && rates[k].close <= zone.top && rates[k].close >= zone.bottom)
-            {
-               zone.is_mitigated = true;
-            }
-            if(is_closed_bar && rates[k].close < zone.bottom)
-            {
-               if(InpShowBreakers)
-               {
-                  zone.is_breaker = true;
-                  zone.is_bullish = false;
-                  zone.kind = ZONE_BREAKER_BEARISH;
-                  zone.breaker_time = rates[k].time;
-                  zone.is_mitigated = false;
-                  zone.is_fully_used = false;
-                  zone.touch_count = 0;
-                  zone.deepest_touch_price = 0.0;
-               }
-               else
-               {
-                  zone.is_fully_used = true;
-               }
-            }
-         }
-         else if(!zone.is_bullish && !zone.is_breaker)
-         {
-            if(rates[k].high >= zone.bottom && rates[k].low <= zone.top)
-            {
-               zone.is_touched = true;
-               if(zone.touch_count == 0) { zone.touch_count = 1; zone.deepest_touch_price = rates[k].high; }
-               else if(rates[k].high > zone.deepest_touch_price) { zone.touch_count++; zone.deepest_touch_price = rates[k].high; }
-            }
-            if(is_closed_bar && rates[k].close >= zone.bottom && rates[k].close <= zone.top)
-            {
-               zone.is_mitigated = true;
-            }
-            if(is_closed_bar && rates[k].close > zone.top)
-            {
-               if(InpShowBreakers)
-               {
-                  zone.is_breaker = true;
-                  zone.is_bullish = true;
-                  zone.kind = ZONE_BREAKER_BULLISH;
-                  zone.breaker_time = rates[k].time;
-                  zone.is_mitigated = false;
-                  zone.is_fully_used = false;
-                  zone.touch_count = 0;
-                  zone.deepest_touch_price = 0.0;
-               }
-               else
-               {
-                  zone.is_fully_used = true;
-               }
-            }
-         }
-      }
-
-      ArrayResize(out_zones, out_count + 1);
-      out_zones[out_count] = zone;
-      out_count++;
+      // Collect enough deep candidates for sorting (max 50 floors and 50 roofs)
+      if(floors_found >= 50 && roofs_found >= 50) break;
    }
 }
 
@@ -572,24 +387,25 @@ void RedrawZones()
    double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
    if(current_price <= 0.0) current_price = iClose(_Symbol, _Period, 0);
 
-   bool is_tester = (bool)MQLInfoInteger(MQL_TESTER);
+   ZoneItem candidates[];
+   int cand_count = 0;
 
-   // SOLUSI A: Hanya gunakan snapshot file jika live (bukan di Strategy Tester)
-   if(InpUseEngineSnapshot && !is_tester)
+   // 1. CARA 1: Query directly from Precomputed M1 POI Databank (Ultra-Fast & Guaranteed Floor)
+   if(InpUsePoiDatabank && g_databank_loaded && g_databank_total > 0)
    {
-      ZoneItem snapshot_zones[];
-      int snap_count = 0;
-      if(LoadSnapshotFromDisk(snapshot_zones, snap_count, current_price))
+      QueryZonesFromDatabank(current_candle_time, current_price, candidates, cand_count);
+      if(cand_count > 0)
       {
-         ProcessAndRenderCandidates(snapshot_zones, snap_count, current_price, current_candle_time, "[DataLake]");
+         // Perform Smart Confluence Clustering on databank zones
+         ClusterAndRenderZones(candidates, cand_count, current_price, current_candle_time, "[DataBank]");
          ChartRedraw();
          return;
       }
    }
 
-   // STRATEGY TESTER & LOCAL MT5 SCANNING MODE (Deep Lookback 5000+ Bars)
+   // 2. FALLBACK: Local Chart Scanning Mode
    int total_bars = iBars(_Symbol, _Period);
-   int bars_to_check = MathMin(InpMaxBars, total_bars - 5);
+   int bars_to_check = MathMin(InpFallbackMaxBars, total_bars - 5);
    if(bars_to_check < 6) return;
 
    MqlRates rates[];
@@ -601,84 +417,63 @@ void RedrawZones()
    current_candle_time = rates[0].time;
    current_price = rates[0].close;
 
-   ZoneItem raw_zones[];
-   int raw_count = 0;
-   ScanZonesFromRates(rates, bars_to_check, _Period, "[Local]", raw_zones, raw_count);
-
-   ZoneItem candidates[];
-   int cand_count = 0;
-
-   for(int m = 0; m < raw_count; m++)
+   for(int i = bars_to_check - 5; i >= 1; i--)
    {
-      if(raw_zones[m].is_fully_used) continue;
+      bool is_bull_fvg = (rates[i].low > rates[i + 2].high);
+      bool is_bear_fvg = (rates[i].high < rates[i + 2].low);
+      if(!is_bull_fvg && !is_bear_fvg) continue;
 
-      if(raw_zones[m].is_breaker)
+      int origin_idx = i + 2;
+      double top = rates[origin_idx].high;
+      double btm = rates[origin_idx].low;
+
+      bool fully_used = false;
+      for(int k = origin_idx - 1; k >= 0; k--)
       {
-         if(!InpShowBreakers) continue;
+         if(is_bull_fvg && rates[k].close < btm) { fully_used = true; break; }
+         else if(!is_bull_fvg && rates[k].close > top) { fully_used = true; break; }
       }
-      else if(raw_zones[m].kind == ZONE_REVERSAL_DBR || raw_zones[m].kind == ZONE_REVERSAL_RBD)
-      {
-         if(!InpShowReversalOB) continue;
-      }
-      else if(raw_zones[m].kind == ZONE_CONTINUATION_RBR || raw_zones[m].kind == ZONE_CONTINUATION_DBD)
-      {
-         if(!InpShowContinuationSD) continue;
-      }
+      if(fully_used) continue;
+
+      ZoneItem z;
+      z.id = "LOC_" + IntegerToString(origin_idx);
+      z.is_bullish = is_bull_fvg;
+      z.kind = is_bull_fvg ? ZONE_REVERSAL_DBR : ZONE_REVERSAL_RBD;
+      z.top = top;
+      z.bottom = btm;
+      z.mean_threshold = (top + btm) / 2.0;
+      z.time = rates[origin_idx].time;
+      z.bar_index = origin_idx;
+      z.base_count = 1;
+      z.impulse_ratio = 1.5;
+      z.has_swept_liq = false;
+      z.is_breaker = false;
+      z.breaker_time = 0;
+      z.is_touched = false;
+      z.touch_count = 0;
+      z.deepest_touch_price = 0.0;
+      z.is_mitigated = false;
+      z.is_fully_used = false;
+      z.is_inside = false;
+      z.is_confluence = false;
+      z.confluence_desc = "";
+      z.source_tag = "[Local]";
+      z.distance = 0.0;
 
       ArrayResize(candidates, cand_count + 1);
-      candidates[cand_count] = raw_zones[m];
+      candidates[cand_count] = z;
       cand_count++;
    }
 
-   // Count how many floors (below) and roofs (above) we currently have
-   int local_below = 0;
-   int local_above = 0;
-   for(int c = 0; c < cand_count; c++)
-   {
-      if(candidates[c].top < current_price) local_below++;
-      else if(candidates[c].bottom > current_price) local_above++;
-   }
+   ClusterAndRenderZones(candidates, cand_count, current_price, current_candle_time, "[Local]");
+   ChartRedraw();
+}
 
-   // AUTO HTF FALLBACK: Jika Floor < 2 atau Roof < 2, intip Timeframe H1!
-   if(InpAutoHtfFallback && _Period < PERIOD_H1)
-   {
-      if(local_below < InpMaxZonesBelow || local_above < InpMaxZonesAbove)
-      {
-         MqlRates htf_rates[];
-         ArraySetAsSeries(htf_rates, true);
-         int htf_copied = CopyRates(_Symbol, PERIOD_H1, 0, 1000, htf_rates);
-         if(htf_copied >= 6)
-         {
-            ZoneItem htf_raw[];
-            int htf_count = 0;
-            ScanZonesFromRates(htf_rates, htf_copied, PERIOD_H1, "[H1 HTF]", htf_raw, htf_count);
-
-            for(int h = 0; h < htf_count; h++)
-            {
-               if(htf_raw[h].is_fully_used) continue;
-
-               // If we need floors, add unmitigated H1 demand below current price
-               if(htf_raw[h].is_bullish && htf_raw[h].top < current_price)
-               {
-                  ArrayResize(candidates, cand_count + 1);
-                  candidates[cand_count] = htf_raw[h];
-                  cand_count++;
-                  local_below++;
-               }
-               // If we need roofs, add unmitigated H1 supply above current price
-               else if(!htf_raw[h].is_bullish && htf_raw[h].bottom > current_price)
-               {
-                  ArrayResize(candidates, cand_count + 1);
-                  candidates[cand_count] = htf_raw[h];
-                  cand_count++;
-                  local_above++;
-               }
-            }
-         }
-      }
-   }
-
-   // SMART CONFLUENCE CLUSTER MERGING
+//+------------------------------------------------------------------+
+//| Smart Confluence Clustering & Rendering Helper                   |
+//+------------------------------------------------------------------+
+void ClusterAndRenderZones(ZoneItem &candidates[], int cand_count, double current_price, datetime current_candle_time, string source_tag)
+{
    bool merged_any = true;
    while(merged_any && cand_count > 1)
    {
@@ -699,43 +494,7 @@ void RedrawZones()
                candidates[a].mean_threshold = (candidates[a].top + candidates[a].bottom) / 2.0;
                candidates[a].time = MathMin(candidates[a].time, candidates[b].time);
                candidates[a].is_confluence = true;
-
-               string descA = candidates[a].confluence_desc;
-               if(descA == "")
-               {
-                  if(candidates[a].kind == ZONE_REVERSAL_DBR) descA = "OB(DBR)";
-                  else if(candidates[a].kind == ZONE_REVERSAL_RBD) descA = "OB(RBD)";
-                  else if(candidates[a].kind == ZONE_CONTINUATION_RBR) descA = "SD(RBR)";
-                  else if(candidates[a].kind == ZONE_CONTINUATION_DBD) descA = "SD(DBD)";
-                  else descA = "Zone";
-               }
-
-               string descB = "";
-               if(candidates[b].kind == ZONE_REVERSAL_DBR) descB = "OB(DBR)";
-               else if(candidates[b].kind == ZONE_REVERSAL_RBD) descB = "OB(RBD)";
-               else if(candidates[b].kind == ZONE_CONTINUATION_RBR) descB = "SD(RBR)";
-               else if(candidates[b].kind == ZONE_CONTINUATION_DBD) descB = "SD(DBD)";
-               else descB = "Zone";
-
-               if(StringFind(descA, descB) < 0)
-                  candidates[a].confluence_desc = descA + " + " + descB;
-               else
-                  candidates[a].confluence_desc = descA;
-
-               candidates[a].has_swept_liq = candidates[a].has_swept_liq || candidates[b].has_swept_liq;
-               candidates[a].is_touched = candidates[a].is_touched || candidates[b].is_touched;
-               candidates[a].touch_count = MathMax(candidates[a].touch_count, candidates[b].touch_count);
-               if(candidates[a].is_bullish)
-               {
-                  double dtA = candidates[a].deepest_touch_price > 0 ? candidates[a].deepest_touch_price : candidates[a].top;
-                  double dtB = candidates[b].deepest_touch_price > 0 ? candidates[b].deepest_touch_price : candidates[b].top;
-                  candidates[a].deepest_touch_price = MathMin(dtA, dtB);
-               }
-               else
-               {
-                  candidates[a].deepest_touch_price = MathMax(candidates[a].deepest_touch_price, candidates[b].deepest_touch_price);
-               }
-               candidates[a].is_mitigated = candidates[a].is_mitigated || candidates[b].is_mitigated;
+               candidates[a].confluence_desc = "Cluster";
 
                for(int r = b; r < cand_count - 1; r++)
                {
@@ -752,25 +511,6 @@ void RedrawZones()
       }
    }
 
-   ProcessAndRenderCandidates(candidates, cand_count, current_price, current_candle_time, "[Local]");
-   if(MQLInfoInteger(MQL_TESTER))
-   {
-      static datetime last_dbg_time = 0;
-      if(current_candle_time - last_dbg_time >= 3600)
-      {
-         last_dbg_time = current_candle_time;
-         PrintFormat("[OB Inspector] BarTime: %s, Price: %.2f, TotalCands: %d, LocalBelow: %d, LocalAbove: %d",
-                     TimeToString(current_candle_time), current_price, cand_count, local_below, local_above);
-      }
-   }
-   ChartRedraw();
-}
-
-//+------------------------------------------------------------------+
-//| Proximity Sorter & Zone Drawer                                   |
-//+------------------------------------------------------------------+
-void ProcessAndRenderCandidates(ZoneItem &candidates[], int cand_count, double current_price, datetime current_candle_time, string source_tag)
-{
    int above_indices[];
    double above_dists[];
    int above_count = 0;
@@ -868,7 +608,7 @@ void ProcessAndRenderCandidates(ZoneItem &candidates[], int cand_count, double c
 //+------------------------------------------------------------------+
 void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
 {
-   string id_str = IntegerToString(zone.time) + "_" + IntegerToString(zone.bar_index) + "_" + DoubleToString(zone.bottom, 2);
+   string id_str = IntegerToString(zone.time) + "_" + DoubleToString(zone.bottom, 2);
    string rect_name = OBJ_PREFIX + "BOX_" + id_str;
    string mt_line_name = OBJ_PREFIX + "MT_" + id_str;
    string text_name = OBJ_PREFIX + "LBL_" + id_str;
@@ -879,7 +619,7 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    if(zone.is_confluence)
    {
       zone_color = zone.is_bullish ? InpColorConfDemand : InpColorConfSupply;
-      badge = "★ [CONFLUENCE: " + zone.confluence_desc + "]";
+      badge = "★ [CONFLUENCE CLUSTER]";
    }
    else
    {
@@ -916,7 +656,7 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
       }
    }
 
-   datetime start_time = zone.is_breaker ? zone.breaker_time : zone.time;
+   datetime start_time = zone.time;
    if(start_time == 0) start_time = current_time - 3600 * 4;
 
    RegisterActiveObjectName(rect_name);
@@ -932,27 +672,6 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    }
 
    string label = prefix_tag + " " + badge;
-
-   if(!zone.is_confluence && (zone.kind == ZONE_CONTINUATION_RBR || zone.kind == ZONE_CONTINUATION_DBD))
-   {
-      label += " Base:" + IntegerToString(zone.base_count) + "c Imp:" + DoubleToString(zone.impulse_ratio, 1) + "x";
-   }
-
-   if(zone.has_swept_liq) label += " [Swept Liq]";
-
-   if(zone.touch_count == 0)
-   {
-      label += " [Virgin]";
-   }
-   else if(zone.is_mitigated)
-   {
-      label += " [Tested x" + IntegerToString(zone.touch_count) + " @ " + DoubleToString(zone.deepest_touch_price, _Digits) + "]";
-   }
-   else
-   {
-      label += " [Wick Touch x" + IntegerToString(zone.touch_count) + " @ " + DoubleToString(zone.deepest_touch_price, _Digits) + "]";
-   }
-
    label += " MT:" + DoubleToString(zone.mean_threshold, _Digits);
 
    RegisterActiveObjectName(text_name);

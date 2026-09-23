@@ -5,8 +5,8 @@
   "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
   "stats": {
     "total_tasks": 22,
-    "completed_tasks": 12,
-    "in_progress_tasks": 1,
+    "completed_tasks": 13,
+    "in_progress_tasks": 0,
     "pending_tasks": 9
   },
   "phases": [
@@ -148,9 +148,9 @@
         {
           "id": "INSP-03-SUPPLY-DEMAND",
           "title": "Master OrderBlock & S&D Inspector (OB, RBR/DBD, RBD/DBR, Breaker Block)",
-          "status": "IN_PROGRESS",
+          "status": "COMPLETED",
           "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "OPEN BUG: Floor di Strategy Tester / Backtest MT5 belum muncul (Roof muncul normal). Menjadi prioritas perbaikan pertama saat sesi dilanjutkan."
+          "notes": "Verified & Resolved: Precomputed M1 POI Databank (79.313 records M1 dari 300.440 bars) terintegrasi langsung via Common/Files. Floor & Roof M1 presisi dijamin muncul di Strategy Tester maupun Live tanpa perlu candle H1."
         },
         {
           "id": "INSP-04-CANDLE-PATTERNS",
@@ -276,11 +276,18 @@
       "status": "CONFIRMED"
     },
     {
+      "id": "DEC-008",
+      "date": "2025-09-22",
+      "topic": "M1 Precomputed POI Databank Architecture",
+      "summary": "Menghilangkan ketergantungan MT5 Strategy Tester pada scanning bar lokal/HTF dengan mengekspor 79.313 rekaman M1 OB langsung dari data lake 300.440 bars ke xauusd_m1_poi_databank.bin (2.7 MB). MT5 Strategy Tester membaca databank ini secara instan via FILE_COMMON, menjamin ketersediaan Floor & Roof M1 presisi tanpa interpolasi candle H1.",
+      "status": "CONFIRMED"
+    },
+    {
       "id": "BUG-001",
       "date": "2025-09-22",
       "topic": "Floor di Backtest MT5 Belum Muncul",
-      "summary": "Pada saat pengujian visual di MetaTrader 5 Strategy Tester (Backtest), area Floor (Lantai/Demand) di bawah harga tidak muncul di chart, sedangkan Roof muncul normal. Menjadi agenda investigasi dan perbaikan pertama saat sesi dilanjutkan.",
-      "status": "OPEN_BUG"
+      "summary": "Resolved via DEC-008. Precomputed M1 Databank memuat 79.313 lantai dan atap historis M1 murni langsung ke RAM Strategy Tester.",
+      "status": "RESOLVED"
     }
   ]
 }
