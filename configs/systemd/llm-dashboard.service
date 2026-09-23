@@ -1,5 +1,5 @@
 [Unit]
-Description=LLMTradingV2 Production Trading Daemon
+Description=LLMTradingV2 Institutional Web Dashboard
 After=network.target
 
 [Service]
@@ -7,7 +7,8 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/LLMTradingV2
 Environment="PYTHONPATH=/home/ubuntu/LLMTradingV2"
-ExecStart=/home/ubuntu/LLMTradingV2/.venv/bin/python3 /home/ubuntu/LLMTradingV2/src/bridge/server.py
+Environment="PORT=8080"
+ExecStart=/home/ubuntu/LLMTradingV2/.venv/bin/python3 -m src.dashboard.server
 Restart=always
 RestartSec=5
 
