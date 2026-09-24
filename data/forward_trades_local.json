@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "trade_id": "10390214488",
+    "position_id": "10659246956",
+    "symbol": "XAUUSD",
+    "direction": "SELL",
+    "timeframe": "M1",
+    "entry_time": "2026-09-24T14:16:21+00:00",
+    "exit_time": "2026-09-24T14:16:31+00:00",
+    "entry_price": 4263.6,
+    "exit_price": 4263.08,
+    "lots": 0.01,
+    "sl_price": 0.0,
+    "tp_price": 0.0,
+    "expected_entry_price": 4263.6,
+    "actual_entry_price": 4263.6,
+    "slippage_pts": 0.05,
+    "pnl": 0.52,
+    "r_multiple": 0.1,
+    "exit_reason": "TP/BEP Closed"
+  }
+]

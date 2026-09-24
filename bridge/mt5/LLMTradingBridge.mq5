@@ -661,7 +661,7 @@ void OnTick()
                   "\"exit_time\":%I64d,"
                   "\"pnl\":%.2f,"
                   "\"magic\":%I64d}}\n",
-                  dTicket, posId, symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, dMagic
+                  dTicket, posId, symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, netPnl, dMagic
                );
 
                SendString(closeJson);
@@ -756,7 +756,7 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
                   "\"exit_time\":%I64d,"
                   "\"pnl\":%.2f,"
                   "\"magic\":%I64d}}\n",
-                  dealTicket, posId, symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, magic
+                  dealTicket, posId, symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, netPnl, magic
                );
 
                SendString(closeJson);
