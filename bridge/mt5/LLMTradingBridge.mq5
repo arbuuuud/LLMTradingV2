@@ -692,9 +692,10 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
                }
 
                string closeJson = StringFormat(
-                  "{\"type\":\"CLOSED_TRADE\",\"data\":{"
+                  "{\"type\":\"CLOSED_TRADE\",\"account_id\":\"%I64d\",\"data\":{"
                   "\"trade_id\":\"%I64u\","
                   "\"position_id\":\"%I64u\","
+                  "\"account_number\":\"%I64d\","
                   "\"symbol\":\"%s\","
                   "\"direction\":\"%s\","
                   "\"timeframe\":\"M1\","
@@ -705,7 +706,7 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
                   "\"exit_time\":%I64d,"
                   "\"pnl\":%.2f,"
                   "\"magic\":%I64d}}\n",
-                  dealTicket, posId, symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, netPnl, magic
+                  AccountInfoInteger(ACCOUNT_LOGIN), dealTicket, posId, AccountInfoInteger(ACCOUNT_LOGIN), symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, netPnl, magic
                );
 
                SendString(closeJson);
