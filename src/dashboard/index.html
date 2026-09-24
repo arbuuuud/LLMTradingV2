@@ -366,6 +366,14 @@
               <span class="text-slate-400 block font-mono text-[11px]">WIN RATE</span>
               <span id="forward-local-wr" class="text-xl font-bold text-emerald-400 mt-1 block">0.0%</span>
             </div>
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">NET PROFIT</span>
+              <span id="forward-local-pnl" class="text-xl font-bold text-slate-200 mt-1 block">$0.00</span>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">AVG SLIPPAGE</span>
+              <span id="forward-local-slip" class="text-xl font-bold text-blue-400 mt-1 block">0.05 pts</span>
+            </div>
           </div>
         </div>
 
@@ -388,7 +396,46 @@
               <span class="text-slate-400 block font-mono text-[11px]">WIN RATE</span>
               <span id="forward-vps-wr" class="text-xl font-bold text-emerald-400 mt-1 block">0.0%</span>
             </div>
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">NET PROFIT</span>
+              <span id="forward-vps-pnl" class="text-xl font-bold text-slate-200 mt-1 block">$0.00</span>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">AVG SLIPPAGE</span>
+              <span id="forward-vps-slip" class="text-xl font-bold text-blue-400 mt-1 block">0.00 pts</span>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Live Harvested Trades Log Table -->
+      <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+        <div class="p-4 border-b border-slate-800/80 flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2 font-mono">
+            <i class="fa-solid fa-list-check text-blue-400"></i> REAL-TIME CLOSED DEALS TELEMETRY (LIVE MT5 FEED)
+          </h3>
+          <span class="text-xs text-slate-400 font-mono" id="forward-table-count">Menampilkan 0 trades</span>
+        </div>
+        <div class="overflow-x-auto max-h-80 overflow-y-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
+              <tr>
+                <th class="py-2.5 px-4">Deal ID</th>
+                <th class="py-2.5 px-4">Position</th>
+                <th class="py-2.5 px-4">Symbol</th>
+                <th class="py-2.5 px-4">Type</th>
+                <th class="py-2.5 px-4 text-right">Exit Price</th>
+                <th class="py-2.5 px-4 text-right">Net PnL ($)</th>
+                <th class="py-2.5 px-4 text-right">Exit Time (UTC)</th>
+                <th class="py-2.5 px-4 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="forward-deals-tbody" class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td colspan="8" class="text-center py-6 text-slate-500">Belum ada closed deal tercatat.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -965,15 +1012,69 @@
         const loc = d.local || [];
         const locWins = loc.filter(t => t.pnl > 0).length;
         const locWr = loc.length > 0 ? ((locWins / loc.length) * 100).toFixed(1) : "0.0";
+        const locNetPnl = loc.reduce((sum, t) => sum + (t.pnl || 0), 0);
         document.getElementById('forward-local-trades').innerHTML = `${loc.length} <span class="text-xs text-slate-500 font-normal">/ 50</span>`;
         document.getElementById('forward-local-wr').innerText = `${locWr}%`;
+        const elLocPnl = document.getElementById('forward-local-pnl');
+        if (elLocPnl) {
+          elLocPnl.innerText = `${locNetPnl >= 0 ? '+' : ''}$${locNetPnl.toFixed(2)}`;
+          elLocPnl.className = `text-xl font-bold mt-1 block ${locNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        }
 
         // 2. VPS Trades
         const vps = d.vps || [];
         const vpsWins = vps.filter(t => t.pnl > 0).length;
         const vpsWr = vps.length > 0 ? ((vpsWins / vps.length) * 100).toFixed(1) : "0.0";
+        const vpsNetPnl = vps.reduce((sum, t) => sum + (t.pnl || 0), 0);
         document.getElementById('forward-vps-trades').innerHTML = `${vps.length} <span class="text-xs text-slate-500 font-normal">/ 50</span>`;
         document.getElementById('forward-vps-wr').innerText = `${vpsWr}%`;
+        const elVpsPnl = document.getElementById('forward-vps-pnl');
+        if (elVpsPnl) {
+          elVpsPnl.innerText = `${vpsNetPnl >= 0 ? '+' : ''}$${vpsNetPnl.toFixed(2)}`;
+          elVpsPnl.className = `text-xl font-bold mt-1 block ${vpsNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        }
+
+        // 3. Render Real-time Closed Deals Table
+        const tbody = document.getElementById('forward-deals-tbody');
+        const countLabel = document.getElementById('forward-table-count');
+        const allDeals = [...loc, ...vps];
+        if (countLabel) countLabel.innerText = `Menampilkan ${allDeals.length} closed deals`;
+
+        if (tbody) {
+          if (allDeals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-500">Belum ada closed deal tercatat.</td></tr>';
+          } else {
+            // Sort newest exit first
+            allDeals.sort((a, b) => new Date(b.exit_time || 0) - new Date(a.exit_time || 0));
+            tbody.innerHTML = allDeals.map(t => {
+              const isWin = (t.pnl || 0) >= 0;
+              const pnlClass = isWin ? 'text-emerald-400' : 'text-rose-400';
+              const pnlSign = isWin ? '+' : '';
+              const exitTimeStr = t.exit_time ? new Date(t.exit_time).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '-';
+              const isBuy = t.direction === 'BUY';
+              const typeBadge = isBuy
+                ? '<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">BUY</span>'
+                : '<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px]">SELL</span>';
+
+              return `
+                <tr class="hover:bg-slate-800/40 transition">
+                  <td class="py-2.5 px-4 text-slate-400">#${t.trade_id}</td>
+                  <td class="py-2.5 px-4 text-slate-300">#${t.position_id || t.trade_id}</td>
+                  <td class="py-2.5 px-4 font-bold text-white">${t.symbol || 'XAUUSD'}</td>
+                  <td class="py-2.5 px-4">${typeBadge}</td>
+                  <td class="py-2.5 px-4 text-right font-mono">$${(t.exit_price || 0).toFixed(2)}</td>
+                  <td class="py-2.5 px-4 text-right font-mono font-bold ${pnlClass}">${pnlSign}$${(t.pnl || 0).toFixed(2)}</td>
+                  <td class="py-2.5 px-4 text-right text-slate-400 font-mono text-[11px]">${exitTimeStr}</td>
+                  <td class="py-2.5 px-4 text-center">
+                    <span class="px-2 py-0.5 rounded text-[10px] ${isWin ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                      ${isWin ? 'WIN' : 'LOSS'}
+                    </span>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
       } catch (err) {
         console.error("Failed to load forward test data:", err);
       }
