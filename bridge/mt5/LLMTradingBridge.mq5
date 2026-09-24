@@ -600,6 +600,59 @@ void OnTick()
       }
    }
 
+   // 2B. Direct Deal History Scan fallback (Guarantees closed trades captured even if OnTradeTransaction is skipped)
+   static ulong last_scanned_deal = 0;
+   if(HistorySelect(TimeCurrent() - 7200, TimeCurrent() + 60))
+   {
+      int dealsTotal = HistoryDealsTotal();
+      for(int d = dealsTotal - 1; d >= 0; d--)
+      {
+         ulong dTicket = HistoryDealGetTicket(d);
+         if(dTicket <= last_scanned_deal && last_scanned_deal > 0)
+            break;
+
+         long dEntry = HistoryDealGetInteger(dTicket, DEAL_ENTRY);
+         if(dEntry == DEAL_ENTRY_OUT || dEntry == DEAL_ENTRY_INOUT || dEntry == DEAL_ENTRY_OUT_BY)
+         {
+            long dMagic = HistoryDealGetInteger(dTicket, DEAL_MAGIC);
+            if(dMagic == 1001 || dMagic == 2001 || dMagic == (long)InpMagicNumber)
+            {
+               long posId = HistoryDealGetInteger(dTicket, DEAL_POSITION_ID);
+               string symbol = HistoryDealGetString(dTicket, DEAL_SYMBOL);
+               double profit = HistoryDealGetDouble(dTicket, DEAL_PROFIT);
+               double swap = HistoryDealGetDouble(dTicket, DEAL_SWAP);
+               double comm = HistoryDealGetDouble(dTicket, DEAL_COMMISSION);
+               double netPnl = profit + swap + comm;
+               double exitPrice = HistoryDealGetDouble(dTicket, DEAL_PRICE);
+               double lots = HistoryDealGetDouble(dTicket, DEAL_VOLUME);
+               long exitTime = (long)HistoryDealGetInteger(dTicket, DEAL_TIME);
+               ENUM_DEAL_TYPE dType = (ENUM_DEAL_TYPE)HistoryDealGetInteger(dTicket, DEAL_TYPE);
+               string dirStr = (dType == DEAL_TYPE_BUY) ? "SELL" : "BUY";
+
+               string closeJson = StringFormat(
+                  "{\"type\":\"CLOSED_TRADE\",\"data\":{"
+                  "\"trade_id\":\"%I64u\","
+                  "\"position_id\":\"%I64u\","
+                  "\"symbol\":\"%s\","
+                  "\"direction\":\"%s\","
+                  "\"timeframe\":\"M1\","
+                  "\"lots\":%.2f,"
+                  "\"exit_price\":%.2f,"
+                  "\"pnl\":%.2f,"
+                  "\"exit_time\":%I64d,"
+                  "\"magic\":%I64d}}\n",
+                  dTicket, posId, symbol, dirStr, lots, exitPrice, netPnl, exitTime, dMagic
+               );
+
+               SendString(closeJson);
+               PrintFormat("[LLM Bridge] 💰 HISTORICAL DEAL TRANSMITTED: Deal #%I64u (Pos #%I64u) -> PnL: $%.2f", dTicket, posId, netPnl);
+            }
+         }
+      }
+      if(dealsTotal > 0)
+         last_scanned_deal = HistoryDealGetTicket(dealsTotal - 1);
+   }
+
    // 3. Format complete JSON telemetry packet to Python Brain
    string tickJson = StringFormat(
       "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"positions\":[%s],\"orders\":[%s]}\n",

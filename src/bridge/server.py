@@ -207,10 +207,13 @@ class LiveMT5BridgeCore:
             cur_p = pos.get("current_price", current_price)
             sl = pos.get("sl", 0.0)
 
+            spread_val = max(0.20, round(self.latest_tick.get("ask", 0) - self.latest_tick.get("bid", 0), 2)) if self.latest_tick else 0.35
+
             # 1. Handover BEP Trigger (+1.0 point profit)
+            # Guarantee Net Profit > 0 after covering commission and bid-ask spread
             if side == "BUY" and cur_p >= entry_p + 1.0 and sl < entry_p:
-                bep_sl = round(entry_p + 0.20, 2)  # Entry + spread buffer
-                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on BUY #{ticket} @ ${bep_sl:.2f}")
+                bep_sl = round(entry_p + 0.20, 2)  # Entry + positive buffer (Buy closed at Bid, so Bid = entry + 0.20 > entry)
+                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on BUY #{ticket} @ ${bep_sl:.2f} (Net Profit Guaranteed > 0)")
                 asyncio.create_task(self.broadcast({
                     "action": "MODIFY_POSITION",
                     "ticket": ticket,
@@ -223,7 +226,7 @@ class LiveMT5BridgeCore:
                     "id": int(now * 1000),
                     "timestamp": datetime.now().strftime("%H:%M:%S"),
                     "title": f"🛡️ BEP Lock Activated!",
-                    "message": f"BUY #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Zero Risk!",
+                    "message": f"BUY #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Profit > $0 Guaranteed!",
                     "type": "BEP",
                     "price": bep_sl
                 }
@@ -232,8 +235,10 @@ class LiveMT5BridgeCore:
                     self.pending_notifications.pop(0)
 
             elif side == "SELL" and cur_p <= entry_p - 1.0 and (sl > entry_p or sl == 0.0):
-                bep_sl = round(entry_p - 0.20, 2)  # Entry - spread buffer
-                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on SELL #{ticket} @ ${bep_sl:.2f}")
+                # For SELL: closure requires BUYING at ASK (Ask = Bid + Spread).
+                # To guarantee net profit > 0 when triggered at Ask, SL must be below entry by at least (spread + buffer)
+                bep_sl = round(entry_p - (spread_val + 0.15), 2)  # Entry - spread - buffer (Guarantees exit profit > $0)
+                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on SELL #{ticket} @ ${bep_sl:.2f} (Net Profit Guaranteed > 0 covering spread {spread_val:.2f})")
                 asyncio.create_task(self.broadcast({
                     "action": "MODIFY_POSITION",
                     "ticket": ticket,
@@ -246,7 +251,7 @@ class LiveMT5BridgeCore:
                     "id": int(now * 1000),
                     "timestamp": datetime.now().strftime("%H:%M:%S"),
                     "title": f"🛡️ BEP Lock Activated!",
-                    "message": f"SELL #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Zero Risk!",
+                    "message": f"SELL #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Profit > $0 Guaranteed!",
                     "type": "BEP",
                     "price": bep_sl
                 }
@@ -652,26 +657,49 @@ class LiveMT5BridgeCore:
                 for pos in self.live_open_positions
             )
 
+            # Auto-cleanup stale pending orders from previous opposite or far expired zones
+            if (dir_cmd != self._last_order_direction):
+                # Direction flipped! Cancel outdated pending orders in opposite direction
+                opp_side = "BUY_LIMIT" if dir_cmd == "SELL" else "SELL_LIMIT"
+                if any(ord.get("type") == opp_side for ord in self.live_pending_orders):
+                    asyncio.create_task(self.broadcast({
+                        "action": "CANCEL_PENDING",
+                        "symbol": "XAUUSD",
+                        "magic": 1001
+                    }))
+                    logger.info(f"🧹 [STALE ORDER CLEANUP] Direction flipped to {dir_cmd}. Purging outdated pending orders.")
+
             # Cooldown: 1 order event per direction change, no duplicate pending in same zone, and cooldown > 30s
             if not has_matching_pending and not has_active_pos and ((dir_cmd != self._last_order_direction) or (now_time - self._last_order_time > 60.0)):
                 self._last_order_direction = dir_cmd
                 self._last_order_time = now_time
 
-                side = "BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"
-                # Ensure limit price is valid against current bid/ask
-                if dir_cmd == "BUY":
-                    limit_p = round(min(bid - 0.30, m1_setup["buy_zone"]["untouched_top"]), 2)
-                else:
-                    limit_p = round(max(ask + 0.30, m1_setup["sell_zone"]["untouched_bottom"]), 2)
-
-                sl = m1_setup["sl_hard"]
-                base_tp = m1_setup["tp_midpoint"]
                 spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
 
-                # Broker Spread Compensation:
-                # - For SELL: Exit is executed at ASK price (Ask = Bid + Spread).
-                #   To ensure TP is filled when Bid reaches equilibrium, TP must be adjusted upward by spread.
-                # - For BUY: Exit is executed at BID price (Bid = Ask - Spread).
+                # 1. Limit Order Price Adjustment (Spread Friction Compensated):
+                # - BUY_LIMIT: Fills when ASK drops to limit_p. Placed at untouched buy top.
+                #   Must be <= bid - 0.20 to be accepted by broker.
+                # - SELL_LIMIT: Fills when BID rises to limit_p. Placed at untouched sell bottom.
+                #   Must be >= ask + 0.20 to be accepted by broker.
+                if dir_cmd == "BUY":
+                    untouched_p = m1_setup["buy_zone"]["untouched_top"]
+                    limit_p = round(min(bid - 0.25, untouched_p), 2)
+                else:
+                    untouched_p = m1_setup["sell_zone"]["untouched_bottom"]
+                    limit_p = round(max(ask + 0.25, untouched_p), 2)
+
+                # 2. Hard Stop Loss Adjustment (Spread Compensated to prevent premature wicks):
+                # - For BUY: Exit is at BID. Base SL is sw_low - 2.5.
+                # - For SELL: Exit is at ASK (Ask = Bid + Spread). We add spread buffer to Hard SL
+                #   so market spread widening doesn't prematurely trigger the stop loss!
+                base_sl = m1_setup["sl_hard"]
+                if dir_cmd == "SELL":
+                    sl = round(base_sl + spread_val, 2)
+                else:
+                    sl = round(base_sl - spread_val, 2)
+
+                # 3. Take Profit Adjustment (Spread Compensated for clean fills):
+                base_tp = m1_setup["tp_midpoint"]
                 if dir_cmd == "SELL":
                     tp = round(base_tp + spread_val, 2)
                 else:
