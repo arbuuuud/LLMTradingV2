@@ -125,7 +125,48 @@ Dihasilkan oleh **Guardian Agent (ForceClose)**:
 
 ---
 
-## 5. Matriks Peran Agent (Single Responsibility Principle)
+## 5. Arsitektur Dua Lapisan: Platform Pabrik vs Strategy Engine Plug-in
+
+Untuk mencegah keterikatan kode (*code entanglement*) dan menjaga agar penambahan strategi baru tidak merusak sistem yang sudah ada, sistem LLMTradingV2 dibagi menjadi dua lapisan hierarki yang terisolasi secara ketat:
+
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    TIER 1: MASTER PLATFORM (INVARIANT)                    │
+│  Data Lake | MT5 Bridge | 4 Master Inspectors | Disparity Auditor Engine   │
+└─────────────────────────────────────┬─────────────────────────────────────┘
+                                      │ Menyediakan Primitives (SMC, Swings, OB, Candles)
+                                      ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                 TIER 2: STRATEGY ENGINE INTERFACE (PLUG-IN)                │
+│                                                                           │
+│  Setiap Engine memiliki kontrak mandiri:                                  │
+│  1. Setup & Entry Logic (Naruto Engine)                                   │
+│  2. Force Stop & Overseer Policy (Sasuke Sharingan Overseer)             │
+│  3. Telemetry & State Contract                                            │
+└───────────────┬───────────────────────────────────────────┬───────────────┘
+                │                                           │
+                ▼                                           ▼
+┌───────────────────────────────┐           ┌───────────────────────────────┐
+│    ENGINE #1: PAC SCALPER     │           │     ENGINE #2: (NEXT ENGINE)  │
+│  • Style: Equilibrium Rebound │           │  • Style: Liquidity Sweep     │
+│  • Naruto: Kuadran 0-25% Buy  │           │  • Naruto: Turtle Soup / FVG  │
+│  • Sasuke: Midpoint Reversal, │           │  • Sasuke: Breaker Inval,     │
+│    Greed Trailing Step        │           │    Time-based Decay           │
+│  • Folder: `src/engines/pac/` │           │  • Folder: `src/engines/e2/`  │
+└───────────────────────────────┘           └───────────────────────────────┘
+```
+
+### 5.1. Koridor Isolasi Antar-Engine
+1. **Universal Primitives (`src/features/`)**: 4 Master Inspectors (Structure, FVG, OB, CandlePattern) bersifat abadi (*invariant*) dan tidak boleh diubah untuk kepentingan strategi tertentu. Semua engine mengonsumsi output yang sama dari sini.
+2. **Modularisasi Naruto (The Creator)**: Naruto berperan mengeksplorasi setup entry sesuai paradigma engine yang aktif (misal: PAC menguji kuadran equilibrium; Engine #2 kelak menguji sapuan likuiditas).
+3. **Modularisasi Sasuke Sharingan (The Guardian Overseer)**: Sasuke dilatih memahami karakter unik masing-masing engine. *Force Stop Strategy* Sasuke pada PAC berfokus pada target Midpoint dan pembalikan lilin pucuk, sedangkan pada Engine #2 Sasuke dapat menggunakan aturan structural invalidation yang berbeda 180°.
+4. **Isolasi Direktori Engine (`src/engines/`)**:
+   - `src/engines/pac/`: Khusus menampung strategi PAC, parameter kuadran, dan model pengawasan Sasuke untuk PAC.
+   - `src/engines/<future_engine>/`: Engine baru di masa depan tinggal mencolokkan file baru ke direktori mandirinya tanpa menyentuh core platform.
+
+---
+
+## 6. Matriks Peran Agent (Single Responsibility Principle)
 
 | Agent | Scope | Input | Output | Sifat |
 |---|---|---|---|---|

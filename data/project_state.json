@@ -364,6 +364,13 @@
       "topic": "Forward vs Backtest Disparity Audit Protocol",
       "summary": "Setiap forward test selesai, data bar waktu yang sama persis WAJIB dijalankan ulang di Python engine (T4-1C) untuk membongkar akar disparitas eksekusi (slippage, spread, BEP choking).",
       "status": "MANDATORY"
+    },
+    {
+      "id": "DEC-021",
+      "date": "2026-09-24",
+      "topic": "Two-Tier Separation: Master Platform vs Plug-in Strategy Engines",
+      "summary": "Core Platform (Data Lake, MT5 Bridge, 4 Master Inspectors, Vectorized Engine, Disparity Auditor) bersifat universal & abadi. Setiap Strategy Engine (diawali PAC Scalper di src/engines/pac/) adalah plug-in mandiri. Naruto & Sasuke dikonfigurasi spesifik per engine tanpa mencemari platform saat engine #2 dibuat.",
+      "status": "CONFIRMED"
     }
   ]
 }
