@@ -266,21 +266,18 @@ class LiveMT5BridgeCore:
             # Evaluate using recent M1 candles from history
             if len(self.history_m1) >= 5:
                 recent_candles = self.history_m1[-10:]
-                initial_sl = pos.get("sl", entry_p - 3.0 if side == "BUY" else entry_p + 3.0)
-                if initial_sl == 0.0:
-                    initial_sl = entry_p - 3.0 if side == "BUY" else entry_p + 3.0
+                current_candle = self.history_m1[-1]
 
-                sasuke_decision = self.sasuke_overseer.evaluate_position_with_sharingan(
-                    pos_id=str(ticket),
-                    pos_side=side,
-                    entry_price=entry_p,
-                    current_price=cur_p,
-                    initial_sl=initial_sl,
-                    candles=recent_candles
+                sasuke_verdict = self.sasuke_overseer.evaluate_position_with_sharingan(
+                    pos=pos,
+                    current_candle=current_candle,
+                    recent_m1_candles=recent_candles,
+                    account_equity=self.equity,
+                    initial_balance=self.balance
                 )
 
-                if sasuke_decision.action in (SasukeAction.FORCE_CLOSE_100, SasukeAction.STRUCTURAL_CUT):
-                    logger.warning(f"👁️ [SASUKE SHARINGAN] Force Close triggered on #{ticket}! Reason: {sasuke_decision.reason_detail}")
+                if sasuke_verdict.action == SasukeAction.FORCE_TP_REVERSAL:
+                    logger.warning(f"👁️ [SASUKE SHARINGAN] Force TP triggered on #{ticket}! Reason: {sasuke_verdict.rationale}")
                     asyncio.create_task(self.broadcast({
                         "action": "CLOSE_ALL",
                         "symbol": "XAUUSD",
@@ -290,14 +287,40 @@ class LiveMT5BridgeCore:
                     notif = {
                         "id": int(now * 1000),
                         "timestamp": datetime.now().strftime("%H:%M:%S"),
-                        "title": f"👁️ SASUKE SHARINGAN CUT!",
-                        "message": f"{side} #{ticket} cut: {sasuke_decision.reason_detail}",
+                        "title": f"👁️ SASUKE REVERSAL FORCE TP!",
+                        "message": f"{side} #{ticket} closed: {sasuke_verdict.rationale}",
                         "type": "FORCE_CLOSE",
                         "price": cur_p
                     }
                     self.pending_notifications.append(notif)
                     if len(self.pending_notifications) > 10:
                         self.pending_notifications.pop(0)
+
+                elif sasuke_verdict.action == SasukeAction.GREED_TRAILING_STEP:
+                    new_sl = sasuke_verdict.target_sl
+                    cur_sl = float(pos.get("sl", 0.0))
+                    should_update = (cur_sl == 0.0) or (side == "BUY" and new_sl > cur_sl) or (side == "SELL" and new_sl < cur_sl)
+
+                    if should_update and new_sl > 0:
+                        logger.info(f"👁️ [SASUKE GREED TRAILING] Updating SL on #{ticket} to ${new_sl:.2f}: {sasuke_verdict.rationale}")
+                        asyncio.create_task(self.broadcast({
+                            "action": "MODIFY_POSITION",
+                            "ticket": ticket,
+                            "sl": new_sl,
+                            "tp": pos.get("tp", 0.0)
+                        }))
+
+                        notif = {
+                            "id": int(now * 1000),
+                            "timestamp": datetime.now().strftime("%H:%M:%S"),
+                            "title": f"👁️ SASUKE GREED TRAILING!",
+                            "message": f"{side} #{ticket} SL locked at ${new_sl:.2f}",
+                            "type": "BEP",
+                            "price": new_sl
+                        }
+                        self.pending_notifications.append(notif)
+                        if len(self.pending_notifications) > 10:
+                            self.pending_notifications.pop(0)
 
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         client_addr = writer.get_extra_info("peername")
@@ -644,11 +667,11 @@ class LiveMT5BridgeCore:
             dir_cmd = m1_setup["direction"]
 
             # Sasuke Circuit Breaker Gate: Check if daily drawdown breached -1.0%
-            cb_status = self.sasuke_overseer.check_daily_circuit_breaker(self.equity)
-            if cb_status.is_tripped:
+            cb_status = self.sasuke_overseer.check_daily_circuit_breaker(account_equity=self.equity, starting_equity=self.balance)
+            if getattr(cb_status, "is_tripped", False):
                 if not hasattr(self, "_last_cb_warn") or (now_time - getattr(self, "_last_cb_warn", 0) > 300.0):
                     self._last_cb_warn = now_time
-                    logger.error(f"🚫 [SASUKE CIRCUIT BREAKER ACTIVE] Daily Drawdown limit (-1.0%) tripped: {cb_status.reason}. Trading HALTED!")
+                    logger.error(f"🚫 [SASUKE CIRCUIT BREAKER ACTIVE] Daily Drawdown limit (-1.0%) tripped: {getattr(cb_status, 'reason', '')}. Trading HALTED!")
                 return
 
             # Strict Retest Rule: Only 1 pending order per active zone to avoid spamming duplicate limit orders

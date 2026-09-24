@@ -81,19 +81,35 @@ class SasukeSharinganAgent:
         self.daily_realized_pnl: float = 0.0
         self.daily_lockout_active: bool = False
 
-    def check_daily_circuit_breaker(self, account_equity: float, starting_equity: float) -> bool:
+    def check_daily_circuit_breaker(self, account_equity: float, starting_equity: Optional[float] = None) -> Any:
         """
         Mata Sharingan memantau batas harian (-1.0% max loss).
         Jika tembus, seluruh trading hari itu dikunci mutlak.
         """
-        if starting_equity <= 0:
-            return False
+        base_eq = starting_equity if (starting_equity is not None and starting_equity > 0) else account_equity
+        if base_eq <= 0:
+            class CircuitBreakerResult:
+                is_tripped = False
+                reason = "Invalid Equity Base"
+            return CircuitBreakerResult()
 
-        drawdown_pct = ((account_equity - starting_equity) / starting_equity) * 100.0
-        if drawdown_pct <= self.daily_max_loss_pct:
+        drawdown_pct = ((account_equity - base_eq) / base_eq) * 100.0
+        is_tripped = drawdown_pct <= self.daily_max_loss_pct
+
+        if is_tripped:
             self.daily_lockout_active = True
-            return True
-        return False
+
+        class CircuitBreakerResult:
+            is_tripped: bool = False
+            reason: str = ""
+
+            def __bool__(self):
+                return self.is_tripped
+
+        res = CircuitBreakerResult()
+        res.is_tripped = is_tripped
+        res.reason = f"Drawdown {drawdown_pct:.2f}% breached limit {self.daily_max_loss_pct:.2f}%"
+        return res
 
     def evaluate_position_with_sharingan(
         self,
