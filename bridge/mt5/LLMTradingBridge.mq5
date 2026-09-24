@@ -11,6 +11,7 @@
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
 #include <Trade\AccountInfo.mqh>
+#include "PositionHelper.mqh"
 
 //--- INPUT PARAMETERS (ZERO-CONFIG RISK: GOVERNED BY PYTHON WEB DASHBOARD)
 input group "=== LLM Trading Bridge Connection ==="
@@ -602,7 +603,9 @@ void OnTick()
 
    // 2B. Direct Deal History Scan fallback (Guarantees closed trades captured even if OnTradeTransaction is skipped)
    static ulong last_scanned_deal = 0;
-   if(HistorySelect(TimeCurrent() - 7200, TimeCurrent() + 60))
+   datetime scanFrom = TimeCurrent() - 7200;
+   datetime scanTo = TimeCurrent() + 60;
+   if(HistorySelect(scanFrom, scanTo))
    {
       int dealsTotal = HistoryDealsTotal();
       for(int d = dealsTotal - 1; d >= 0; d--)
@@ -629,23 +632,15 @@ void OnTick()
                ENUM_DEAL_TYPE dType = (ENUM_DEAL_TYPE)HistoryDealGetInteger(dTicket, DEAL_TYPE);
                string dirStr = (dType == DEAL_TYPE_BUY) ? "SELL" : "BUY";
 
-               // Fetch true original Entry Price & Entry Time from Deal IN
+               // Fetch true original Entry Price & Entry Time using helper without breaking loop
                double trueEntryPrice = exitPrice;
                long trueEntryTime = exitTime;
-               if(HistorySelectByPosition(posId))
-               {
-                  int posDeals = HistoryDealsTotal();
-                  for(int pd = 0; pd < posDeals; pd++)
-                  {
-                     ulong pt = HistoryDealGetTicket(pd);
-                     if(pt > 0 && HistoryDealGetInteger(pt, DEAL_ENTRY) == DEAL_ENTRY_IN)
-                     {
-                        trueEntryPrice = HistoryDealGetDouble(pt, DEAL_PRICE);
-                        trueEntryTime = (long)HistoryDealGetInteger(pt, DEAL_TIME);
-                        break;
-                     }
-                  }
-               }
+               GetPositionEntryInfo(posId, trueEntryPrice, trueEntryTime);
+               if(trueEntryPrice <= 0.0) trueEntryPrice = exitPrice;
+               if(trueEntryTime <= 0) trueEntryTime = exitTime;
+
+               // Restore global history selection for outer loop
+               HistorySelect(scanFrom, scanTo);
 
                string closeJson = StringFormat(
                   "{\"type\":\"CLOSED_TRADE\",\"data\":{"
