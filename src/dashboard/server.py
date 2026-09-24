@@ -645,22 +645,43 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
         elif path == "/api/accounts/save":
             cfg = load_accounts_config()
             acc_id = payload.get("account_id") or f"ACC-{payload.get('account_number', 'NEW')}"
+            existing_acc = cfg.get("accounts", {}).get(acc_id, {})
             account_data = {
-                "account_number": str(payload.get("account_number", "")),
-                "broker_name": payload.get("broker_name", "DemoBroker"),
-                "server": payload.get("server", "Demo-Server"),
-                "account_type": payload.get("account_type", "DEMO"),
-                "risk_profile": payload.get("risk_profile", "prop_firm"),
-                "status": payload.get("status", "CONNECTED"),
-                "balance": float(payload.get("balance", 10000.0)),
-                "equity": float(payload.get("equity", 10000.0)),
-                "assigned_timeframes": payload.get("assigned_timeframes", ["M1", "M2", "M3", "M5"]),
+                "account_number": str(payload.get("account_number", existing_acc.get("account_number", ""))),
+                "broker_name": payload.get("broker_name", existing_acc.get("broker_name", "DemoBroker")),
+                "server": payload.get("server", existing_acc.get("server", "Demo-Server")),
+                "account_type": payload.get("account_type", existing_acc.get("account_type", "DEMO")),
+                "risk_profile": payload.get("risk_profile", existing_acc.get("risk_profile", "none")),
+                "active": bool(payload.get("active", existing_acc.get("active", False))),
+                "status": payload.get("status", existing_acc.get("status", "CONNECTED")),
+                "balance": float(payload.get("balance", existing_acc.get("balance", 10000.0))),
+                "equity": float(payload.get("equity", existing_acc.get("equity", 10000.0))),
+                "assigned_timeframes": payload.get("assigned_timeframes", existing_acc.get("assigned_timeframes", ["M1", "M2", "M3", "M5"])),
                 "updated_at": datetime.now().isoformat()
             }
             cfg.setdefault("accounts", {})[acc_id] = account_data
             save_accounts_config(cfg)
             self._set_json_headers(200)
             self.wfile.write(json.dumps({"status": "SAVED", "account_id": acc_id, "data": account_data}).encode("utf-8"))
+            return
+
+        # 2B. Quick Update Account Profile or Active Toggle
+        elif path == "/api/accounts/update-settings":
+            cfg = load_accounts_config()
+            acc_id = payload.get("account_id")
+            if acc_id and acc_id in cfg.get("accounts", {}):
+                acc = cfg["accounts"][acc_id]
+                if "risk_profile" in payload:
+                    acc["risk_profile"] = str(payload["risk_profile"]).lower()
+                if "active" in payload:
+                    acc["active"] = bool(payload["active"])
+                acc["updated_at"] = datetime.now().isoformat()
+                save_accounts_config(cfg)
+                self._set_json_headers(200)
+                self.wfile.write(json.dumps({"status": "UPDATED", "account_id": acc_id, "account": acc}).encode("utf-8"))
+            else:
+                self._set_json_headers(404)
+                self.wfile.write(json.dumps({"error": "Account not found"}).encode("utf-8"))
             return
 
         # 3. Delete MT5 Account

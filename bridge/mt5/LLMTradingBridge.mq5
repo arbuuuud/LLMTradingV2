@@ -356,6 +356,18 @@ void ProcessCommand(string cmdJson)
       if(comment == "") comment = "LLM_AI_Trade";
       if(magic <= 0) magic = (long)InpMagicNumber;
 
+      // Filter: If account_number is specified, only execute if matches this MT5 account login
+      string targetAcc = ExtractJsonString(cmdJson, "account_number");
+      if(targetAcc != "")
+      {
+         string myAcc = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+         if(targetAcc != myAcc)
+         {
+            // Belongs to another MT5 account in multi-account terminal cluster
+            return;
+         }
+      }
+
       // 1. Check Terminal Algo Trading Master Switch
       if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED))
       {

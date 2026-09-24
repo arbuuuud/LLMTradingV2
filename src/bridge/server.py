@@ -95,27 +95,34 @@ class LiveMT5BridgeCore:
                 cfg = yaml.safe_load(f) or {}
 
             accounts = cfg.setdefault("accounts", {})
-            for k, acc in accounts.items():
-                if acc.get("status") == "CONNECTED":
-                    acc["status"] = "STANDBY"
-
             acc_key = f"ACC-{acc_id}"
-            accounts[acc_key] = {
-                "account_number": str(acc_id),
-                "broker_name": company,
-                "server": server or "MetaQuotes-Demo",
-                "account_type": "DEMO",
-                "risk_profile": cfg.get("default_profile", "prop_firm"),
-                "status": "CONNECTED",
-                "balance": balance,
-                "equity": equity,
-                "assigned_timeframes": ["M1", "M2", "M3", "M5"],
-                "updated_at": datetime.now().isoformat()
-            }
+
+            if acc_key not in accounts:
+                # Newly discovered MT5 account -> Default to NONE and INACTIVE for safety
+                accounts[acc_key] = {
+                    "account_number": str(acc_id),
+                    "broker_name": company,
+                    "server": server or "MetaQuotes-Demo",
+                    "account_type": "DEMO",
+                    "risk_profile": "none",
+                    "active": False,
+                    "status": "CONNECTED",
+                    "balance": balance,
+                    "equity": equity,
+                    "assigned_timeframes": ["M1", "M2", "M3", "M5"],
+                    "updated_at": datetime.now().isoformat()
+                }
+                logger.info(f"✨ [AUTO-REGISTER] New Live MT5 Account #{acc_id} detected! Profile='none', Active=False. Configure in Dashboard!")
+            else:
+                # Update existing account's live balance/equity/status without overriding user-set profile or active flag
+                accounts[acc_key]["balance"] = balance
+                accounts[acc_key]["equity"] = equity
+                accounts[acc_key]["status"] = "CONNECTED"
+                accounts[acc_key]["updated_at"] = datetime.now().isoformat()
+                logger.info(f"🔄 [AUTO-REGISTER] Refreshed MT5 Account #{acc_id}! Profile='{accounts[acc_key].get('risk_profile')}', Active={accounts[acc_key].get('active', False)}")
 
             with open(ACCOUNTS_CONFIG_PATH, "w", encoding="utf-8") as f:
                 yaml.dump(cfg, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-            logger.info(f"✨ [AUTO-REGISTER] Live MT5 Account #{acc_id} ({company}) synced to accounts.yaml! Balance=${balance:.2f} Equity=${equity:.2f}")
         except Exception as e:
             logger.error(f"Error auto-registering account #{acc_id}: {e}")
 
@@ -142,6 +149,20 @@ class LiveMT5BridgeCore:
         if any(str(t.get("trade_id")) == trade_id for t in existing):
             return
 
+        # Look up account metadata & risk profile from accounts.yaml
+        acc_num = str(data.get("account_number") or data.get("account_id") or self.active_account_id)
+        acc_profile = "none"
+        if ACCOUNTS_CONFIG_PATH.exists():
+            try:
+                import yaml
+                with open(ACCOUNTS_CONFIG_PATH, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                acc_obj = cfg.get("accounts", {}).get(f"ACC-{acc_num}")
+                if acc_obj:
+                    acc_profile = acc_obj.get("risk_profile", "none")
+            except Exception:
+                pass
+
         exit_t_sec = data.get("exit_time", time.time())
         exit_dt_str = datetime.fromtimestamp(exit_t_sec, tz=timezone.utc).isoformat()
 
@@ -155,6 +176,8 @@ class LiveMT5BridgeCore:
         record = {
             "trade_id": trade_id,
             "position_id": str(data.get("position_id", trade_id)),
+            "account_number": acc_num,
+            "risk_profile": acc_profile,
             "symbol": data.get("symbol", "XAUUSD"),
             "direction": data.get("direction", "BUY"),
             "timeframe": "M1",
@@ -740,13 +763,11 @@ class LiveMT5BridgeCore:
                 else:
                     tp = round(base_tp + spread_val, 2)
 
-                # 3. KUBU-GRID-3-LAYER DISPATCHER (Juara Mutlak Turnamen Subtask 5-3D)
+        # 3. KUBU-GRID-3-LAYER DISPATCHER (Juara Mutlak Turnamen Subtask 5-3D)
                 # Menebar 3 Limit Order Serentak dari Lantai Atas ke Dasar:
                 # Untuk BUY : Layer 1 di 25% (Lantai Atas Buy), Layer 2 di 12.5% (Tengah), Layer 3 di 0% (Dasar Lantai)
                 # Untuk SELL: Layer 1 di 75% (Lantai Bawah Sell), Layer 2 di 87.5% (Tengah), Layer 3 di 100% (Pucuk Atap)
-                # Total risiko tetap 0.50% equity (dibagi rata 3 layer = ~0.166% per layer)
                 num_layers = 3
-                risk_per_layer_pct = 0.50 / num_layers
 
                 if dir_cmd == "BUY":
                     target_levels = [
@@ -761,50 +782,86 @@ class LiveMT5BridgeCore:
                         round(max(ask + 0.75, sw_high), 2)                # Layer 3: Pucuk Atap (100%)
                     ]
 
-                dispatched_orders = []
-                for lay_idx, limit_p in enumerate(target_levels):
-                    sl_dist = max(1.0, abs(limit_p - sl))
-                    sl_dist_points = sl_dist / self.adapter.spec.point
+                # Load current configured accounts & risk profiles from accounts.yaml
+                target_accounts = {}
+                if ACCOUNTS_CONFIG_PATH.exists():
+                    try:
+                        import yaml
+                        with open(ACCOUNTS_CONFIG_PATH, "r", encoding="utf-8") as f:
+                            cfg = yaml.safe_load(f) or {}
+                        profiles_cfg = cfg.get("risk_profiles", {})
+                        for acc_k, acc_v in cfg.get("accounts", {}).items():
+                            p_name = acc_v.get("risk_profile", "none")
+                            is_active = acc_v.get("active", False)
+                            # Only trade if account is active AND has an assigned profile (not 'none')
+                            if is_active and p_name in profiles_cfg:
+                                r_pct = float(profiles_cfg[p_name].get("risk_per_trade_pct", 0.50))
+                                target_accounts[acc_k] = {
+                                    "account_number": str(acc_v.get("account_number")),
+                                    "profile": p_name,
+                                    "equity": float(acc_v.get("equity", self.equity)),
+                                    "risk_pct": r_pct
+                                }
+                    except Exception as e:
+                        logger.error(f"Error loading accounts for dispatch: {e}")
 
-                    calc_lot = self.adapter.calculate_lot(
-                        equity=max(100.0, self.equity),
-                        risk_pct=risk_per_layer_pct,
-                        sl_distance_points=sl_dist_points
-                    )
-                    layer_lot = self.adapter.normalize_lot(calc_lot)
-                    if layer_lot <= 0.0:
-                        layer_lot = 0.01
+                # If no accounts configured in yaml or none active, fallback to single active account
+                if not target_accounts:
+                    logger.warning("⚠️ No active accounts with configured risk profile found in accounts.yaml. Order dispatch skipped.")
+                    return
 
-                    order_cmd = {
-                        "action": "ORDER",
-                        "symbol": "XAUUSD",
-                        "side": side,
-                        "lots": layer_lot,
-                        "price": limit_p,
-                        "sl": sl,
-                        "tp": tp, # 1 titik Hard TP bersama
-                        "magic": 1001,
-                        "comment": f"PAC_GRID_L{lay_idx+1}"
-                    }
+                dispatched_orders_summary = []
+                for acc_k, acc_info in target_accounts.items():
+                    acc_num = acc_info["account_number"]
+                    acc_prof = acc_info["profile"]
+                    acc_eq = max(100.0, acc_info["equity"])
+                    acc_risk_tot = acc_info["risk_pct"]
+                    risk_per_layer = acc_risk_tot / num_layers
 
-                    # Dispatch ke MT5 EA
-                    asyncio.create_task(self.broadcast(order_cmd))
-                    dispatched_orders.append((limit_p, layer_lot))
+                    for lay_idx, limit_p in enumerate(target_levels):
+                        sl_dist = max(1.0, abs(limit_p - sl))
+                        sl_dist_points = sl_dist / self.adapter.spec.point
+
+                        calc_lot = self.adapter.calculate_lot(
+                            equity=acc_eq,
+                            risk_pct=risk_per_layer,
+                            sl_distance_points=sl_dist_points
+                        )
+                        layer_lot = self.adapter.normalize_lot(calc_lot)
+                        if layer_lot <= 0.0:
+                            layer_lot = 0.01
+
+                        order_cmd = {
+                            "action": "ORDER",
+                            "account_number": acc_num,
+                            "symbol": "XAUUSD",
+                            "side": side,
+                            "lots": layer_lot,
+                            "price": limit_p,
+                            "sl": sl,
+                            "tp": tp, # 1 titik Hard TP bersama
+                            "magic": 1001,
+                            "comment": f"PAC_{acc_prof.upper()[:4]}_L{lay_idx+1}"
+                        }
+
+                        # Broadcast order to MT5 clients
+                        asyncio.create_task(self.broadcast(order_cmd))
+                        dispatched_orders_summary.append(f"{acc_prof}({layer_lot:.2f}L)")
 
                 # Push instant Snackbar Notification for Dashboard
-                summary_prices = ", ".join([f"${p:.2f} ({l:.2f}L)" for p, l in dispatched_orders])
+                summary_str = ", ".join(list(set(dispatched_orders_summary)))
                 notif = {
                     "id": int(now_time * 1000),
                     "timestamp": datetime.now().strftime("%H:%M:%S"),
                     "title": f"🚀 3-LAYER GRID {side} DISPATCHED!",
-                    "message": f"Levels: {summary_prices} | SL: ${sl:.2f} | Shared TP: ${tp:.2f} (Total Risk 0.50% on ${self.equity:,.0f} Eq)",
+                    "message": f"Accounts: {summary_str} | SL: ${sl:.2f} | Shared TP: ${tp:.2f}",
                     "type": "BUY" if dir_cmd == "BUY" else "SELL",
                     "price": target_levels[0]
                 }
                 self.pending_notifications.append(notif)
                 if len(self.pending_notifications) > 10:
                     self.pending_notifications.pop(0)
-                logger.info(f"⚡ [3-LAYER GRID DISPATCH] Sent 3 {side} orders to MT5 EA: {summary_prices} (SL: ${sl:.2f}, TP: ${tp:.2f})")
+                logger.info(f"⚡ [MULTI-ACCOUNT GRID DISPATCH] Sent 3 {side} orders to {len(target_accounts)} active accounts: {summary_str}")
 
         now_utc = datetime.now(timezone.utc)
         curr_h = now_utc.hour

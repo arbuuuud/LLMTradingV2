@@ -520,10 +520,10 @@
             <tr>
               <th class="p-4">ACCOUNT NO / BROKER</th>
               <th class="p-4">TIPE AKUN</th>
-              <th class="p-4">RISK PROFILE</th>
-              <th class="p-4">ASSIGNED TIMEFRAMES</th>
+              <th class="p-4">RISK PROFILE (STRATEGY)</th>
+              <th class="p-4 text-center">AUTO DISPATCH</th>
               <th class="p-4">BALANCE / EQUITY</th>
-              <th class="p-4">STATUS</th>
+              <th class="p-4">CONNECTION</th>
               <th class="p-4 text-right">AKSI</th>
             </tr>
           </thead>
@@ -624,6 +624,91 @@
         </div>
       </div>
 
+      <!-- 4 Risk Profiles Multi-Account Performance Matrix (Subtask 5-3D) -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2 font-mono">
+            <i class="fa-solid fa-layer-group text-indigo-400"></i>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">4 Risk Profiles Multi-Account Matrix</h3>
+          </div>
+          <span class="text-xs text-slate-400 font-mono">Head-to-Head Incubation Performance</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Prop Firm Profile Card -->
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-blue-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-blue-400 font-mono flex items-center gap-1.5">
+                <i class="fa-solid fa-shield"></i> PROP FIRM (0.25%)
+              </span>
+              <span id="prof-prop_firm-trades" class="text-xs font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded">0 deals</span>
+            </div>
+            <div class="flex items-baseline justify-between pt-1">
+              <span class="text-[11px] text-slate-400 font-mono">Net Profit:</span>
+              <span id="prof-prop_firm-pnl" class="text-sm font-mono font-bold text-slate-300">$0.00</span>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span class="text-[11px] text-slate-400 font-mono">Win Rate:</span>
+              <span id="prof-prop_firm-wr" class="text-xs font-mono font-bold text-emerald-400">0.0%</span>
+            </div>
+          </div>
+
+          <!-- Sweet Spot Profile Card -->
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-emerald-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-400 font-mono flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-line"></i> SWEET SPOT (0.50%)
+              </span>
+              <span id="prof-sweet_spot-trades" class="text-xs font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded">0 deals</span>
+            </div>
+            <div class="flex items-baseline justify-between pt-1">
+              <span class="text-[11px] text-slate-400 font-mono">Net Profit:</span>
+              <span id="prof-sweet_spot-pnl" class="text-sm font-mono font-bold text-slate-300">$0.00</span>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span class="text-[11px] text-slate-400 font-mono">Win Rate:</span>
+              <span id="prof-sweet_spot-wr" class="text-xs font-mono font-bold text-emerald-400">0.0%</span>
+            </div>
+          </div>
+
+          <!-- Aggressive Profile Card -->
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-amber-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-400 font-mono flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt"></i> AGGRESSIVE (1.00%)
+              </span>
+              <span id="prof-aggressive-trades" class="text-xs font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded">0 deals</span>
+            </div>
+            <div class="flex items-baseline justify-between pt-1">
+              <span class="text-[11px] text-slate-400 font-mono">Net Profit:</span>
+              <span id="prof-aggressive-pnl" class="text-sm font-mono font-bold text-slate-300">$0.00</span>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span class="text-[11px] text-slate-400 font-mono">Win Rate:</span>
+              <span id="prof-aggressive-wr" class="text-xs font-mono font-bold text-emerald-400">0.0%</span>
+            </div>
+          </div>
+
+          <!-- YOLO Profile Card -->
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-rose-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-rose-400 font-mono flex items-center gap-1.5">
+                <i class="fa-solid fa-fire"></i> YOLO (2.00%)
+              </span>
+              <span id="prof-yolo-trades" class="text-xs font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded">0 deals</span>
+            </div>
+            <div class="flex items-baseline justify-between pt-1">
+              <span class="text-[11px] text-slate-400 font-mono">Net Profit:</span>
+              <span id="prof-yolo-pnl" class="text-sm font-mono font-bold text-slate-300">$0.00</span>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span class="text-[11px] text-slate-400 font-mono">Win Rate:</span>
+              <span id="prof-yolo-wr" class="text-xs font-mono font-bold text-emerald-400">0.0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Live Harvested Trades Log Table -->
       <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
         <div class="p-4 border-b border-slate-800/80 flex items-center justify-between">
@@ -637,9 +722,10 @@
             <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
               <tr>
                 <th class="py-2.5 px-4">Deal ID</th>
-                <th class="py-2.5 px-4">Position</th>
+                <th class="py-2.5 px-4">Account / Profile</th>
                 <th class="py-2.5 px-4">Symbol</th>
                 <th class="py-2.5 px-4">Type</th>
+                <th class="py-2.5 px-4">Lots</th>
                 <th class="py-2.5 px-4 text-right">Exit Price</th>
                 <th class="py-2.5 px-4 text-right">Net PnL ($)</th>
                 <th class="py-2.5 px-4 text-right">Exit Time (UTC)</th>
@@ -1258,15 +1344,35 @@
           elVpsPnl.className = `text-xl font-bold mt-1 block ${vpsNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
         }
 
+        // 2B. 4 Risk Profiles Multi-Account Matrix Metrics
+        const allDeals = [...loc, ...vps];
+        const profileKeys = ['prop_firm', 'sweet_spot', 'aggressive', 'yolo'];
+        profileKeys.forEach(k => {
+          const profDeals = allDeals.filter(t => (t.risk_profile || '').toLowerCase() === k);
+          const pWins = profDeals.filter(t => (t.pnl || 0) > 0).length;
+          const pWr = profDeals.length > 0 ? ((pWins / profDeals.length) * 100).toFixed(1) : "0.0";
+          const pNetPnl = profDeals.reduce((sum, t) => sum + (t.pnl || 0), 0);
+
+          const elTr = document.getElementById(`prof-${k}-trades`);
+          const elWr = document.getElementById(`prof-${k}-wr`);
+          const elPnl = document.getElementById(`prof-${k}-pnl`);
+
+          if (elTr) elTr.innerText = `${profDeals.length} deals`;
+          if (elWr) elWr.innerText = `${pWr}%`;
+          if (elPnl) {
+            elPnl.innerText = `${pNetPnl >= 0 ? '+' : ''}$${pNetPnl.toFixed(2)}`;
+            elPnl.className = `text-sm font-mono font-bold ${pNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+          }
+        });
+
         // 3. Render Real-time Closed Deals Table
         const tbody = document.getElementById('forward-deals-tbody');
         const countLabel = document.getElementById('forward-table-count');
-        const allDeals = [...loc, ...vps];
         if (countLabel) countLabel.innerText = `Menampilkan ${allDeals.length} closed deals`;
 
         if (tbody) {
           if (allDeals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-500">Belum ada closed deal tercatat.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-6 text-slate-500">Belum ada closed deal tercatat.</td></tr>';
           } else {
             // Sort newest exit first
             allDeals.sort((a, b) => new Date(b.exit_time || 0) - new Date(a.exit_time || 0));
@@ -1280,17 +1386,35 @@
                 ? '<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">BUY</span>'
                 : '<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px]">SELL</span>';
 
+              const prof = (t.risk_profile || 'standard').toUpperCase();
+              const profColor = prof.includes('PROP') ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
+                               (prof.includes('SWEET') ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                               (prof.includes('AGGR') ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+                               (prof.includes('YOLO') ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' : 'text-slate-400 border-slate-700 bg-slate-800')));
+
               return `
                 <tr class="hover:bg-slate-800/40 transition">
                   <td class="py-2.5 px-4 text-slate-400">#${t.trade_id}</td>
-                  <td class="py-2.5 px-4 text-slate-300">#${t.position_id || t.trade_id}</td>
+                  <td class="py-2.5 px-4">
+                    <span class="font-bold text-white">${t.account_number || '-'}</span>
+                    <span class="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold border ${profColor}">${prof}</span>
+                  </td>
                   <td class="py-2.5 px-4 font-bold text-white">${t.symbol || 'XAUUSD'}</td>
                   <td class="py-2.5 px-4">${typeBadge}</td>
+                  <td class="py-2.5 px-4 font-mono text-slate-300">${(t.lots || 0.01).toFixed(2)}</td>
                   <td class="py-2.5 px-4 text-right font-mono">$${(t.exit_price || 0).toFixed(2)}</td>
                   <td class="py-2.5 px-4 text-right font-mono font-bold ${pnlClass}">${pnlSign}$${(t.pnl || 0).toFixed(2)}</td>
                   <td class="py-2.5 px-4 text-right text-slate-400 font-mono text-[11px]">${exitTimeStr}</td>
                   <td class="py-2.5 px-4 text-center">
                     <span class="px-2 py-0.5 rounded text-[10px] ${isWin ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                      ${isWin ? 'WIN' : 'LOSS'}
+                    </span>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
                       ${isWin ? 'WIN' : 'LOSS'}
                     </span>
                   </td>
@@ -1472,52 +1596,117 @@
       const tbody = document.getElementById('accounts-table-body');
       tbody.innerHTML = '';
 
-      // Tampilkan hanya akun yang berstatus CONNECTED
-      const connectedAccounts = Object.entries(accounts).filter(([_, acc]) => acc.status === 'CONNECTED');
+      const accEntries = Object.entries(accounts || {});
 
-      if (connectedAccounts.length === 0) {
+      if (accEntries.length === 0) {
         tbody.innerHTML = `
           <tr>
             <td colspan="7" class="p-6 text-center text-slate-500 font-mono">
-              <i class="fa-solid fa-plug-circle-xmark text-amber-500 mr-2"></i> Belum ada akun MT5 berstatus CONNECTED.
+              <i class="fa-solid fa-plug-circle-xmark text-amber-500 mr-2"></i> Belum ada akun MT5 terdeteksi. Jalankan MT5 Bridge untuk auto-register.
             </td>
           </tr>
         `;
         return;
       }
 
-      connectedAccounts.forEach(([id, acc]) => {
+      accEntries.forEach(([id, acc]) => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-slate-800/40 transition';
+
+        const currentProfile = (acc.risk_profile || 'none').toLowerCase();
+        const isActive = acc.active === true;
+        const isConnected = acc.status === 'CONNECTED';
+
+        const profileOptions = [
+          { val: 'none', label: '⛔ NONE (STANDBY - NO TRADES)' },
+          { val: 'prop_firm', label: '🛡️ PROP FIRM (0.25% - FTMO)' },
+          { val: 'sweet_spot', label: '📈 SWEET SPOT (0.50% - BALANCED)' },
+          { val: 'aggressive', label: '⚡ AGGRESSIVE (1.00% - FAST)' },
+          { val: 'yolo', label: '🚀 YOLO (2.00% - MAX)' }
+        ];
+
+        const selectHtml = `
+          <select onchange="updateAccountProfile('${id}', this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-white font-mono focus:border-blue-500 focus:outline-none">
+            ${profileOptions.map(opt => `<option value="${opt.val}" ${currentProfile === opt.val ? 'selected' : ''}>${opt.label}</option>`).join('')}
+          </select>
+        `;
+
+        const toggleBtn = `
+          <button onclick="toggleAccountActive('${id}', ${!isActive})" class="px-3 py-1 rounded-lg text-xs font-bold font-mono transition flex items-center justify-center gap-1.5 mx-auto ${
+            isActive
+              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30'
+              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+          }">
+            <i class="fa-solid ${isActive ? 'fa-toggle-on text-emerald-400 text-sm' : 'fa-toggle-off text-slate-500 text-sm'}"></i>
+            ${isActive ? 'ACTIVE' : 'INACTIVE'}
+          </button>
+        `;
+
         row.innerHTML = `
           <td class="p-4">
-            <div class="font-bold text-white font-mono">${acc.account_number}</div>
+            <div class="font-bold text-white font-mono flex items-center gap-2">
+              <i class="fa-solid fa-desktop text-blue-400"></i> ${acc.account_number}
+            </div>
             <div class="text-slate-400 text-[11px]">${acc.broker_name} (${acc.server})</div>
           </td>
           <td class="p-4">
-            <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700">${acc.account_type}</span>
+            <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700">${acc.account_type || 'DEMO'}</span>
           </td>
           <td class="p-4">
-            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase">${acc.risk_profile.replace('_', ' ')}</span>
+            ${selectHtml}
           </td>
-          <td class="p-4 font-mono text-slate-300">
-            ${(acc.assigned_timeframes || []).join(', ')}
+          <td class="p-4 text-center">
+            ${toggleBtn}
           </td>
           <td class="p-4 font-mono">
-            <div class="text-emerald-400 font-bold">$${acc.equity.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
-            <div class="text-slate-400 text-[10px]">Bal: $${acc.balance.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+            <div class="text-emerald-400 font-bold">$${(acc.equity || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+            <div class="text-slate-400 text-[10px]">Bal: $${(acc.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
           </td>
           <td class="p-4">
-            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ${acc.status}
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              isConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700'
+            }">
+              <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}"></span>
+              ${acc.status || 'STANDBY'}
             </span>
           </td>
           <td class="p-4 text-right">
-            <button onclick="deleteAccount('${id}')" class="text-slate-500 hover:text-red-400 transition text-xs"><i class="fa-solid fa-trash-can"></i></button>
+            <button onclick="deleteAccount('${id}')" class="text-slate-500 hover:text-red-400 transition text-xs p-1" title="Hapus Akun">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
           </td>
         `;
         tbody.appendChild(row);
       });
+    }
+
+    async function updateAccountProfile(accId, newProfile) {
+      try {
+        await fetch('/api/accounts/update-settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ account_id: accId, risk_profile: newProfile })
+        });
+        showToast('Profil Disimpan', `Akun ${accId} kini menggunakan profil ${newProfile.toUpperCase()}`, 'SUCCESS');
+        fetchAccountsData();
+      } catch (err) {
+        console.error("Gagal update profil:", err);
+      }
+    }
+
+    async function toggleAccountActive(accId, nextActiveState) {
+      try {
+        await fetch('/api/accounts/update-settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ account_id: accId, active: nextActiveState })
+        });
+        const stateLabel = nextActiveState ? 'DIAKTIFKAN' : 'DINONAKTIFKAN';
+        showToast('Status Akun Berubah', `Akun ${accId} telah ${stateLabel}!`, nextActiveState ? 'SUCCESS' : 'WARNING');
+        fetchAccountsData();
+      } catch (err) {
+        console.error("Gagal toggle status:", err);
+      }
     }
 
     function renderRiskProfiles(profiles) {
