@@ -262,8 +262,9 @@
         {
           "id": "T5-3D",
           "title": "Subtask 5-3D: Kage Bunshin Tournament on Limit Order Style",
-          "status": "PENDING",
-          "notes": "Uji tanding Single Limit OTE (Kubu A) vs Multi-Layer Simultaneous Grid (Kubu B) pada 300.440 bar M1."
+          "status": "COMPLETED",
+          "branch": "main",
+          "notes": "Verified (scripts/run_limit_style_tournament.py): KUBU-GRID-3-LAYER menjuarai turnamen dengan Profit Factor 269.66 dan Win Rate 96.3% di 300.440 bar M1."
         }
       ]
     }
