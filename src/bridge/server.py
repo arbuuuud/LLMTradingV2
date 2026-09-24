@@ -56,7 +56,9 @@ class LiveMT5BridgeCore:
         self._last_order_time = 0.0
         self._last_account_persist = 0.0
 
-        # Live Open Positions & Pending Orders Telemetry from MT5
+        # Live Open Positions & Pending Orders Telemetry from MT5 (multi-account keyed)
+        self.accounts_open_positions: Dict[str, List[Dict[str, Any]]] = {}
+        self.accounts_pending_orders: Dict[str, List[Dict[str, Any]]] = {}
         self.live_open_positions: List[Dict[str, Any]] = []
         self.live_pending_orders: List[Dict[str, Any]] = []
         self.unrealized_pnl: float = 0.0
@@ -466,11 +468,26 @@ class LiveMT5BridgeCore:
             self.balance = float(msg.get("balance", self.balance))
             self.unrealized_pnl = float(msg.get("unrealized", 0.0))
 
-            # Ingest live open positions & pending limit orders
+            # Store per-account positions & orders into multi-account map
             if "positions" in msg and isinstance(msg["positions"], list):
-                self.live_open_positions = msg["positions"]
+                for p in msg["positions"]:
+                    p["account_number"] = acc_id
+                self.accounts_open_positions[acc_id] = msg["positions"]
             if "orders" in msg and isinstance(msg["orders"], list):
-                self.live_pending_orders = msg["orders"]
+                for o in msg["orders"]:
+                    o["account_number"] = acc_id
+                self.accounts_pending_orders[acc_id] = msg["orders"]
+
+            # Flatten all active accounts positions & orders for global evaluation
+            all_open = []
+            for plist in self.accounts_open_positions.values():
+                all_open.extend(plist)
+            self.live_open_positions = all_open
+
+            all_orders = []
+            for olist in self.accounts_pending_orders.values():
+                all_orders.extend(olist)
+            self.live_pending_orders = all_orders
 
             # Active ForceClose Guardian Monitoring on each tick
             if self.live_open_positions:
