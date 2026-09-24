@@ -373,7 +373,11 @@ class BacktestEngine:
                     continue
 
                 buy_zone_ceiling = current_floor + span * 0.25
+                buy_zone_depth_50 = current_floor + span * 0.125  # 50% penetration of 0-25% zone
+
                 sell_zone_floor = current_floor + span * 0.75
+                sell_zone_depth_50 = current_floor + span * 0.875 # 50% penetration of 75-100% zone
+
                 mid_eq = current_floor + span * (spec.hard_tp_pct / 100.0)
 
                 # Check Session eligibility
@@ -385,7 +389,16 @@ class BacktestEngine:
                 if sess_ok:
                     # BUY TRIGGER
                     if l <= buy_zone_ceiling and c > current_floor:
-                        if spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
+                        # 1. Check virgin depth filter (>50% penetration of discount zone)
+                        if spec.pac_retest_mode in (PACRetestMode.VIRGIN_DEPTH_ONLY, PACRetestMode.ADAPTIVE_QUICK_ESCAPE):
+                            if l > buy_zone_depth_50:
+                                # Shallower than 50% depth -> Skip!
+                                continue
+                            if deepest_touch > 0.0 and l >= deepest_touch:
+                                continue
+                            deepest_touch = l
+
+                        elif spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
                             if deepest_touch > 0.0 and l >= deepest_touch:
                                 continue
                             deepest_touch = l
@@ -396,6 +409,16 @@ class BacktestEngine:
 
                         trade_counter += 1
                         active_zone_retests += 1
+
+                        # Determine Adaptive TP Target for Kubu B2
+                        if spec.pac_retest_mode == PACRetestMode.ADAPTIVE_QUICK_ESCAPE and active_zone_retests >= 2:
+                            # Retest ke-2+: Geser TP ke bibir atas buy zone atau min +0.75R
+                            zone_edge_tp = buy_zone_ceiling
+                            min_r_tp = entry_p + (0.75 * max(entry_p - hard_sl, 0.1))
+                            target_tp = max(zone_edge_tp, min_r_tp)
+                        else:
+                            target_tp = mid_eq
+
                         risk_per_trade = self.initial_capital * (self.base_risk_pct / 100.0) / spec.limit_layers
                         tr = TradeRecord(
                             trade_id=f"{spec.clone_id}-{trade_counter}",
@@ -403,7 +426,7 @@ class BacktestEngine:
                             entry_time=t,
                             entry_price=entry_p,
                             sl_price=hard_sl,
-                            hard_tp_price=mid_eq,
+                            hard_tp_price=target_tp,
                             soft_sl_price=soft_sl,
                             risk_amount=risk_per_trade,
                             anchor_span=span
@@ -412,7 +435,16 @@ class BacktestEngine:
 
                     # SELL TRIGGER
                     elif h >= sell_zone_floor and c < current_roof:
-                        if spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
+                        # 1. Check virgin depth filter (>50% penetration of premium zone)
+                        if spec.pac_retest_mode in (PACRetestMode.VIRGIN_DEPTH_ONLY, PACRetestMode.ADAPTIVE_QUICK_ESCAPE):
+                            if h < sell_zone_depth_50:
+                                # Shallower than 50% depth -> Skip!
+                                continue
+                            if deepest_touch > 0.0 and h <= deepest_touch:
+                                continue
+                            deepest_touch = h
+
+                        elif spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
                             if deepest_touch > 0.0 and h <= deepest_touch:
                                 continue
                             deepest_touch = h
@@ -423,6 +455,16 @@ class BacktestEngine:
 
                         trade_counter += 1
                         active_zone_retests += 1
+
+                        # Determine Adaptive TP Target for Kubu B2
+                        if spec.pac_retest_mode == PACRetestMode.ADAPTIVE_QUICK_ESCAPE and active_zone_retests >= 2:
+                            # Retest ke-2+: Geser TP ke bibir bawah sell zone atau min +0.75R
+                            zone_edge_tp = sell_zone_floor
+                            min_r_tp = entry_p - (0.75 * max(hard_sl - entry_p, 0.1))
+                            target_tp = min(zone_edge_tp, min_r_tp)
+                        else:
+                            target_tp = mid_eq
+
                         risk_per_trade = self.initial_capital * (self.base_risk_pct / 100.0) / spec.limit_layers
                         tr = TradeRecord(
                             trade_id=f"{spec.clone_id}-{trade_counter}",
@@ -430,7 +472,7 @@ class BacktestEngine:
                             entry_time=t,
                             entry_price=entry_p,
                             sl_price=hard_sl,
-                            hard_tp_price=mid_eq,
+                            hard_tp_price=target_tp,
                             soft_sl_price=soft_sl,
                             risk_amount=risk_per_trade,
                             anchor_span=span

@@ -250,6 +250,8 @@ class ForceClosePolicy(str, Enum):
 class PACRetestMode(str, Enum):
     FIRST_RETEST_ONLY = "FIRST_RETEST_ONLY"       # Only trade virgin/first retest of the zone
     MULTI_RETEST_DEEPER = "MULTI_RETEST_DEEPER"   # Trade multiple retests only if penetrating deeper
+    VIRGIN_DEPTH_ONLY = "VIRGIN_DEPTH_ONLY"       # Only enter if depth > 50% untouched
+    ADAPTIVE_QUICK_ESCAPE = "ADAPTIVE_ESCAPE"     # Depth > 50% virgin, and 2nd+ retest shifts TP to zone edge / min TP
     UNLIMITED_UNTIL_BREACH = "UNLIMITED"          # Keep limits active until floor/roof broken
 
 
