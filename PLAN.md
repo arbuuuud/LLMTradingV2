@@ -104,6 +104,18 @@
     - *Brainstorming*: Rancang 4 variasi gaya limit order serentak: 1, 3, 5, dan 10 layers yang terpasang dari lantai atas (25%) ke dasar (0%) dengan pembagian risiko konstan (total 0.50% equity) dan 1 titik Hard TP bersama di Equilibrium 50%.
     - *Eksploitasi Kage Bunshin*: Turnamen brutal 4 variasi di 300.440 bar M1 XAUUSD.
     - *Auditor Gate*: Keputusan empiris final arsitektur limit order yang resmi dipakai di MT5 EA. *(VERIFIED & COMPLETED: KUBU-GRID-3-LAYER Juara Mutlak Turnamen dengan Profit Factor 269.66, Win Rate 96.3%, Net PnL $12.58M, dan Max DD hanya 1.50%)*
+  - [ ] **Subtask 5-3E: Fail-Safe Resilience & Disconnection Protection Plan (Python Brain Crash / Network Partition)**:
+    - *Latar Belakang Risiko*: Bagaimana jika proses Python Brain mati mendadak (*crash/kill*), laptop tertidur (*sleep*), atau koneksi socket terputus saat posisi terbuka di MT5?
+    - *Potensi Bahaya Teridentifikasi*:
+      1. Apakah data historis & deal yang ditangkap Python akan korup/hilang?
+      2. Apakah order & posisi terbuka di MetaTrader 5 akan menjadi liar tanpa pengawasan?
+      3. Bagaimana nasib logika dinamis **Sasuke Sharingan** (Greed Trailing & Reversal Cognition) yang berjalan di server Python saat bridge mati?
+    - *Arsitektur Solusi & Rencana Aksi (Fail-Safe Resilience Protocol)*:
+      1. **Autonomous Hard SL/TP di MT5**: Setiap order yang dikirim ke broker wajib selalu dibekali Hard Stop Loss dan Hard Take Profit langsung di sisi server broker, sehingga jika Python mati seketika, modal akun terlindungi 100% dari kebangkrutan tanpa tergantung Python.
+      2. **MT5 Heartbeat Watchdog & Safety Neutralizer**: Jika koneksi socket TCP ke Python terputus lebih dari *N* detik (misal: 15 detik), EA MT5 secara otomatis membatalkan semua Pending Limit Orders yang belum tersentuh (*Cancel Untouched Limits*) agar tidak tersambar spike liar saat tidak diawasi.
+      3. **State Resynchronization & Reconnect Recovery**: Begitu Python Brain hidup kembali, EA MT5 melakukan rekonsiliasi state penuh (query deals tertutup selama Python mati via deal tickets, update equity/balance, dan pulihkan registrasi posisi aktif ke Sasuke Overseer) tanpa data ganda.
+      4. **Atomic SQLite/Append-Only WAL Persistence**: Seluruh trade events di Python disimpan menggunakan format atomik tahan crash sehingga jika proses terhenti di tengah penulisan, file log tidak akan pernah korup.
+    - *Status*: **PLANNED (Akan dikerjakan setelah panen Batch 2 selesai)**.
 
 ---
 

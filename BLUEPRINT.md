@@ -166,7 +166,18 @@ Untuk mencegah keterikatan kode (*code entanglement*) dan menjaga agar penambaha
 
 ---
 
-## 6. Matriks Peran Agent (Single Responsibility Principle)
+## 7. Protokol Ketahanan Kegagalan & Diskoneksi (Fail-Safe Resilience Protocol)
+
+Dalam sistem live trading algoritmik, kegagalan infrastruktur (koneksi putus, VPS reboot, OS crash, laptop sleep) adalah keniscayaan yang harus dimitigasi sejak level arsitektur:
+
+1. **Broker-Side Hard SL & TP Invariant**:
+   Setiap order yang dieksekusi ke pasar oleh EA MT5 WAJIB membawa parameter Hard Stop Loss dan Hard Take Profit langsung ke server broker. Eksekusi proteksi modal pamungkas tidak boleh bergantung pada ketersediaan koneksi internet atau server Python.
+2. **MT5 Heartbeat Watchdog & Safety Neutralizer**:
+   Jika koneksi socket TCP ke server Python terputus lebih dari batas toleransi (*N* detik), EA MT5 bertindak sebagai garda pasif mandiri: membatalkan semua *Pending Limit Orders* yang belum tersentuh agar akun tidak terisi posisi baru di pasar liar tanpa supervisi otak AI.
+3. **State Reconciliation & Reconnect Catch-up**:
+   Saat Python Brain pulih dari gangguan (*restart / reconnect*), EA MT5 segera mengirimkan sinkronisasi snapshot: memeriksa deal-deal yang tertutup selama masa terputus dan mendaftarkan kembali posisi aktif ke Sasuke Sharingan Overseer tanpa memicu eksekusi ganda atau duplikasi rekaman log.
+4. **Append-Only & Atomic Logging**:
+   Seluruh rekaman deal di Python dicatat secara atomik (atomic write / WAL journal) untuk memastikan bahwa terminasi mendadak tidak akan pernah merusak (*corrupt*) file log histori trading.
 
 | Agent | Scope | Input | Output | Sifat |
 |---|---|---|---|---|
