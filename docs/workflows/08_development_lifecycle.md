@@ -58,7 +58,21 @@ Setiap catatan atau keputusan yang disetujui dicatat dengan struktur:
 
 ---
 
-## 4. Cara Menjalankan Live Dashboard
+## 4. SOP Wajib: Zero Logic Mutation Without Kage Bunshin Exploitation (DEC-019)
+
+Untuk menjaga integritas ilmiah dan performa kuantitatif:
+1. **Dilarang Keras Merubah Engine Secara Asumtif**:
+   Tidak ada kode logika trading pada `src/bridge/server.py`, `src/features/`, atau EA MT5 yang boleh diubah atau ditambah hanya berdasarkan tebakan atau intuisi manual.
+2. **Alur Kerja Eksploitasi Kage Bunshin**:
+   - **Step 1: Brainstorming & Hipotesis**: Diskusikan ide perubahan logika bersama operator, rumuskan formula matematisnya, dan tetapkan metrik target kelulusan.
+   - **Step 2: Spawning Shadow Clones**: Naruto Agent membelah hipotesis menjadi puluhan/ratusan variasi parameter di `src/workflows/kage_bunshin.py`.
+   - **Step 3: Brutal Parallel Backtesting**: Uji tanding seluruh klon secara paralel di ratusan ribu bar historis M1 XAUUSD (300.440 bars Parquet data lake).
+   - **Step 4: Auditor Agent Verdict**: Auditor Agent memvalidasi apakah variasi juara memenuhi batas degradasi, Sharpe Ratio, Payoff Ratio, dan Max DD.
+   - **Step 5: Staging & Live Merge**: Hanya strategi/logika yang lulus audit kuantitatif yang berhak diintegrasikan ke Live Engine!
+
+---
+
+## 5. Cara Menjalankan Live Dashboard
 
 Dashboard lokal dapat dijalankan kapan saja untuk memonitor progress live, checklist, dan live market feed:
 ```bash

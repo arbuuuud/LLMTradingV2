@@ -79,10 +79,23 @@
 - [ ] **T5-1**: Strategy Registry Generator & CLI (`registry/strategies/` YAML & `registry/experiments/`).
 - [ ] **T5-2**: Auditor Agent Post-Mortem System (Evaluasi mingguan riwayat trade).
 - [ ] **T5-3**: **Kalibrasi Spesifik Engine PAC via Naruto-2 Kage Bunshin** (Berdasarkan Hasil Pembelajaran 52 Forward Trades VPS):
-  - **Subtask 5-3A: Reversal Cognition Guardian (Naruto-2 ForceClose Agent)**: Deteksi pola pembalikan (Evening/Morning Star, Opposite Marubozu, S&D Flip) di M1 untuk evaluasi apakah area tersebut berpotensi menjadi Roof/Floor baru atau memicu Force TP / Early Exit sebelum profit terpangkas.
-  - **Subtask 5-3B: Greed-Version Trailing Profit & Daily Circuit Breaker 1%**: Kunci profit bertingkat (misal: saat running profit mencapai 1.0% equity $\to$ kunci stop loss di 0.5% profit; jika naik ke 1.5% $\to$ kunci di 1.0% profit; dst.) serta Hard Stop trading jika floating/closed loss mencapai -1% per hari dengan target minimal +2% (RR 1:2).
-  - **Subtask 5-3C: PAC Virgin Liquidity Depth Engine (Mitigated vs Untouched Depth)**: Menolak pasang limit order di zona yang sudah tersentuh/mitigasi $>50\%$; limit order berikutnya wajib dialokasikan hanya pada kedalaman yang masih fresh/virgin (>50%).
-  - **Subtask 5-3D: Kage Bunshin Tournament on Limit Order Style (Single Limit OTE vs Multi-Layer Grid)**: Eksplorasi probabilitas eksekusi: Model 1 limit presisi (Kubu A) vs Model 3-5 limit order grid bertingkat serentak (Kubu B) pada saat zona terbentuk.
+  - **SOP Wajib**: Setiap subtask wajib melalui tahap **(1) Brainstorming & Pemodelan Hipotesis**, **(2) Eksekusi Eksploitasi Kage Bunshin di Ratusan Ribu Bar**, dan **(3) Evaluasi Auditor Agent & Verifikasi Data** sebelum logika dapat di-merge ke engine live!
+  - [ ] **Subtask 5-3A: Reversal Cognition Guardian (Naruto-2 ForceClose Agent)**:
+    - *Brainstorming*: Definisikan matriks sinyal pembalikan (Evening/Morning Star, Opposite Marubozu, S&D Flip) di M1 untuk evaluasi apakah area berpotensi menjadi Roof/Floor baru atau memicu Force TP / Early Exit.
+    - *Eksploitasi Kage Bunshin*: Mengadu clone dengan policy Reversal Cognition vs Fixed TP vs Flat BEP di 300.440 bar M1.
+    - *Auditor Gate*: Memilih variasi yang menghasilkan Saved-R dan Profit Factor tertinggi.
+  - [ ] **Subtask 5-3B: Greed-Version Trailing Profit & Daily Circuit Breaker 1%**:
+    - *Brainstorming*: Definisikan formula Trailing Greed bertingkat (Lock +0.5% saat profit +1.0%, lock +1.0% saat profit +1.5%) serta batas max loss -1%/hari dengan target min +2% (RR 1:2) per profil risiko.
+    - *Eksploitasi Kage Bunshin*: Uji variasi threshold trailing pada kurva ekuitas historis untuk mengukur apakah winrate tergerus atau profit membesar.
+    - *Auditor Gate*: Verifikasi kepatuhan profil risiko Prop Firm / Sweet Spot / Aggressive.
+  - [ ] **Subtask 5-3C: PAC Virgin Liquidity Depth Engine (Mitigated vs Untouched Depth)**:
+    - *Brainstorming*: Aturan matematis eliminasi level $< 50\%$ yang telah tersentuh dan pengalokasian limit order hanya pada kedalaman murni $> 50\%$.
+    - *Eksploitasi Kage Bunshin*: Uji tanding filter kedalaman murni vs naive retest pada seluruh zona demand/supply historis.
+    - *Auditor Gate*: Validasi penurunan false breakout rate dan peningkatan akurasi rejection.
+  - [ ] **Subtask 5-3D: Kage Bunshin Tournament on Limit Order Style (Single Limit OTE vs Multi-Layer Grid)**:
+    - *Brainstorming*: Rancang 3 probabilitas arsitektur eksekusi: Model 1 limit presisi (Kubu A) vs Model 3-5 limit order grid bertingkat serentak (Kubu B) vs Reaksi M1 (Kubu C).
+    - *Eksploitasi Kage Bunshin*: Turnamen brutal 3 kubu secara paralel di multi-core CPU.
+    - *Auditor Gate*: Keputusan empiris final arsitektur limit order yang resmi dipakai di MT5 EA.
 
 ---
 
@@ -102,3 +115,4 @@
 | **DEC-010** | 2025-09-22 | Kage Bunshin 4D Thinking & Anti-Overfitting Gate | Naruto Agent membelah diri berdasarkan 4 Dimensi: (1) Structure/Wave/Fibo, (2) POI Types & Freshness, (3) Candlestick Execution Reac vs Mom Guardian, (4) Session Killzones. Auditor Agent menerapkan syarat keaktifan minimal (>= 30 trade/bulan untuk scalping agar tidak lumpuh) serta memetakan strategi juara ke 4 Profil Risiko Standar (Prop Firm, Sweet Spot, Aggressive, YOLO). | **CONFIRMED** |
 | **DEC-011** | 2026-04-03 | Multi-Timeframe Ensemble Basket Options | Berdasarkan uji tanding 26 kombinasi M1..M5, portofolio ensemble terbukti meredam drawdown secara masif: (1) Profil Prop Firm & Sweet Spot dipetakan ke Kuartet (M1+M2+M3+M5) untuk Max DD portofolio 0.10% (FTMO Ultra Safe), (2) Profil Aggressive & YOLO dipetakan ke Trio (M1+M2+M3) untuk pertumbuhan cepat (+1.105% ROI). | **CONFIRMED** |
 | **DEC-018** | 2026-09-24 | Pembelajaran Khusus Engine PAC (VPS 52 Trades Audit) | (1) Naruto-2 Guardian Agent wajib dibekali kemampuan kognitif membaca pembalikan arah (Evening/Morning Star, Opposite Marubozu) untuk menimbang apakah area menjadi Roof baru dan mengeksekusi Force TP / Exit sebelum profit terpangkas. (2) Trailing Profit Greed Version: saat profit 1% equity dikunci 0.5%, saat 1.5% dikunci 1.0%, batas max loss -1%/hari dengan target profit min +2% (RR 1:2). (3) Aturan kedalaman likuiditas murni (Untouched Depth > 50% only). (4) Adu Kage Bunshin antara Single Precision Limit vs Multi-Layer Simultaneous Grid. | **CONFIRMED** |
+| **DEC-019** | 2026-09-24 | Mandat Empiris Kage Bunshin: Dilarang Keras Ubah Engine Tanpa Uji Data | **DILARANG KERAS** mengubah atau menambah logika trading pada Live Engine murni berdasarkan asumsi atau tebakan manual. Semua perbaikan (Reversal Cognition, Greed Trailing, Untouched Depth, Format Limit Order) WAJIB dimodelkan sebagai parameter variasi, diuji tanding masif di Naruto Kage Bunshin runner pada ratusan ribu bar XAUUSD, dan dibuktikan keunggulannya oleh Auditor Agent secara matematis sebelum di-merge ke Live Engine. | **MANDATORY** |

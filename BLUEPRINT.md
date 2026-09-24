@@ -18,8 +18,12 @@ Di **V2**, kami menerapkan aturan arsitektur mutlak:
 2. **"Stateless Feature Extractors, Stateful Risk Governance"**:
    - Modul deteksi teknikal bersifat murni fungsi matematika tanpa side-effects.
    - Manajemen risiko bersifat stateful dan independen dengan hak veto mutlak terhadap keputusan agent.
-3. **"Shadow Clone Exploration (Kage Bunshin)"**:
-   - Eksplorasi strategi tidak dilakukan manual satu per satu, melainkan di-kloning secara otomatis menjadi puluhan variasi parameter matriks untuk menemukan checklist paling tangguh (*robust*) terhadap noise pasar.
+3. **"Strict Empirical Mandate: Zero Logic Mutation Without Kage Bunshin Exploitation" (MANDATORY)**:
+   - **DILARANG KERAS** mengubah atau menambahkan logika trading di engine (`src/bridge/`, `src/features/`, `src/workflows/`, atau EA) hanya berdasarkan tebakan subjektif, asumsi, atau instruksi ad-hoc tanpa melalui proses eksplorasi empiris kuantitatif **Naruto Kage Bunshin**.
+   - Setiap ide atau perubahan logika (sinyal pembalikan, trailing profit, filter kedalaman likuiditas, maupun format limit order) wajib diperlakukan sebagai **Hipotesis Eksperimen** yang diadu secara brutal (*ablation showdown*) di ribuan/ratusan ribu candle historis M1 XAUUSD.
+   - Hanya konfigurasi atau mutasi yang **terbukti unggul secara data** (Sharpe Ratio, Profit Factor, dan Drawdown terverifikasi oleh Auditor Agent) yang memiliki hak dipromosikan ke Engine Live!
+4. **"Shadow Clone Exploration (Kage Bunshin)"**:
+   - Eksplorasi strategi tidak dilakukan manual satu per satu, melainkan di-kloning secara otomatis menjadi puluhan hingga ribuan variasi parameter matriks untuk menemukan checklist paling tangguh (*robust*) terhadap noise pasar.
 
 ---
 
