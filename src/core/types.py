@@ -242,6 +242,9 @@ class ForceClosePolicy(str, Enum):
     COUNTER_MOM_ONLY = "COUNTER_MOM_ONLY"         # Close only if opposite Momentum Marubozu occurs
     COUNTER_POI_TOUCH = "COUNTER_POI_TOUCH"       # Close when price touches new opposing POI
     PASSIVE_HOLD = "PASSIVE_HOLD"                 # No force close, strictly hold until Hard TP/SL
+    SASUKE_COLD_FORCE_100 = "SASUKE_COLD_FORCE_100"     # Sasuke Sharingan: 100% Force TP on reversal at >= 1.0R
+    SASUKE_PARTIAL_TRAILING = "SASUKE_PARTIAL_TRAILING" # Sasuke Sharingan: 50% Partial + Greed Trailing step
+    LEGACY_FLAT_BEP = "LEGACY_FLAT_BEP"                 # Flat BEP +1.0pt (Choking baseline from forward test)
 
 
 class PACRetestMode(str, Enum):

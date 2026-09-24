@@ -160,10 +160,8 @@ class BacktestEngine:
                 if open_trades and span > 0.5:
                     for tr in open_trades:
                         if spec.pac_handover_mode == PACHandoverMode.DYNAMIC_TARGET_SHIFT:
-                            # Update target to new equilibrium and lock BEP
+                            # Update target to new equilibrium
                             tr.hard_tp_price = current_floor + span * 0.50
-                            tr.sl_price = tr.entry_price
-                            tr.is_bep_locked = True
                         elif spec.pac_handover_mode == PACHandoverMode.PARTIAL_EXIT_BEP:
                             tr.sl_price = tr.entry_price
                             tr.is_bep_locked = True
@@ -207,8 +205,15 @@ class BacktestEngine:
                     tr.exit_time = t
                     tr.exit_price = tr.sl_price
                     tr.exit_reason = "BEP_HIT" if tr.is_bep_locked else "HARD_SL"
-                    tr.r_multiple = 0.0 if tr.is_bep_locked else -1.0
-                    tr.pnl = 0.0 if tr.is_bep_locked else -tr.risk_amount
+                    if tr.is_bep_locked:
+                        pts_diff = tr.sl_price - tr.entry_price
+                        sl_dist = max(abs(tr.entry_price - (tr.soft_sl_price or (tr.entry_price - 3.0))), 0.1)
+                        bep_r = pts_diff / sl_dist
+                        tr.r_multiple = bep_r
+                        tr.pnl = tr.risk_amount * bep_r
+                    else:
+                        tr.r_multiple = -1.0
+                        tr.pnl = -tr.risk_amount
                     tr.is_closed = True
                     closed_trades.append(tr)
                     balance += tr.pnl
@@ -217,8 +222,15 @@ class BacktestEngine:
                     tr.exit_time = t
                     tr.exit_price = tr.sl_price
                     tr.exit_reason = "BEP_HIT" if tr.is_bep_locked else "HARD_SL"
-                    tr.r_multiple = 0.0 if tr.is_bep_locked else -1.0
-                    tr.pnl = 0.0 if tr.is_bep_locked else -tr.risk_amount
+                    if tr.is_bep_locked:
+                        pts_diff = tr.entry_price - tr.sl_price
+                        sl_dist = max(abs((tr.soft_sl_price or (tr.entry_price + 3.0)) - tr.entry_price), 0.1)
+                        bep_r = pts_diff / sl_dist
+                        tr.r_multiple = bep_r
+                        tr.pnl = tr.risk_amount * bep_r
+                    else:
+                        tr.r_multiple = -1.0
+                        tr.pnl = -tr.risk_amount
                     tr.is_closed = True
                     closed_trades.append(tr)
                     balance += tr.pnl
@@ -241,7 +253,84 @@ class BacktestEngine:
                     closed_trades.append(tr)
                     balance += tr.pnl
 
-                # Naruto-2 Guardian Force Close Policies:
+                # Naruto-2 & Sasuke Sharingan Force Close Policies:
+                elif spec.force_close_policy == ForceClosePolicy.LEGACY_FLAT_BEP:
+                    # Flat BEP +1.0pt trigger (Choking baseline from forward test)
+                    if not tr.is_bep_locked:
+                        pts_gain = (c - tr.entry_price) if tr.direction == Direction.BUY else (tr.entry_price - c)
+                        if pts_gain >= 1.0:
+                            tr.is_bep_locked = True
+                            tr.sl_price = tr.entry_price + (0.20 if tr.direction == Direction.BUY else -0.20)
+                    remaining_trades.append(tr)
+
+                elif spec.force_close_policy == ForceClosePolicy.SASUKE_COLD_FORCE_100:
+                    # Sasuke Sharingan: Reversal Cognition (Evening Star / Opposite Marubozu) at >= 1.0R
+                    pts_diff = (c - tr.entry_price) if tr.direction == Direction.BUY else (tr.entry_price - c)
+                    sl_dist = max(abs(tr.entry_price - tr.sl_price), 0.1)
+                    r_running = pts_diff / sl_dist
+
+                    # Check reversal candle pattern if running profit >= 1.0R
+                    reversal_detected = False
+                    if r_running >= 1.0 and i >= 2:
+                        c_body = abs(c - o)
+                        c_rng = max(h - l, 1e-5)
+                        prev_c = closes[i - 1]
+                        prev_o = opens[i - 1]
+                        prev2_c = closes[i - 2]
+                        prev2_o = opens[i - 2]
+
+                        if tr.direction == Direction.BUY:
+                            # 1. Bearish Marubozu
+                            if c < o and (c_body / c_rng >= 0.70):
+                                reversal_detected = True
+                            # 2. Evening Star (Bullish -> Doji/Star -> Bearish)
+                            elif prev2_c > prev2_o and abs(prev_c - prev_o) <= 0.40 * max(highs[i - 1] - lows[i - 1], 1e-5) and c < (prev2_o + prev2_c) / 2:
+                                reversal_detected = True
+                        else: # SELL
+                            # 1. Bullish Marubozu
+                            if c > o and (c_body / c_rng >= 0.70):
+                                reversal_detected = True
+                            # 2. Morning Star (Bearish -> Doji/Star -> Bullish)
+                            elif prev2_c < prev2_o and abs(prev_c - prev_o) <= 0.40 * max(highs[i - 1] - lows[i - 1], 1e-5) and c > (prev2_o + prev2_c) / 2:
+                                reversal_detected = True
+
+                    if reversal_detected:
+                        tr.exit_time = t
+                        tr.exit_price = c
+                        tr.exit_reason = "SASUKE_REVERSAL_FORCE_TP"
+                        tr.r_multiple = r_running
+                        tr.pnl = tr.risk_amount * r_running
+                        tr.is_closed = True
+                        closed_trades.append(tr)
+                        balance += tr.pnl
+                    else:
+                        remaining_trades.append(tr)
+
+                elif spec.force_close_policy == ForceClosePolicy.SASUKE_PARTIAL_TRAILING:
+                    # Sasuke Sharingan: 50% Partial + Greed Trailing step
+                    pts_diff = (c - tr.entry_price) if tr.direction == Direction.BUY else (tr.entry_price - c)
+                    sl_dist = max(abs(tr.entry_price - tr.sl_price), 0.1)
+                    r_running = pts_diff / sl_dist
+
+                    # Stepped Trailing:
+                    # Running >= 2.0R -> lock SL at +1.5R
+                    # Running >= 1.5R -> lock SL at +1.0R
+                    # Running >= 1.0R -> lock SL at +0.5R
+                    if r_running >= 2.0:
+                        tr.is_bep_locked = True
+                        lock_p = tr.entry_price + (1.5 * sl_dist if tr.direction == Direction.BUY else -1.5 * sl_dist)
+                        tr.sl_price = lock_p if (tr.direction == Direction.BUY and lock_p > tr.sl_price) or (tr.direction == Direction.SELL and lock_p < tr.sl_price) else tr.sl_price
+                    elif r_running >= 1.5:
+                        tr.is_bep_locked = True
+                        lock_p = tr.entry_price + (1.0 * sl_dist if tr.direction == Direction.BUY else -1.0 * sl_dist)
+                        tr.sl_price = lock_p if (tr.direction == Direction.BUY and lock_p > tr.sl_price) or (tr.direction == Direction.SELL and lock_p < tr.sl_price) else tr.sl_price
+                    elif r_running >= 1.0:
+                        tr.is_bep_locked = True
+                        lock_p = tr.entry_price + (0.5 * sl_dist if tr.direction == Direction.BUY else -0.5 * sl_dist)
+                        tr.sl_price = lock_p if (tr.direction == Direction.BUY and lock_p > tr.sl_price) or (tr.direction == Direction.SELL and lock_p < tr.sl_price) else tr.sl_price
+
+                    remaining_trades.append(tr)
+
                 elif spec.force_close_policy == ForceClosePolicy.COUNTER_MOM_ONLY:
                     c_body = abs(c - o)
                     c_rng = max(h - l, 1e-5)
@@ -307,7 +396,7 @@ class BacktestEngine:
 
                         trade_counter += 1
                         active_zone_retests += 1
-                        risk_per_trade = balance * (self.base_risk_pct / 100.0) / spec.limit_layers
+                        risk_per_trade = self.initial_capital * (self.base_risk_pct / 100.0) / spec.limit_layers
                         tr = TradeRecord(
                             trade_id=f"{spec.clone_id}-{trade_counter}",
                             direction=Direction.BUY,
@@ -334,7 +423,7 @@ class BacktestEngine:
 
                         trade_counter += 1
                         active_zone_retests += 1
-                        risk_per_trade = balance * (self.base_risk_pct / 100.0) / spec.limit_layers
+                        risk_per_trade = self.initial_capital * (self.base_risk_pct / 100.0) / spec.limit_layers
                         tr = TradeRecord(
                             trade_id=f"{spec.clone_id}-{trade_counter}",
                             direction=Direction.SELL,
@@ -368,14 +457,14 @@ class BacktestEngine:
 
         wins = [tr for tr in closed_trades if tr.pnl > 0.0]
         losses = [tr for tr in closed_trades if tr.pnl < 0.0]
-        gross_profit = sum(tr.pnl for tr in wins)
-        gross_loss = abs(sum(tr.pnl for tr in losses))
+        gross_profit = float(sum(float(tr.pnl) for tr in wins))
+        gross_loss = float(abs(sum(float(tr.pnl) for tr in losses)))
 
         win_rate = (len(wins) / total_tr) * 100.0
         profit_factor = round(gross_profit / max(gross_loss, 1.0), 2)
         net_pnl = round(gross_profit - gross_loss, 2)
         roi = round((net_pnl / self.initial_capital) * 100.0, 1)
-        max_dd_pct = round((max_dd_amount / self.initial_capital) * 100.0, 1)
+        max_dd_pct = round((float(max_dd_amount) / self.initial_capital) * 100.0, 1)
         total_saved_r = round(sum(tr.saved_r for tr in closed_trades), 2)
 
         dt_span = (timestamps[-1] - timestamps[0]).total_seconds() / 86400.0
