@@ -39,18 +39,25 @@ def run_disparity_audit():
 
     vps_path = PROJECT_ROOT / "data" / "forward_trades_vps.json"
     local_path = PROJECT_ROOT / "data" / "forward_trades_local.json"
+    archive_vps_path = PROJECT_ROOT / "data" / "archives" / "batch1_vps_52_trades_pre_calibration.json"
+    archive_local_path = PROJECT_ROOT / "data" / "archives" / "batch1_local_48_trades_pre_calibration.json"
     radar_path = PROJECT_ROOT / "reports" / "radar_state.json"
 
-    if not vps_path.exists():
-        print(f"❌ File {vps_path} tidak ditemukan.")
-        return
-
-    with open(vps_path, "r", encoding="utf-8") as f:
-        vps_trades = json.load(f)
+    # Prioritize archived batch 1 trades for historical disparity benchmark if active files are empty
+    vps_trades = []
+    if vps_path.exists():
+        with open(vps_path, "r", encoding="utf-8") as f:
+            vps_trades = json.load(f)
+    if len(vps_trades) == 0 and archive_vps_path.exists():
+        with open(archive_vps_path, "r", encoding="utf-8") as f:
+            vps_trades = json.load(f)
 
     local_trades = []
     if local_path.exists():
         with open(local_path, "r", encoding="utf-8") as f:
+            local_trades = json.load(f)
+    if len(local_trades) == 0 and archive_local_path.exists():
+        with open(archive_local_path, "r", encoding="utf-8") as f:
             local_trades = json.load(f)
 
     # 1. Analisis Data Lapangan Forward Test MT5
