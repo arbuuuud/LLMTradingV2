@@ -615,6 +615,64 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
+//| OnTradeTransaction function: Detect Closed Trades & Transmit     |
+//+------------------------------------------------------------------+
+void OnTradeTransaction(const MqlTradeTransaction& trans,
+                        const MqlTradeRequest& request,
+                        const MqlTradeResult& result)
+{
+   if(!m_connected) return;
+
+   // Detect Deal Add (Closed Trade Execution)
+   if(trans.type == TRADE_TRANSACTION_DEAL_ADD)
+   {
+      ulong dealTicket = trans.deal;
+      if(dealTicket > 0 && HistoryDealSelect(dealTicket))
+      {
+         long dealEntry = HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
+         // DEAL_ENTRY_OUT means position closure!
+         if(dealEntry == DEAL_ENTRY_OUT || dealEntry == DEAL_ENTRY_INOUT || dealEntry == DEAL_ENTRY_OUT_BY)
+         {
+            long magic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
+            if(magic == 1001 || magic == 2001 || magic == (long)InpMagicNumber)
+            {
+               long posId = HistoryDealGetInteger(dealTicket, DEAL_POSITION_ID);
+               string symbol = HistoryDealGetString(dealTicket, DEAL_SYMBOL);
+               double profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT);
+               double swap = HistoryDealGetDouble(dealTicket, DEAL_SWAP);
+               double comm = HistoryDealGetDouble(dealTicket, DEAL_COMMISSION);
+               double netPnl = profit + swap + comm;
+               double exitPrice = HistoryDealGetDouble(dealTicket, DEAL_PRICE);
+               double lots = HistoryDealGetDouble(dealTicket, DEAL_VOLUME);
+               long exitTime = (long)HistoryDealGetInteger(dealTicket, DEAL_TIME);
+               ENUM_DEAL_TYPE dType = (ENUM_DEAL_TYPE)HistoryDealGetInteger(dealTicket, DEAL_TYPE);
+               string dirStr = (dType == DEAL_TYPE_BUY) ? "SELL" : "BUY"; // Deal out BUY closes a SELL
+
+               string closeJson = StringFormat(
+                  "{\"type\":\"CLOSED_TRADE\",\"data\":{"
+                  "\"trade_id\":\"%I64u\","
+                  "\"position_id\":\"%I64u\","
+                  "\"symbol\":\"%s\","
+                  "\"direction\":\"%s\","
+                  "\"timeframe\":\"M1\","
+                  "\"lots\":%.2f,"
+                  "\"exit_price\":%.2f,"
+                  "\"pnl\":%.2f,"
+                  "\"exit_time\":%I64d,"
+                  "\"magic\":%I64d}}\n",
+                  dealTicket, posId, symbol, dirStr, lots, exitPrice, netPnl, exitTime, magic
+               );
+
+               SendString(closeJson);
+               PrintFormat("[LLM Bridge] 💰 CLOSED TRADE TRANSMITTED: Deal #%I64u (Pos #%I64u) -> Net PnL: $%.2f | Price: %.2f",
+                           dealTicket, posId, netPnl, exitPrice);
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Timer function (Heartbeat, Reconnect & Sleep-Wake Auto-Sync)     |
 //+------------------------------------------------------------------+
 void OnTimer()

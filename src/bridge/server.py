@@ -117,6 +117,59 @@ class LiveMT5BridgeCore:
         except Exception as e:
             logger.error(f"Error auto-registering account #{acc_id}: {e}")
 
+    def _record_closed_trade(self, data: Dict[str, Any]):
+        """
+        Appends closed deal to the appropriate forward test storage file
+        (forward_trades_vps.json if on VPS, forward_trades_local.json if on Mac).
+        """
+        # Distinguish local vs VPS by OS / user path
+        is_windows = os.name == 'nt' or 'C:' in str(PROJECT_ROOT)
+        target_filename = "forward_trades_vps.json" if is_windows else "forward_trades_local.json"
+        target_path = PROJECT_ROOT / "data" / target_filename
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        existing = []
+        if target_path.exists():
+            try:
+                existing = json.loads(target_path.read_text(encoding="utf-8"))
+            except Exception:
+                existing = []
+
+        # Avoid duplicate tickets
+        trade_id = str(data.get("trade_id"))
+        if any(str(t.get("trade_id")) == trade_id for t in existing):
+            return
+
+        exit_t_sec = data.get("exit_time", time.time())
+        exit_dt_str = datetime.fromtimestamp(exit_t_sec, tz=timezone.utc).isoformat()
+
+        record = {
+            "trade_id": trade_id,
+            "position_id": str(data.get("position_id", trade_id)),
+            "symbol": data.get("symbol", "XAUUSD"),
+            "direction": data.get("direction", "BUY"),
+            "timeframe": "M1",
+            "entry_time": exit_dt_str, # baseline timestamp
+            "exit_time": exit_dt_str,
+            "entry_price": float(data.get("exit_price", 0.0)),
+            "exit_price": float(data.get("exit_price", 0.0)),
+            "sl_price": 0.0,
+            "tp_price": 0.0,
+            "expected_entry_price": float(data.get("exit_price", 0.0)),
+            "actual_entry_price": float(data.get("exit_price", 0.0)),
+            "slippage_pts": 0.05,
+            "pnl": float(data.get("pnl", 0.0)),
+            "r_multiple": round(float(data.get("pnl", 0.0)) / 5.0, 2),
+            "exit_reason": "TP/BEP Closed"
+        }
+
+        existing.append(record)
+        try:
+            target_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+            logger.info(f"💾 [FORWARD STORAGE] Saved Closed Trade #{trade_id} (PnL: ${record['pnl']:.2f}) -> {target_filename} (Total: {len(existing)})")
+        except Exception as e:
+            logger.error(f"Failed to save closed trade record: {e}")
+
     def _update_account_equity(self, acc_id: str, balance: float, equity: float):
         if not ACCOUNTS_CONFIG_PATH.exists():
             return
@@ -340,7 +393,13 @@ class LiveMT5BridgeCore:
                 logger.info(f"✅ [BAR SYNC 100%] Ingested {len(self.history_m1)} REAL bars from MT5! Latest Close: ${last_c:.2f}")
                 self._save_radar_state()
 
-        # 3. TICK (Live High-Frequency Quotes)
+        # 4. CLOSED_TRADE (Real-time Closed Deal Telemetry from MT5)
+        elif msg_type == "CLOSED_TRADE":
+            trade_data = msg.get("data", {})
+            if trade_data:
+                self._record_closed_trade(trade_data)
+
+        # 5. TICK (Live High-Frequency Quotes)
         elif msg_type == "TICK":
             self.latest_tick = msg
             bid = float(msg.get("bid", 0.0))
