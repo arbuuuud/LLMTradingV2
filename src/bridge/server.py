@@ -175,8 +175,11 @@ class LiveMT5BridgeCore:
 
         existing.append(record)
         try:
-            target_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
-            logger.info(f"💾 [FORWARD STORAGE] Saved Closed Trade #{trade_id} (PnL: ${record['pnl']:.2f}) -> {target_filename} (Total: {len(existing)})")
+            # Atomic Write: write to .tmp then atomic os.replace to prevent corruption on crash
+            tmp_path = target_path.with_suffix(".tmp")
+            tmp_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+            os.replace(tmp_path, target_path)
+            logger.info(f"💾 [FORWARD STORAGE] Saved Closed Trade #{trade_id} (PnL: ${record['pnl']:.2f}) -> {target_filename} (Total: {len(existing)}) [ATOMIC]")
         except Exception as e:
             logger.error(f"Failed to save closed trade record: {e}")
 

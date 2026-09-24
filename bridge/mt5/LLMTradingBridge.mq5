@@ -698,6 +698,8 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
 //+------------------------------------------------------------------+
 //| Timer function (Heartbeat, Reconnect & Sleep-Wake Auto-Sync)     |
 //+------------------------------------------------------------------+
+//| Timer function (Heartbeat, Reconnect & Sleep-Wake Auto-Sync)     |
+//+------------------------------------------------------------------+
 void OnTimer()
 {
    ulong now_ms = GetTickCount64();
@@ -713,8 +715,36 @@ void OnTimer()
    }
    m_last_timer_ms = now_ms;
 
+   // 2. Disconnection Fail-Safe Watchdog (Subtask 5-3E)
+   // If disconnected for > 10 seconds, cancel all pending limit orders to protect account from unsupervised fills!
+   static ulong disconnect_start_ms = 0;
+   static bool fail_safe_tripped = false;
+
    if(!m_connected)
    {
+      if(disconnect_start_ms == 0)
+         disconnect_start_ms = now_ms;
+
+      if(!fail_safe_tripped && (now_ms - disconnect_start_ms >= 10000))
+      {
+         int deletedCount = 0;
+         for(int i = OrdersTotal() - 1; i >= 0; i--)
+         {
+            ulong ticket = OrderGetTicket(i);
+            if(ticket > 0)
+            {
+               long ordMagic = OrderGetInteger(ORDER_MAGIC);
+               if(ordMagic == 1001 || ordMagic == 2001 || ordMagic == (long)InpMagicNumber)
+               {
+                  if(m_trade.OrderDelete(ticket))
+                     deletedCount++;
+               }
+            }
+         }
+         PrintFormat("🚨 [FAIL-SAFE WATCHDOG ACTIVATED] Python Brain disconnected for > 10s! Cancelled %d pending orders for safety.", deletedCount);
+         fail_safe_tripped = true;
+      }
+
       if(now_ms - m_last_connect_ms >= 3000)
       {
          m_last_connect_ms = now_ms;
@@ -723,6 +753,10 @@ void OnTimer()
    }
    else
    {
+      // Connected healthy -> reset watchdog
+      disconnect_start_ms = 0;
+      fail_safe_tripped = false;
+
       // Check for incoming commands during quiet periods
       PollIncomingCommands();
    }
