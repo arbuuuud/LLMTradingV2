@@ -71,7 +71,7 @@
 
 ### ⏳ Fase 4: Forward Test Staging & Live Trading Engine (Workflow 4 & 3)
 - [x] **T4-1A**: Incubation Staging Gate Out-of-Sample Audit (`scripts/run_oos_forward_test.py`, `reports/forward_test_oos_report.md`). Mengaudit performa di 10.000 bars data tak terlihat dengan injeksi friksi spread & slippage nyata (359 trades, WR 78.0%, PF 437.7, Lulus degradasi $\le 15\%$). *(VERIFIED & COMPLETED)*
-- [ ] **T4-1B**: Live Demo MT5 Incubation Forward Test (Workflow 4 Opsi B). Menjalankan EA Bridge di MT5 akun demo secara berkala untuk memanen 50 trade riil. *(WAITING USER DEMO EXECUTION)*
+- [x] **T4-1B**: Live Demo MT5 Incubation Forward Test (Workflow 4 Opsi B). Menjalankan EA Bridge di MT5 akun demo secara berkala untuk memanen 50 trade riil. *(VERIFIED & COMPLETED: Lolos Inkubasi Batch 2 dengan 348 Closed Deals di 4 Akun MT5, Setup WR 70.2%, Prop Firm Max DD 1.03%. Laporan: reports/forward_batch2_incubation_audit_report.md)*
 - [x] **T4-1C: Root-Cause Disparity Audit (Forward Test vs Python Backtest Replication)**:
   - **Latar Belakang Ketidakpuasan (Disparity)**: Hasil forward test live sering kali jauh terdegradasi dibanding backtest teoritis (misal: backtest menghasilkan PF tinggi, namun live forward VPS menghasilkan PF 0.79 akibat friksi spread, slippage, eksekusi broker, dan BEP prematur).
   - **Protokol Investigasi Deterministik**: Setiap kali batch forward test selesai dipanen (`forward_trades_vps.json` atau `forward_trades_local.json`), sistem WAJIB mengekstrak rentang bar OHLCV yang sama persis dari Data Lake dan menjalankannya ulang di Python Backtest Engine (`src/workflows/backtest.py`).
