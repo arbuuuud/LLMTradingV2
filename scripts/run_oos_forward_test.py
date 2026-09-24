@@ -113,9 +113,10 @@ def run_realistic_forward_simulation(
         # 1. Manage Open Positions
         rem_trades = []
         for tr in open_trades:
-            # Check Hard TP (Equilibrium)
+            # Check Hard TP (Equilibrium with realistic Bid/Ask spread friction)
+            spread_friction = float(np.random.uniform(0.20, 0.40))
             if tr["direction"] == Direction.BUY and h >= tr["tp"]:
-                slip = float(np.random.uniform(0.01, 0.10))
+                slip = float(np.random.uniform(0.01, 0.08))
                 exit_p = tr["tp"] - slip
                 r_gain = (tr["tp"] - tr["actual_entry"]) / max(tr["actual_entry"] - tr["sl"], 0.1)
                 r_mult = max(r_gain, 1.0)
@@ -143,8 +144,9 @@ def run_realistic_forward_simulation(
                 if spec.cancel_remaining_on_tp:
                     zone_completed = True
 
-            elif tr["direction"] == Direction.SELL and l <= tr["tp"]:
-                slip = float(np.random.uniform(0.01, 0.10))
+            # For SELL position, exit executes at ASK price (l + spread_friction)
+            elif tr["direction"] == Direction.SELL and (l + spread_friction) <= tr["tp"]:
+                slip = float(np.random.uniform(0.01, 0.08))
                 exit_p = tr["tp"] + slip
                 r_gain = (tr["actual_entry"] - tr["tp"]) / max(tr["sl"] - tr["actual_entry"], 0.1)
                 r_mult = max(r_gain, 1.0)

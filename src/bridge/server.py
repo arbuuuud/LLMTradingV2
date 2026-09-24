@@ -665,7 +665,17 @@ class LiveMT5BridgeCore:
                     limit_p = round(max(ask + 0.30, m1_setup["sell_zone"]["untouched_bottom"]), 2)
 
                 sl = m1_setup["sl_hard"]
-                tp = m1_setup["tp_midpoint"]
+                base_tp = m1_setup["tp_midpoint"]
+                spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
+
+                # Broker Spread Compensation:
+                # - For SELL: Exit is executed at ASK price (Ask = Bid + Spread).
+                #   To ensure TP is filled when Bid reaches equilibrium, TP must be adjusted upward by spread.
+                # - For BUY: Exit is executed at BID price (Bid = Ask - Spread).
+                if dir_cmd == "SELL":
+                    tp = round(base_tp + spread_val, 2)
+                else:
+                    tp = round(base_tp, 2)
 
                 # Dynamic Risk-Based Lot Sizing based on real Account Equity
                 sl_distance = max(1.0, abs(limit_p - sl))
