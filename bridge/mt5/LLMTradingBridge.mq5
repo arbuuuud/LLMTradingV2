@@ -627,6 +627,8 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
    if(trans.type == TRADE_TRANSACTION_DEAL_ADD)
    {
       ulong dealTicket = trans.deal;
+      // In MetaTrader 5, we select deal history or recent deals
+      HistorySelect(TimeCurrent() - 3600, TimeCurrent() + 60);
       if(dealTicket > 0 && HistoryDealSelect(dealTicket))
       {
          long dealEntry = HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
