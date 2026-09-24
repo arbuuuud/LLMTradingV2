@@ -301,6 +301,12 @@ class ShadowCloneSpec(BaseModel):
     cancel_remaining_on_tp: bool = True           # Cancel standing limits once TP 50% is achieved
     pac_handover_mode: PACHandoverMode = PACHandoverMode.DYNAMIC_TARGET_SHIFT
 
+    # Market Friction & Execution Model Calibration (DEC-027)
+    spread_pts: float = 0.25                      # Real Gold spread friction (0.25 pt buffer)
+    slippage_pts: float = 0.05                    # Real execution latency/slippage
+    grid_weight_mode: str = "EQUAL"               # EQUAL or INVERTED_50_25_25
+    cooldown_bars: int = 1                        # Minimum bars between re-entries to simulate network latency
+
     # Dimensi 4: Session
     session: SessionKillzone = SessionKillzone.ALL_DAY
 

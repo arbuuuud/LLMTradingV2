@@ -168,11 +168,16 @@ class BacktestEngine:
 
             span = current_roof - current_floor
 
-            # 2. Manage Open Positions
+            # 2. Manage Open Positions with Realistic Ask/Bid Spread and Slippage
             remaining_trades = []
+            spread = getattr(spec, "spread_pts", 0.0)
+            slippage = getattr(spec, "slippage_pts", 0.0)
+
             for tr in open_trades:
+                # BUY closes at BID (High/Low of chart)
+                # SELL closes at ASK (High + Spread / Low + Spread)
                 # Check Hard TP (Equilibrium)
-                if tr.direction == Direction.BUY and h >= tr.hard_tp_price:
+                if tr.direction == Direction.BUY and h >= (tr.hard_tp_price + slippage):
                     tr.exit_time = t
                     tr.exit_price = tr.hard_tp_price
                     tr.exit_reason = "HARD_TP"
@@ -186,7 +191,7 @@ class BacktestEngine:
                     if spec.cancel_remaining_on_tp:
                         zone_completed = True
 
-                elif tr.direction == Direction.SELL and l <= tr.hard_tp_price:
+                elif tr.direction == Direction.SELL and (l + spread) <= (tr.hard_tp_price - slippage):
                     tr.exit_time = t
                     tr.exit_price = tr.hard_tp_price
                     tr.exit_reason = "HARD_TP"
@@ -200,8 +205,8 @@ class BacktestEngine:
                     if spec.cancel_remaining_on_tp:
                         zone_completed = True
 
-                # Check Hard SL
-                elif tr.direction == Direction.BUY and l <= tr.sl_price:
+                # Check Hard SL (BUY: Low <= SL, SELL: High + Spread >= SL)
+                elif tr.direction == Direction.BUY and l <= (tr.sl_price - slippage):
                     tr.exit_time = t
                     tr.exit_price = tr.sl_price
                     tr.exit_reason = "BEP_HIT" if tr.is_bep_locked else "HARD_SL"
@@ -218,7 +223,7 @@ class BacktestEngine:
                     closed_trades.append(tr)
                     balance += tr.pnl
 
-                elif tr.direction == Direction.SELL and h >= tr.sl_price:
+                elif tr.direction == Direction.SELL and (h + spread) >= (tr.sl_price + slippage):
                     tr.exit_time = t
                     tr.exit_price = tr.sl_price
                     tr.exit_reason = "BEP_HIT" if tr.is_bep_locked else "HARD_SL"
@@ -238,12 +243,12 @@ class BacktestEngine:
                 # Check Soft SL (Candle Close beyond boundary)
                 elif tr.soft_sl_price is not None and not tr.is_bep_locked and (
                     (tr.direction == Direction.BUY and c <= tr.soft_sl_price) or
-                    (tr.direction == Direction.SELL and c >= tr.soft_sl_price)
+                    (tr.direction == Direction.SELL and (c + spread) >= tr.soft_sl_price)
                 ):
                     tr.exit_time = t
-                    tr.exit_price = c
+                    tr.exit_price = c if tr.direction == Direction.BUY else (c + spread)
                     tr.exit_reason = "SOFT_SL_CANDLE_CLOSE"
-                    loss_dist = abs(c - tr.entry_price)
+                    loss_dist = abs(tr.exit_price - tr.entry_price)
                     max_sl_dist = max(abs(tr.entry_price - tr.sl_price), 0.1)
                     actual_r = -min(loss_dist / max_sl_dist, 1.0)
                     tr.r_multiple = actual_r
@@ -402,17 +407,24 @@ class BacktestEngine:
                         # Spacing: from 25% (Lantai Atas Buy) down to 0% (Lantai Bawah Buy)
                         depth_pcts = [0.25] if num_layers == 1 else [0.25 - (i * 0.25 / (num_layers - 1)) for i in range(num_layers)]
 
+                        # Risk allocation per layer based on grid_weight_mode
+                        total_risk = self.initial_capital * (self.base_risk_pct / 100.0)
+                        grid_mode = getattr(spec, "grid_weight_mode", "EQUAL")
+
                         for lay_idx, dp in enumerate(depth_pcts):
                             order_level = current_floor + span * dp
-                            if l <= order_level and len(open_trades) < spec.limit_layers:
+                            # BUY enters at ASK = order_level + spread
+                            if l <= (order_level + slippage) and len(open_trades) < spec.limit_layers:
                                 # Check if already entered this layer
                                 if any(abs(tr.entry_price - order_level) < 0.10 for tr in open_trades):
                                     continue
 
-                                # Dynamic lot sizing based on distance to SL so total risk per trade is strictly partitioned
-                                dist_to_sl = max(abs(order_level - hard_sl), 0.5)
-                                # Risk allocation per layer: Equal risk $ amount per layer
-                                layer_risk = (self.initial_capital * (self.base_risk_pct / 100.0)) / num_layers
+                                # Calculate layer risk weight
+                                if grid_mode == "INVERTED_50_25_25" and num_layers == 3:
+                                    weights = [0.50, 0.25, 0.25]
+                                    layer_risk = total_risk * weights[lay_idx]
+                                else:
+                                    layer_risk = total_risk / num_layers
 
                                 trade_counter += 1
                                 active_zone_retests += 1
@@ -444,15 +456,22 @@ class BacktestEngine:
                         # Spacing: from 75% (Lantai Bawah Sell) up to 100% (Lantai Atas Sell)
                         depth_pcts = [0.75] if num_layers == 1 else [0.75 + (i * 0.25 / (num_layers - 1)) for i in range(num_layers)]
 
+                        total_risk = self.initial_capital * (self.base_risk_pct / 100.0)
+                        grid_mode = getattr(spec, "grid_weight_mode", "EQUAL")
+
                         for lay_idx, dp in enumerate(depth_pcts):
                             order_level = current_floor + span * dp
-                            if h >= order_level and len(open_trades) < spec.limit_layers:
+                            # SELL enters at BID = order_level
+                            if (h + spread) >= (order_level - slippage) and len(open_trades) < spec.limit_layers:
                                 # Check if already entered this layer
                                 if any(abs(tr.entry_price - order_level) < 0.10 for tr in open_trades):
                                     continue
 
-                                dist_to_sl = max(abs(hard_sl - order_level), 0.5)
-                                layer_risk = (self.initial_capital * (self.base_risk_pct / 100.0)) / num_layers
+                                if grid_mode == "INVERTED_50_25_25" and num_layers == 3:
+                                    weights = [0.50, 0.25, 0.25]
+                                    layer_risk = total_risk * weights[lay_idx]
+                                else:
+                                    layer_risk = total_risk / num_layers
 
                                 trade_counter += 1
                                 active_zone_retests += 1
