@@ -124,6 +124,16 @@
       3. Targeted Multi-Account Dispatcher di Python: Menghitung lot proporsional per akun ($100K Prop Firm ~0.27 lot s/d $500 YOLO murni 0.01 lot) dan menyematkan tag `account_number` ke order limit maupun perintah `CLOSE_ALL` Sasuke Sharingan.
       4. Dashboard Incubation Gate Multi-Account Matrix: Memantau 4 kotak performa akun secara komparatif real-time.
     - *Status*: **VERIFIED & COMPLETED**.
+  - [ ] **Subtask 5-3G: Eksplorasi Pilar Fitur Kuantitatif Tambahan (ADX, VWAP, RVOL)**:
+    - *Latar Belakang*: PAC saat ini mengandalkan geometri harga (Floor/Roof, FVG, OB, Candlestick). Diperlukan pilar konfirmasi momentum, volume institusi, dan volatilitas untuk memfilter false breakout atau false retest.
+    - *3 Pilar Tambahan yang Dieksplorasi*:
+      1. **ADX (Average Directional Index)**: Filter kekuatan tren vs sideways/ranging. Membedakan apakah zona PAC siap memantul (rebound) atau sedang ditembus tren liar (breakout).
+      2. **VWAP (Volume-Weighted Average Price & Anchored VWAP)**: Benchmark harga wajar institusi harian/sesi. Level konfluensi dinamis dengan Midpoint Equilibrium 50%.
+      3. **RVOL (Relative Volume)**: Rasio volume tick bar saat ini terhadap rata-rata historis (moving average volume 20 bar). Mendeteksi aktivitas "Smart Money Injection" saat menyentuh Layer 1/2/3.
+    - *Rencana Aksi*:
+      1. Hitung fitur deterministik ADX, VWAP, dan RVOL di `src/features/`.
+      2. Modelkan sebagai filter konfirmasi / gatekeeper di Kage Bunshin runner (`src/workflows/kage_bunshin.py`).
+      3. Uji tanding di 300.440 bar M1 XAUUSD untuk mengukur peningkatan Win Rate dan reduksi false entries.
 
 ---
 

@@ -4,10 +4,10 @@
   "last_updated": "2026-09-24T18:00:00",
   "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
-    "total_tasks": 30,
-    "completed_tasks": 21,
-    "in_progress_tasks": 2,
-    "pending_tasks": 7
+    "total_tasks": 31,
+    "completed_tasks": 22,
+    "in_progress_tasks": 1,
+    "pending_tasks": 8
   },
   "phases": [
     {
@@ -279,6 +279,13 @@
           "status": "COMPLETED",
           "branch": "main",
           "notes": "Verified: Mendukung auto-register profil 'none' (standby safe), dropdown profil risiko, tombol toggle saklar ACTIVE/INACTIVE di dashboard, targeted dispatcher, dan visualizer komparatif 4 akun."
+        },
+        {
+          "id": "T5-3G",
+          "title": "Subtask 5-3G: Eksplorasi Pilar Fitur Kuantitatif Tambahan (ADX, VWAP, RVOL)",
+          "status": "PENDING",
+          "branch": "main",
+          "notes": "Eksplorasi pilar konfirmasi kekuatan tren (ADX), benchmark harga wajar institusi (VWAP/Anchored VWAP), dan rasio volume pintar (RVOL) untuk memfilter false breakout/retest pada zona PAC."
         }
       ]
     }
