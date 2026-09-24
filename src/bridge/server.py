@@ -674,6 +674,7 @@ class LiveMT5BridgeCore:
                 self._last_order_direction = dir_cmd
                 self._last_order_time = now_time
 
+                side = "BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"
                 spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
 
                 # 1. Limit Order Price Adjustment (Spread Friction Compensated):
