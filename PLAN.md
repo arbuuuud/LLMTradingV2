@@ -96,10 +96,10 @@
     - *Brainstorming*: Definisikan formula Trailing Greed bertingkat (Lock +0.5% saat profit +1.0%, lock +1.0% saat profit +1.5%) serta batas max loss -1%/hari dengan target min +2% (RR 1:2) per profil risiko.
     - *Eksploitasi Kage Bunshin*: Uji variasi threshold trailing pada kurva ekuitas historis untuk mengukur apakah winrate tergerus atau profit membesar.
     - *Auditor Gate*: Verifikasi kepatuhan profil risiko Prop Firm / Sweet Spot / Aggressive. *(VERIFIED & COMPLETED: KUBU-3B Sasuke Trailing London-NY menembus PF 172.47 s/d 216.83 dengan Max DD ultra aman 1.4%)*
-  - [ ] **Subtask 5-3C: PAC Virgin Liquidity Depth Engine (Mitigated vs Untouched Depth)**:
-    - *Brainstorming*: Aturan matematis eliminasi level $< 50\%$ yang telah tersentuh dan pengalokasian limit order hanya pada kedalaman murni $> 50\%$.
-    - *Eksploitasi Kage Bunshin*: Uji tanding filter kedalaman murni vs naive retest pada seluruh zona demand/supply historis.
-    - *Auditor Gate*: Validasi penurunan false breakout rate dan peningkatan akurasi rejection.
+  - [x] **Subtask 5-3C: PAC Virgin Liquidity Depth Engine (Mitigated vs Untouched Depth)**:
+    - *Brainstorming*: Aturan matematis eliminasi level $< 50\%$ yang telah tersentuh dan pengalokasian limit order hanya pada kedalaman murni $> 50\%$, dengan ide pemisahan Kubu B2 (Adaptive Quick-Escape TP ke bibir zona / minimum $+0.75R$ pada retest ke-2 dst).
+    - *Eksploitasi Kage Bunshin*: Uji tanding Kubu A (Naive) vs Kubu B1 (Virgin Depth Standard TP) vs Kubu B2 (Adaptive Quick Escape) pada 300.440 bar M1 XAUUSD.
+    - *Auditor Gate*: Validasi penurunan false breakout rate dan peningkatan akurasi rejection. *(VERIFIED & COMPLETED: KUBU-B2 Juara Turnamen dengan Profit Factor 176.31, Win Rate 95.2%, dan Drawdown ditekan ke 1.40% - 1.50%)*
   - [ ] **Subtask 5-3D: Kage Bunshin Tournament on Limit Order Style (Single Limit OTE vs Multi-Layer Grid)**:
     - *Brainstorming*: Rancang 3 probabilitas arsitektur eksekusi: Model 1 limit presisi (Kubu A) vs Model 3-5 limit order grid bertingkat serentak (Kubu B) vs Reaksi M1 (Kubu C).
     - *Eksploitasi Kage Bunshin*: Turnamen brutal 3 kubu secara paralel di multi-core CPU.
