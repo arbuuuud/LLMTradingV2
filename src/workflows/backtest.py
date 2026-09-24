@@ -389,95 +389,85 @@ class BacktestEngine:
                 if sess_ok:
                     # BUY TRIGGER
                     if l <= buy_zone_ceiling and c > current_floor:
-                        # 1. Check virgin depth filter (>50% penetration of discount zone)
-                        if spec.pac_retest_mode in (PACRetestMode.VIRGIN_DEPTH_ONLY, PACRetestMode.ADAPTIVE_QUICK_ESCAPE):
-                            if l > buy_zone_depth_50:
-                                # Shallower than 50% depth -> Skip!
-                                continue
-                            if deepest_touch > 0.0 and l >= deepest_touch:
-                                continue
-                            deepest_touch = l
-
-                        elif spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
-                            if deepest_touch > 0.0 and l >= deepest_touch:
-                                continue
-                            deepest_touch = l
-
-                        entry_p = min(c, buy_zone_ceiling)
                         hard_sl = current_floor + span * (spec.hard_sl_pct / 100.0)
                         soft_sl = current_floor + span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
 
-                        trade_counter += 1
-                        active_zone_retests += 1
-
-                        # Determine Adaptive TP Target for Kubu B2
+                        # Determine Shared Single Hard TP (1 titik untuk seluruh order)
                         if spec.pac_retest_mode == PACRetestMode.ADAPTIVE_QUICK_ESCAPE and active_zone_retests >= 2:
-                            # Retest ke-2+: Geser TP ke bibir atas buy zone atau min +0.75R
-                            zone_edge_tp = buy_zone_ceiling
-                            min_r_tp = entry_p + (0.75 * max(entry_p - hard_sl, 0.1))
-                            target_tp = max(zone_edge_tp, min_r_tp)
+                            target_tp = max(buy_zone_ceiling, current_floor + span * 0.25)
                         else:
                             target_tp = mid_eq
 
-                        risk_per_trade = self.initial_capital * (self.base_risk_pct / 100.0) / spec.limit_layers
-                        tr = TradeRecord(
-                            trade_id=f"{spec.clone_id}-{trade_counter}",
-                            direction=Direction.BUY,
-                            entry_time=t,
-                            entry_price=entry_p,
-                            sl_price=hard_sl,
-                            hard_tp_price=target_tp,
-                            soft_sl_price=soft_sl,
-                            risk_amount=risk_per_trade,
-                            anchor_span=span
-                        )
-                        open_trades.append(tr)
+                        num_layers = max(1, spec.limit_layers)
+                        # Spacing: from 25% (Lantai Atas Buy) down to 0% (Lantai Bawah Buy)
+                        depth_pcts = [0.25] if num_layers == 1 else [0.25 - (i * 0.25 / (num_layers - 1)) for i in range(num_layers)]
+
+                        for lay_idx, dp in enumerate(depth_pcts):
+                            order_level = current_floor + span * dp
+                            if l <= order_level and len(open_trades) < spec.limit_layers:
+                                # Check if already entered this layer
+                                if any(abs(tr.entry_price - order_level) < 0.10 for tr in open_trades):
+                                    continue
+
+                                # Dynamic lot sizing based on distance to SL so total risk per trade is strictly partitioned
+                                dist_to_sl = max(abs(order_level - hard_sl), 0.5)
+                                # Risk allocation per layer: Equal risk $ amount per layer
+                                layer_risk = (self.initial_capital * (self.base_risk_pct / 100.0)) / num_layers
+
+                                trade_counter += 1
+                                active_zone_retests += 1
+                                tr = TradeRecord(
+                                    trade_id=f"{spec.clone_id}-{trade_counter}-L{lay_idx+1}",
+                                    direction=Direction.BUY,
+                                    entry_time=t,
+                                    entry_price=order_level,
+                                    sl_price=hard_sl,
+                                    hard_tp_price=target_tp, # 1 titik TP bersama
+                                    soft_sl_price=soft_sl,
+                                    risk_amount=layer_risk,
+                                    anchor_span=span
+                                )
+                                open_trades.append(tr)
 
                     # SELL TRIGGER
                     elif h >= sell_zone_floor and c < current_roof:
-                        # 1. Check virgin depth filter (>50% penetration of premium zone)
-                        if spec.pac_retest_mode in (PACRetestMode.VIRGIN_DEPTH_ONLY, PACRetestMode.ADAPTIVE_QUICK_ESCAPE):
-                            if h < sell_zone_depth_50:
-                                # Shallower than 50% depth -> Skip!
-                                continue
-                            if deepest_touch > 0.0 and h <= deepest_touch:
-                                continue
-                            deepest_touch = h
-
-                        elif spec.pac_retest_mode == PACRetestMode.MULTI_RETEST_DEEPER:
-                            if deepest_touch > 0.0 and h <= deepest_touch:
-                                continue
-                            deepest_touch = h
-
-                        entry_p = max(c, sell_zone_floor)
                         hard_sl = current_roof - span * (spec.hard_sl_pct / 100.0)
                         soft_sl = current_roof - span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
 
-                        trade_counter += 1
-                        active_zone_retests += 1
-
-                        # Determine Adaptive TP Target for Kubu B2
+                        # Determine Shared Single Hard TP (1 titik untuk seluruh order)
                         if spec.pac_retest_mode == PACRetestMode.ADAPTIVE_QUICK_ESCAPE and active_zone_retests >= 2:
-                            # Retest ke-2+: Geser TP ke bibir bawah sell zone atau min +0.75R
-                            zone_edge_tp = sell_zone_floor
-                            min_r_tp = entry_p - (0.75 * max(hard_sl - entry_p, 0.1))
-                            target_tp = min(zone_edge_tp, min_r_tp)
+                            target_tp = min(sell_zone_floor, current_floor + span * 0.75)
                         else:
                             target_tp = mid_eq
 
-                        risk_per_trade = self.initial_capital * (self.base_risk_pct / 100.0) / spec.limit_layers
-                        tr = TradeRecord(
-                            trade_id=f"{spec.clone_id}-{trade_counter}",
-                            direction=Direction.SELL,
-                            entry_time=t,
-                            entry_price=entry_p,
-                            sl_price=hard_sl,
-                            hard_tp_price=target_tp,
-                            soft_sl_price=soft_sl,
-                            risk_amount=risk_per_trade,
-                            anchor_span=span
-                        )
-                        open_trades.append(tr)
+                        num_layers = max(1, spec.limit_layers)
+                        # Spacing: from 75% (Lantai Bawah Sell) up to 100% (Lantai Atas Sell)
+                        depth_pcts = [0.75] if num_layers == 1 else [0.75 + (i * 0.25 / (num_layers - 1)) for i in range(num_layers)]
+
+                        for lay_idx, dp in enumerate(depth_pcts):
+                            order_level = current_floor + span * dp
+                            if h >= order_level and len(open_trades) < spec.limit_layers:
+                                # Check if already entered this layer
+                                if any(abs(tr.entry_price - order_level) < 0.10 for tr in open_trades):
+                                    continue
+
+                                dist_to_sl = max(abs(hard_sl - order_level), 0.5)
+                                layer_risk = (self.initial_capital * (self.base_risk_pct / 100.0)) / num_layers
+
+                                trade_counter += 1
+                                active_zone_retests += 1
+                                tr = TradeRecord(
+                                    trade_id=f"{spec.clone_id}-{trade_counter}-L{lay_idx+1}",
+                                    direction=Direction.SELL,
+                                    entry_time=t,
+                                    entry_price=order_level,
+                                    sl_price=hard_sl,
+                                    hard_tp_price=target_tp, # 1 titik TP bersama
+                                    soft_sl_price=soft_sl,
+                                    risk_amount=layer_risk,
+                                    anchor_span=span
+                                )
+                                open_trades.append(tr)
 
         # Performance Metrics
         total_tr = len(closed_trades)
