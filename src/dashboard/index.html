@@ -1433,6 +1433,15 @@
         document.getElementById('radar-session').innerText = data.session;
         document.getElementById('radar-confluence').innerText = `${data.ensemble_confluence.confluence_pct}% (${data.ensemble_confluence.recommendation.replace('_', ' ')})`;
 
+        // Render Session Greed Trailing Status if present
+        if (data.session_budget) {
+          const sb = data.session_budget;
+          const sessEl = document.getElementById('radar-session');
+          if (sessEl) {
+            sessEl.innerHTML = `${data.session} <span class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold ${sb.session_halted ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">${sb.status_desc}</span>`;
+          }
+        }
+
         renderRadarTimeframes(data.timeframes);
         renderChecklist(selectedRadarTf);
         renderPoiReasoning(selectedRadarTf);

@@ -85,6 +85,15 @@ class LiveMT5BridgeCore:
             lot_step=0.01
         ))
 
+        # Dynamic Multi-Session Equity Budgeting & Greed Trailing Overseer (DEC-028 Champion)
+        self.current_session_name: str = ""
+        self.session_start_equity: float = 10000.0
+        self.session_peak_pnl: float = 0.0
+        self.session_halted: bool = False
+        self.prior_session_pnl: float = 0.0
+        self.current_session_day: str = ""
+        self.session_status_desc: str = "Active"
+
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
 
@@ -724,11 +733,76 @@ class LiveMT5BridgeCore:
 
         # Auto-trigger Limit Order Dispatch when M1/M3 setup is Active
         now_time = time.time()
+        now_utc = datetime.now(timezone.utc)
+        curr_min_day = now_utc.hour * 60 + now_utc.minute
+        today_str = now_utc.strftime("%Y-%m-%d")
+
+        # 1. Klasifikasi 3 Sesi Mandiri (DEC-028 Champion CLONE-08)
+        # Asia: 00:00 - 07:00 UTC (0 - 420 min)
+        # London: 07:00 - 13:30 UTC (420 - 810 min)
+        # NY Overlap: 13:30 - 21:00 UTC (810 - 1260 min)
+        if 0 <= curr_min_day < 420:
+            active_sess = "ASIAN"
+        elif 420 <= curr_min_day < 810:
+            active_sess = "LONDON"
+        elif 810 <= curr_min_day < 1260:
+            active_sess = "NY_OVERLAP"
+        else:
+            active_sess = "OFF_HOURS"
+
+        # Cek Transisi Hari & Sesi
+        if today_str != self.current_session_day:
+            self.current_session_day = today_str
+            self.prior_session_pnl = 0.0
+
+        if active_sess != self.current_session_name:
+            if self.current_session_name != "" and self.current_session_name != "OFF_HOURS":
+                self.prior_session_pnl = self.equity - self.session_start_equity
+                logger.info(f"🏁 [SESSION TRANSITION] {self.current_session_name} ended with PnL: ${self.prior_session_pnl:+.2f}")
+
+            self.current_session_name = active_sess
+            self.session_start_equity = max(100.0, self.equity)
+            self.session_peak_pnl = 0.0
+            self.session_halted = (active_sess == "OFF_HOURS")
+            self.session_status_desc = f"{active_sess} Active" if not self.session_halted else "Off-Hours Standby"
+
+        # 2. Multi-Session Equity Budgeting & Dynamic Greed Trailing
+        # Budget loss dasar per-sesi: -0.50% dari ekuitas awal sesi
+        # House Money (CLONE-08): Jika sesi sebelumnya profit >= +1.0%, tambahkan 25% profit ke budget risiko sesi ini!
+        base_sess_loss = self.session_start_equity * 0.005 # 0.5%
+        if self.prior_session_pnl > (self.session_start_equity * 0.01):
+            base_sess_loss += (self.prior_session_pnl * 0.25)
+
+        curr_sess_pnl = self.equity - self.session_start_equity
+        if curr_sess_pnl > self.session_peak_pnl:
+            self.session_peak_pnl = curr_sess_pnl
+
+        # Floor PnL Berundak: Capai +1.0% lock +0.5%, capai +1.5% lock +1.0%, dst. (Pullback 0.5% -> Halted)
+        sess_floor_pnl = -base_sess_loss
+        target_1pct = self.session_start_equity * 0.010
+        step_05pct = self.session_start_equity * 0.005
+
+        if self.session_peak_pnl >= target_1pct:
+            steps = int((self.session_peak_pnl - target_1pct) / step_05pct)
+            sess_floor_pnl = (target_1pct * 0.50) + (steps * step_05pct)
+            self.session_status_desc = f"Locked +${sess_floor_pnl:.2f} (+{(sess_floor_pnl/self.session_start_equity)*100:.1f}%)"
+
+        if curr_sess_pnl <= sess_floor_pnl and not self.session_halted and active_sess != "OFF_HOURS":
+            self.session_halted = True
+            is_win_lock = sess_floor_pnl > 0
+            reason_str = "Greed Trailing Lock Triggered" if is_win_lock else "Session Loss Budget Reached"
+            self.session_status_desc = f"{active_sess} HALTED ({reason_str}: PnL ${curr_sess_pnl:+.2f})"
+            logger.info(f"🛑 [SESSION CIRCUIT BREAKER] {self.session_status_desc}. Purging pending orders for safety.")
+            asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "magic": 1001}))
+
         m1_setup = tf_dict.get("M1", {})
         if m1_setup.get("active_setup") and self.active_writers:
             dir_cmd = m1_setup["direction"]
 
-            # Sasuke Circuit Breaker Gate: Check if daily drawdown breached -1.0%
+            # Sasuke Circuit Breaker Gate: Check if session is halted or daily drawdown breached -1.0%
+            if self.session_halted:
+                return
+
             cb_status = self.sasuke_overseer.check_daily_circuit_breaker(account_equity=self.equity, starting_equity=self.balance)
             if getattr(cb_status, "is_tripped", False):
                 if not hasattr(self, "_last_cb_warn") or (now_time - getattr(self, "_last_cb_warn", 0) > 300.0):
@@ -832,14 +906,20 @@ class LiveMT5BridgeCore:
                     return
 
                 dispatched_orders_summary = []
+                # Alokasi Bobot Pyramid 20% - 30% - 50% (Juara Empiris Turnamen Kage Bunshin)
+                pyramid_weights = [0.20, 0.30, 0.50]
+
                 for acc_k, acc_info in target_accounts.items():
                     acc_num = acc_info["account_number"]
                     acc_prof = acc_info["profile"]
                     acc_eq = max(100.0, acc_info["equity"])
                     acc_risk_tot = acc_info["risk_pct"]
-                    risk_per_layer = acc_risk_tot / num_layers
 
                     for lay_idx, limit_p in enumerate(target_levels):
+                        # Terapkan bobot Pyramid per layer
+                        layer_weight = pyramid_weights[lay_idx] if lay_idx < len(pyramid_weights) else (1.0 / num_layers)
+                        risk_per_layer = acc_risk_tot * layer_weight
+
                         sl_dist = max(1.0, abs(limit_p - sl))
                         sl_dist_points = sl_dist / self.adapter.spec.point
 
@@ -896,6 +976,15 @@ class LiveMT5BridgeCore:
             "ask": ask,
             "session": f"{session_label} (LIVE MT5: {bid:.2f}/{ask:.2f})",
             "updated_at": now_utc.isoformat(),
+            "session_budget": {
+                "active_session": self.current_session_name,
+                "session_start_equity": self.session_start_equity,
+                "session_pnl": self.equity - self.session_start_equity,
+                "session_peak_pnl": self.session_peak_pnl,
+                "session_halted": self.session_halted,
+                "status_desc": self.session_status_desc,
+                "prior_session_pnl": self.prior_session_pnl
+            },
             "notifications": list(self.pending_notifications),
             "account": {
                 "id": self.active_account_id,
