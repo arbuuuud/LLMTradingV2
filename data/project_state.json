@@ -1,13 +1,13 @@
 {
   "project_name": "LLMTradingV2",
-  "version": "0.1.0",
-  "last_updated": "2025-09-22T16:10:00",
-  "current_phase": "Fase Verifikasi: Eksplorasi 1 Per 1 POI, Structure, Patterns & Plan",
+  "version": "0.2.0",
+  "last_updated": "2026-09-24T18:00:00",
+  "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
-    "total_tasks": 22,
-    "completed_tasks": 17,
+    "total_tasks": 28,
+    "completed_tasks": 19,
     "in_progress_tasks": 2,
-    "pending_tasks": 3
+    "pending_tasks": 7
   },
   "phases": [
     {
@@ -20,32 +20,29 @@
           "title": "Inisialisasi Git & .gitignore bersih",
           "status": "COMPLETED",
           "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
-          "branch": "main / feat/initial-architecture",
-          "notes": "Repo remote dihubungkan ke https://github.com/arbuuuud/LLMTradingV2"
+          "branch": "main",
+          "notes": "Repo remote dihubungkan ke GitHub dan tersinkronisasi."
         },
         {
           "id": "T0-2",
           "title": "Penyusunan Master BLUEPRINT.md & Core Workflows Specs",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
-          "branch": "feat/initial-architecture",
-          "notes": "Prinsip pemisahan tegas Math Deterministic vs LLM Cognitive Layer."
+          "branch": "main",
+          "notes": "Prinsip pemisahan tegas Math Deterministic vs LLM Cognitive Layer + Mandat Empiris Kage Bunshin (DEC-019)."
         },
         {
           "id": "T0-3",
           "title": "Definisi Pydantic Data Contracts (src/core/types.py)",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
-          "branch": "feat/initial-architecture",
+          "branch": "main",
           "notes": "Menjamin pertukaran data terstruktur tanpa halusinasi LLM."
         },
         {
           "id": "T0-4",
           "title": "Fondasi Unit Test Deterministic Primitives",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/initial-architecture",
-          "branch": "feat/initial-architecture",
-          "notes": "8 unit tests awal lolos dengan Pytest."
+          "branch": "main",
+          "notes": "Unit tests lolos 100% dengan Pytest (45 passed)."
         }
       ]
     },
@@ -58,17 +55,15 @@
           "id": "T1-1",
           "title": "Two-Tier Hybrid Data Lake (Base Cold + Live Hot Overlay)",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/data-pipeline-normalization",
-          "branch": "feat/data-pipeline-normalization",
-          "notes": "Live data MT5 EA otomatis menimpa (overwrite) data download pada timestamp overlap."
+          "branch": "main",
+          "notes": "Live data MT5 EA otomatis menimpa data download historis pada timestamp overlap."
         },
         {
           "id": "T1-2",
           "title": "Canonical Asset & Multi-Broker Adapter",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/data-pipeline-normalization",
-          "branch": "feat/data-pipeline-normalization",
-          "notes": "Normalisasi simbol (XAUUSD.u / XAUUSD.sc) dan kuantisasi lot step (0.01 / 0.1)."
+          "branch": "main",
+          "notes": "Normalisasi simbol XAUUSD dan kuantisasi lot sizing (0.50% equity risk per trade)."
         }
       ]
     },
@@ -81,111 +76,106 @@
           "id": "T2-1",
           "title": "MT5 TCP Bridge Server (Asyncio) & MQL5 Client EA",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/live-data-feed-mt5-bridge",
-          "branch": "feat/live-data-feed-mt5-bridge",
-          "notes": "Socket JSON non-blocking 127.0.0.1:5555 dengan auto-reconnect dan auto-handshake broker specs."
+          "branch": "main",
+          "notes": "Socket JSON non-blocking 127.0.0.1:5555 dengan handling OnTradeTransaction, CLOSED_TRADE, dan anti-duplicate pending."
         },
         {
           "id": "T2-2",
           "title": "Live Data Feed Generator & Atomic Disk Caching",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/live-data-feed-mt5-bridge",
-          "branch": "feat/live-data-feed-mt5-bridge",
+          "branch": "main",
           "notes": "Memproduksi live_snapshot_xauusd.json setiap candle M1 close."
         }
       ]
     },
     {
       "id": "phase-devops",
-      "title": "Fase PM: Live Project Management Dashboard & Dev Protocol",
+      "title": "Fase PM: Live Cockpit Dashboard & Dual Telemetry",
       "status": "COMPLETED",
       "tasks": [
         {
           "id": "TPM-1",
-          "title": "Master Roadmap & Live State File (PLAN.md & project_state.json)",
+          "title": "Institutional Cockpit Dashboard (Port 8080)",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/pm-dashboard-dev-workflow",
-          "branch": "feat/pm-dashboard-dev-workflow",
-          "notes": "Single source of truth pelacakan langkah kerja dan log catatan keputusan."
+          "branch": "main",
+          "notes": "Dashboard visual dengan PAC Tactical Radar (M1-M5), candlestick canvas, dan panel akun MT5."
         },
         {
           "id": "TPM-2",
-          "title": "Live Web PM Dashboard (HTML/Tailwind + Local Server)",
+          "title": "Dual-Environment Forward Telemetry (Local vs VPS)",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/pm-dashboard-dev-workflow",
-          "branch": "feat/pm-dashboard-dev-workflow",
-          "notes": "Dashboard visual dengan progress bar, checklist live, dan tab status data feed."
+          "branch": "main",
+          "notes": "Pemisahan data forward_trades_local.json dan forward_trades_vps.json dengan tabel closed deals real-time."
         },
         {
           "id": "TPM-3",
           "title": "Development & Feedback Workflow Protocol",
           "status": "COMPLETED",
-          "pr_url": "https://github.com/arbuuuud/LLMTradingV2/pull/new/feat/pm-dashboard-dev-workflow",
-          "branch": "feat/pm-dashboard-dev-workflow",
-          "notes": "SOP tanya catatan & konfirmasi user setelah tiap step selesai."
+          "branch": "main",
+          "notes": "SOP konfirmasi catatan & update berkala ke PLAN.md dan project_state.json."
         }
       ]
     },
     {
       "id": "phase-primitives-exploration",
-      "title": "Fase Verifikasi: Eksplorasi 1 Per 1 (4 Master Inspectors)",
-      "status": "IN_PROGRESS",
+      "title": "Fase Verifikasi: Eksplorasi 4 Master Inspectors",
+      "status": "COMPLETED",
       "tasks": [
         {
-          "id": "INSP-01-STRUCTURE",
-          "title": "Master Structure & Fibonacci Inspector (Swings, HH/HL/LH/LL, BOS, CHoCH, Strong/Weak, Fibo Retracement & Extension)",
+          "id": "INSP-01",
+          "title": "Master Structure & Fibonacci Inspector",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified di MT5: Swings, HH/HL/LH/LL, BOS, CHoCH, Strong/Weak, Dual Fibo (Active 0.382-0.5 & OTE 0.618-0.786 + Prev Leg TP1/TP2 Hit Tracker)."
+          "branch": "main",
+          "notes": "Swings, HH/HL/LH/LL, BOS, CHoCH, dan Dual Fibo (0.382-0.5 & OTE 0.618-0.786)."
         },
         {
-          "id": "INSP-02-FVG",
-          "title": "Master FVG Inspector (Bullish/Bearish FVG, Mitigation, Inversion iFVG)",
+          "id": "INSP-02",
+          "title": "Master FVG Inspector (Bullish/Bearish, Mitigation, iFVG)",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified di MT5: Pemisahan FVG & iFVG, Confluence zone, Proximity 2 Above/Below + 1 Inside terlindungi, Counter sentuhan (+1 hanya jika tembus lebih dalam), Mitigated (body close) vs Fully Used (100% order tersapu)."
+          "branch": "main",
+          "notes": "Pemisahan FVG & iFVG, deeper penetration touch counter, dan inside zone protection."
         },
         {
-          "id": "INSP-03-SUPPLY-DEMAND",
-          "title": "Master OrderBlock & S&D Inspector (OB, RBR/DBD, RBD/DBR, Breaker Block)",
+          "id": "INSP-03",
+          "title": "Master OrderBlock & S&D Inspector (M1 Precomputed Databank)",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified & Resolved: Precomputed M1 POI Databank (79.313 records M1 dari 300.440 bars) terintegrasi langsung via Common/Files. Floor & Roof M1 presisi dijamin muncul di Strategy Tester maupun Live tanpa perlu candle H1."
+          "branch": "main",
+          "notes": "79.313 rekaman M1 OB di xauusd_m1_poi_databank.bin dimuat langsung via FILE_COMMON."
         },
         {
-          "id": "INSP-04-CANDLE-PATTERNS",
-          "title": "Master Candle Pattern Inspector (Engulfing, Doji, Star, Momentum Candle)",
+          "id": "INSP-04",
+          "title": "Master Candle Pattern Inspector & POI Filter",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified di MT5 & Engine: Engulfing, Pin Bar (Hammer/Shooting Star), Morning/Evening Star, Momentum Marubozu, serta filter ketat Hanya Muncul di Zona POI untuk evaluasi akurasi Kage Bunshin."
+          "branch": "main",
+          "notes": "Engulfing, Pin Bar, Morning/Evening Star, Momentum Marubozu dengan filter wajib di POI."
         }
       ]
     },
     {
       "id": "phase-3",
       "title": "Fase 3: Backtest & Kage Bunshin Shadow Clone Matrix (Workflow 2)",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "tasks": [
         {
           "id": "T3-1",
-          "title": "Vectorized / Event-Driven Bar Backtest Engine",
+          "title": "High-Speed Polars Vectorized Backtest Engine",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified: High-speed Polars simulation engine dengan simulasi kuadran PAC (0-25% Buy, 75-100% Sell), Hard SL, Soft SL Candle Close, Hard TP 50%, dan Saved-R analytics."
+          "branch": "main",
+          "notes": "Simulasi kuadran PAC (0-25% Buy, 75-100% Sell), Hard SL, Soft SL Candle Close, Hard TP 50%."
         },
         {
           "id": "T3-2",
           "title": "Kage Bunshin Shadow Clone Matrix Runner",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified: Multi-core ProcessPool parallel tournament runner mengeksekusi 108 s/d 3.840 Shadow Clones dalam hitungan detik, diaudit oleh AuditorAgent dan dipetakan ke 4 Profil Risiko Standar."
+          "branch": "main",
+          "notes": "Multi-core tournament runner mengeksekusi ribuan clones dan diaudit oleh Auditor Agent ke 4 profil risiko."
         },
         {
           "id": "T3-3",
           "title": "ForceClose Benchmark & Saved-R Analytics",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified: ForceCloseAnalyticsRunner mengeksekusi uji tanding ablation head-to-head (Passive vs Guardian Mom-Kill vs Counter-POI vs Partial BEP), membuktikan peredaman Max Drawdown dan penghematan Saved-R."
+          "branch": "main",
+          "notes": "Ablation head-to-head membuktikan peredaman drawdown dan penghematan Saved-R."
         }
       ]
     },
@@ -196,43 +186,82 @@
       "tasks": [
         {
           "id": "T4-1A",
-          "title": "Incubation Staging Gate (OOS Audit Simulation - Opsi A)",
+          "title": "Incubation Staging Gate (OOS Audit Simulation - 10k bars)",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified: OOS 10.000 bars menghasilkan 359 trades dengan degradasi hanya 2.1% (WR 78.0%), slippage 0.08 pts, dan lolos status GRADUATED_LIVE."
+          "branch": "main",
+          "notes": "359 trades OOS, WR 78.0%, PF 437.7, degradasi 2.1% (Lolos GRADUATED_LIVE)."
         },
         {
           "id": "T4-1B",
-          "title": "Live Demo MT5 Incubation Forward Test (Opsi B)",
+          "title": "Live Demo MT5 Incubation Forward Test (Workflow 4)",
+          "status": "IN_PROGRESS",
+          "branch": "main",
+          "notes": "Harvest riil: 52 trades di VPS dan 32 trades di Lokal. Audit matematis mengungkap BEP choking (+1.0 pt)."
+        },
+        {
+          "id": "T4-1C",
+          "title": "Root-Cause Disparity Audit (Forward Test vs Python Backtest Replication)",
           "status": "PENDING",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Forward test live demo di terminal MT5 untuk mengumpulkan closed trades real-time."
+          "branch": "feat/forward-backtest-disparity-audit",
+          "notes": "Menjawab disparity backtest vs forward: menjalankan ulang bar M1 persis sama di Python engine untuk membedah slippage, spread, dan exit cause secara transparan."
         },
         {
           "id": "T4-2",
-          "title": "Live Execution Pipeline & Independent Circuit Breaker Sentinel",
+          "title": "Live Execution Pipeline",
           "status": "COMPLETED",
-          "branch": "feat/poi-structure-matrix-subtasks",
-          "notes": "Verified: LiveExecutionPipeline (Tactician -> Governor -> Normalizer -> Dispatcher) dan CircuitBreakerSentinel (Hard Daily DD 3.0% + Handbrake file lock) berjalan presisi."
+          "branch": "main",
+          "notes": "Rantai eksekusi: Tactician -> Governor -> Normalizer -> Dispatcher."
+        },
+        {
+          "id": "T4-3",
+          "title": "Independent Circuit Breaker Sentinel",
+          "status": "COMPLETED",
+          "branch": "main",
+          "notes": "Proteksi Hard Daily Drawdown 3.0% dan Manual Emergency Handbrake."
         }
       ]
     },
     {
       "id": "phase-5",
-      "title": "Fase 5: Brainstorming Strategy Registry & Automated Post-Mortem (Workflow 5 & 7)",
-      "status": "PENDING",
+      "title": "Fase 5: PAC Calibration Tournament & Sasuke Sharingan Overseer (Workflow 5 & 7)",
+      "status": "IN_PROGRESS",
       "tasks": [
         {
           "id": "T5-1",
           "title": "Strategy Registry CLI & Experiment Generator",
           "status": "PENDING",
-          "notes": "Alat otomatis pencatat ide strategi baru ke YAML dan log eksperimen."
+          "notes": "Alat otomatis pencatat ide strategi baru ke YAML dan registry."
         },
         {
           "id": "T5-2",
-          "title": "Auditor Agent Post-Mortem & Memory Refinement",
+          "title": "Auditor Agent Post-Mortem System",
           "status": "PENDING",
-          "notes": "Review mingguan jurnal trade dan kalibrasi checklist otomatis."
+          "notes": "Evaluasi mingguan riwayat trade dan kalibrasi checklist otomatis."
+        },
+        {
+          "id": "T5-3A",
+          "title": "Subtask 5-3A: Reversal Cognition Guardian (Sasuke Sharingan Agent)",
+          "status": "IN_PROGRESS",
+          "branch": "feat/sasuke-sharingan-overseer-spec",
+          "notes": "Deteksi Evening/Morning Star & Opposite Marubozu pada profit >= 1.0R untuk eksekusi Force TP / Exit sebelum profit tergerus."
+        },
+        {
+          "id": "T5-3B",
+          "title": "Subtask 5-3B: Greed-Version Trailing Profit & Daily Circuit Breaker 1%",
+          "status": "PENDING",
+          "notes": "Trailing bertingkat (Lock +0.5% pada profit +1.0%, lock +1.0% pada +1.5%) + Max loss harian -1.0% (RR 1:2)."
+        },
+        {
+          "id": "T5-3C",
+          "title": "Subtask 5-3C: PAC Virgin Liquidity Depth Engine (>50% Untouched)",
+          "status": "PENDING",
+          "notes": "Eliminasi level mitigated < 50% dan alokasi limit order hanya pada kedalaman likuiditas murni > 50%."
+        },
+        {
+          "id": "T5-3D",
+          "title": "Subtask 5-3D: Kage Bunshin Tournament on Limit Order Style",
+          "status": "PENDING",
+          "notes": "Uji tanding Single Limit OTE (Kubu A) vs Multi-Layer Simultaneous Grid (Kubu B) pada 300.440 bar M1."
         }
       ]
     }
@@ -270,50 +299,71 @@
       "id": "DEC-005",
       "date": "2025-09-22",
       "topic": "1-by-1 POI & Structure Exploration Matrix",
-      "summary": "Seluruh POI (OB, RBR/DBD, FVG, iFVG, BOS/CHoCH, BB, RBD/DBR), Structure (Swings, HH/HL/LH/LL), Fibo (Retracement & Extension), Candle Patterns (Engulfing, Doji, Star, Momentum), dan Trading Plan (Equilibrium) dipecah menjadi sub-task individual dan diverifikasi satu per satu langsung di chart MT5.",
+      "summary": "Seluruh POI, Structure, Fibo, Candle Patterns, dan Trading Plan dipecah menjadi sub-task individual dan diverifikasi satu per satu langsung di chart MT5.",
       "status": "CONFIRMED"
     },
     {
       "id": "DEC-006",
       "date": "2025-09-22",
       "topic": "FVG Proximity & Lifecycle Separation",
-      "summary": "FVG & iFVG dipisahkan sebagai objek distinct. Pembedaan tegas: (1) Touched increment +1 hanya jika menembus harga lebih dalam, (2) Mitigated hanya jika candle closed dengan body di dalam, (3) Fully Used jika 100% order tersapu wick/body, dan (4) Zona aktif tempat harga berada di dalamnya (Inside Zone) diproteksi mutlak dari penghapusan.",
+      "summary": "Pemisahan FVG & iFVG, deeper touch counter, body close mitigation, dan proteksi zona aktif (Inside Zone).",
       "status": "CONFIRMED"
     },
     {
       "id": "DEC-007",
       "date": "2025-09-22",
       "topic": "S&D / OB Roof & Floor Lifecycle",
-      "summary": "Aturan ketat Continuation RBR/DBD (Base 1-3c, Leg-Out impulse ratio >= 1.5x, FVG). Zona Roof & Floor tetap aktif digambar selama belum dijebol body close tembus batas seberang; retest di dalam ditandai [Tested]. Breaker Block dijadikan optional (default OFF). Lookback 1000 bars menjamin ketersediaan 4-5 zona pemetaan (2 Roofs, 2 Floors, 1 Inside).",
+      "summary": "Aturan RBR/DBD Base 1-3c impulse ratio >= 1.5x. Zona Roof & Floor aktif hingga ditembus body close seberang.",
       "status": "CONFIRMED"
     },
     {
       "id": "DEC-008",
       "date": "2025-09-22",
       "topic": "M1 Precomputed POI Databank Architecture",
-      "summary": "Menghilangkan ketergantungan MT5 Strategy Tester pada scanning bar lokal/HTF dengan mengekspor 79.313 rekaman M1 OB langsung dari data lake 300.440 bars ke xauusd_m1_poi_databank.bin (2.7 MB). MT5 Strategy Tester membaca databank ini secara instan via FILE_COMMON, menjamin ketersediaan Floor & Roof M1 presisi tanpa interpolasi candle H1.",
+      "summary": "Ekspor 79.313 rekaman M1 OB ke xauusd_m1_poi_databank.bin (2.7 MB) via FILE_COMMON untuk Strategy Tester instan.",
       "status": "CONFIRMED"
     },
     {
       "id": "DEC-009",
       "date": "2025-09-22",
       "topic": "Candlestick POI Confirmation Filter",
-      "summary": "Seluruh 4 tipe pola lilin (Engulfing, Pin Bar, Morning/Evening Star, Momentum Marubozu) dihitung secara deterministik dan hanya digambar/diakui jika menyentuh atau berada di dalam area aktif POI (InpFilterOnlyAtPOI = true). Label peran diperingkas menjadi [Reac] untuk pemantulan entry dan [Mom] untuk displacement expansion. Menghindari kebisingan chart dan menyajikan data konfirmasi murni untuk evaluasi matriks Kage Bunshin.",
+      "summary": "Pola lilin deterministik difilter ketat hanya jika berada di dalam atau menyentuh POI aktif ([Reac] & [Mom]).",
       "status": "CONFIRMED"
     },
     {
       "id": "DEC-010",
       "date": "2025-09-22",
       "topic": "Kage Bunshin 4D Thinking & Anti-Overfitting Gate",
-      "summary": "Naruto Agent membelah diri berdasarkan 4 Dimensi: Structure/Wave/Fibo, POI Types & Freshness, Candlestick Execution Reac vs Mom Guardian, Session Killzones. Auditor Agent menerapkan syarat keaktifan minimal (>= 30 trade/bulan untuk scalping agar tidak lumpuh) serta memetakan strategi juara ke 4 Profil Risiko Standar (Prop Firm, Sweet Spot, Aggressive, YOLO).",
+      "summary": "Naruto Agent membelah diri pada 4 Dimensi, Auditor Agent mengaudit keaktifan (>=30 trade/bln) dan memetakan ke 4 profil risiko.",
       "status": "CONFIRMED"
     },
     {
-      "id": "BUG-001",
-      "date": "2025-09-22",
-      "topic": "Floor di Backtest MT5 Belum Muncul",
-      "summary": "Resolved via DEC-008. Precomputed M1 Databank memuat 79.313 lantai dan atap historis M1 murni langsung ke RAM Strategy Tester.",
-      "status": "RESOLVED"
+      "id": "DEC-011",
+      "date": "2026-04-03",
+      "topic": "Multi-Timeframe Ensemble Basket Options",
+      "summary": "Profil Prop Firm dipetakan ke Kuartet (M1+M2+M3+M5) Max DD 0.10%, Profil Aggressive dipetakan ke Trio (M1+M2+M3) ROI +1.105%.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-018",
+      "date": "2026-09-24",
+      "topic": "Pembelajaran Khusus Engine PAC (VPS 52 Trades Audit)",
+      "summary": "Reversal Cognition, Greed Trailing (+0.5% lock), Hard Daily Circuit Breaker -1.0%, Untouched Depth >50%, dan Limit Order Style Tournament.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-019",
+      "date": "2026-09-24",
+      "topic": "Mandat Empiris Kage Bunshin: Zero Logic Mutation",
+      "summary": "DILARANG KERAS memodifikasi logika live trading tanpa pengujian empiris kuantitatif pada 300.440 bar historis via Naruto Kage Bunshin.",
+      "status": "MANDATORY"
+    },
+    {
+      "id": "DEC-020",
+      "date": "2026-09-24",
+      "topic": "Forward vs Backtest Disparity Audit Protocol",
+      "summary": "Setiap forward test selesai, data bar waktu yang sama persis WAJIB dijalankan ulang di Python engine (T4-1C) untuk membongkar akar disparitas eksekusi (slippage, spread, BEP choking).",
+      "status": "MANDATORY"
     }
   ]
 }

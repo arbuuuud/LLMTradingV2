@@ -1369,25 +1369,107 @@
         const container = document.getElementById('phases-container');
         container.innerHTML = '';
 
+        // Header Summary Card
+        const stats = state.stats || {};
+        const headerCard = document.createElement('div');
+        headerCard.className = 'glass-card p-5 rounded-2xl border border-blue-500/30 bg-blue-950/20 space-y-3';
+        headerCard.innerHTML = `
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-wider">
+                CURRENT PHASE: ${state.current_phase || 'Active Development'}
+              </span>
+              <h2 class="text-base font-bold text-white mt-1">Master Quantitative Architecture Roadmap</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Single source of truth tracking development milestones, empirical gates, and architectural decisions.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="text-center px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                <span class="text-[10px] text-slate-400 font-mono block">TASKS</span>
+                <span class="text-xs font-bold text-white font-mono">${stats.completed_tasks || 0}/${stats.total_tasks || 0}</span>
+              </div>
+              <div class="text-center px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <span class="text-[10px] text-emerald-400 font-mono block">DONE</span>
+                <span class="text-xs font-bold text-emerald-400 font-mono">${Math.round(((stats.completed_tasks || 0) / (stats.total_tasks || 1)) * 100)}%</span>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(headerCard);
+
+        // Render Decisions Log Section
+        if (Array.isArray(state.decisions_and_notes) && state.decisions_and_notes.length > 0) {
+          const decCard = document.createElement('div');
+          decCard.className = 'glass-card p-5 rounded-2xl border border-slate-800 space-y-3';
+          const recentDecs = state.decisions_and_notes.slice(-4).reverse();
+          const decHtml = recentDecs.map(d => {
+            const isMandatory = d.status === 'MANDATORY';
+            const badgeBg = isMandatory ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+            return `
+              <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-xs font-bold text-indigo-400">${d.id}</span>
+                    <span class="text-xs font-bold text-white">${d.topic}</span>
+                  </div>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${badgeBg}">${d.status}</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">${d.summary}</p>
+              </div>
+            `;
+          }).join('');
+
+          decCard.innerHTML = `
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <h3 class="text-xs font-bold font-mono text-slate-300 flex items-center gap-2">
+                <i class="fa-solid fa-gavel text-indigo-400"></i> KEY ARCHITECTURAL DECISIONS (LATEST LOGS)
+              </h3>
+              <span class="text-[10px] text-slate-500 font-mono">Total ${state.decisions_and_notes.length} Decisions Codified</span>
+            </div>
+            <div class="space-y-2 mt-2">${decHtml}</div>
+          `;
+          container.appendChild(decCard);
+        }
+
+        // Render Phases & Tasks
         (state.phases || []).forEach(phase => {
           const card = document.createElement('div');
-          card.className = 'glass-card p-5 rounded-xl border border-slate-800 space-y-3';
-          const tasksHtml = (phase.tasks || []).map(t => `
-            <div class="flex items-center justify-between p-2 rounded bg-slate-900/60 border border-slate-800/80 text-xs">
-              <div class="flex items-center gap-2">
-                <span class="font-mono text-blue-400 font-bold">${t.id}</span>
-                <span class="text-slate-200">${t.title}</span>
+          const isPhaseDone = phase.status === 'COMPLETED';
+          const isPhaseProg = phase.status === 'IN_PROGRESS';
+          const phaseBadge = isPhaseDone
+            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            : (isPhaseProg ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-400 border-slate-700');
+
+          card.className = `glass-card p-5 rounded-2xl border ${isPhaseProg ? 'border-blue-500/40' : 'border-slate-800'} space-y-3`;
+          const tasksHtml = (phase.tasks || []).map(t => {
+            const isCompleted = t.status === 'COMPLETED';
+            const isInProg = t.status === 'IN_PROGRESS';
+            const statusBadge = isCompleted
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              : (isInProg ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-slate-800/80 text-slate-400 border-slate-700/60');
+
+            return `
+              <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-xs space-y-1.5 hover:border-slate-700 transition">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-blue-400 font-bold">${t.id}</span>
+                    <span class="text-slate-100 font-semibold">${t.title}</span>
+                  </div>
+                  <span class="px-2 py-0.5 rounded font-mono text-[10px] font-bold border ${statusBadge}">${t.status}</span>
+                </div>
+                ${t.notes ? `<div class="text-[11px] text-slate-400 font-mono bg-slate-950/40 p-2 rounded border border-slate-900">${t.notes}</div>` : ''}
               </div>
-              <span class="px-2 py-0.5 rounded font-mono text-[10px] ${t.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">${t.status}</span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
 
           card.innerHTML = `
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-bold text-white">${phase.title}</h3>
-              <span class="text-xs font-mono text-slate-400">${phase.status}</span>
+            <div class="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid ${isPhaseDone ? 'fa-circle-check text-emerald-400' : (isPhaseProg ? 'fa-circle-notch text-blue-400 animate-spin' : 'fa-clock text-slate-500')}"></i>
+                ${phase.title}
+              </h3>
+              <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold border ${phaseBadge}">${phase.status}</span>
             </div>
-            <div class="space-y-2">${tasksHtml}</div>
+            <div class="space-y-2 mt-2">${tasksHtml}</div>
           `;
           container.appendChild(card);
         });
