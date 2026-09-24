@@ -11,6 +11,8 @@ Simulates strict forward incubation on unseen recent data:
 """
 
 from datetime import datetime
+from pathlib import Path
+import json
 import numpy as np
 import polars as pl
 
@@ -350,6 +352,14 @@ def main():
     print("\n[RUNNING FORWARD TEST ON UNSEEN DATA (Out-of-Sample)]...")
     forward_trades = run_realistic_forward_simulation(champ_spec, df_oos)
     print(f"  Forward Trades Accumulated: {len(forward_trades)} closed trades")
+
+    # Save to data/forward_trades_local.json and data/forward_trades_vps.json
+    export_payload = [tr.model_dump(mode="json") for tr in forward_trades]
+    for p in ["data/forward_trades_local.json", "data/forward_trades_vps.json", "data/forward_trades_live.json"]:
+        target_f = Path(p)
+        target_f.parent.mkdir(parents=True, exist_ok=True)
+        target_f.write_text(json.dumps(export_payload, indent=2), encoding="utf-8")
+    print(f"💾 Saved {len(forward_trades)} detailed forward trade records to data/forward_trades_local.json & vps.json!")
 
     # 3. Audit via IncubationStagingGate
     gate = IncubationStagingGate(min_trades=50, max_degradation_pct=15.0, max_allowed_slippage_pts=1.5)
