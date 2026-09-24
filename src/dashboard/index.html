@@ -345,22 +345,75 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="glass-card p-4 rounded-xl border border-slate-800">
-          <span class="text-xs text-slate-400 font-mono">TOTAL CLOSED TRADES</span>
-          <p class="text-2xl font-bold text-white mt-1">359 <span class="text-xs text-emerald-400 font-normal">/ 50 req</span></p>
+      <!-- Environment Separation Cards: Local vs VPS -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Local Mac Card -->
+        <div class="glass-card p-5 rounded-2xl border border-blue-500/30 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <span class="font-bold text-white text-sm flex items-center gap-2 font-mono">
+              <i class="fa-solid fa-laptop text-blue-400"></i> LOCAL ENVIRONMENT (Mac)
+            </span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              forward_trades_local.json
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">HARVESTED TRADES</span>
+              <span id="forward-local-trades" class="text-xl font-bold text-white mt-1 block">0 <span class="text-xs text-slate-500 font-normal">/ 50</span></span>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">WIN RATE</span>
+              <span id="forward-local-wr" class="text-xl font-bold text-emerald-400 mt-1 block">0.0%</span>
+            </div>
+          </div>
         </div>
-        <div class="glass-card p-4 rounded-xl border border-slate-800">
-          <span class="text-xs text-slate-400 font-mono">REALIZED WIN RATE</span>
-          <p class="text-2xl font-bold text-emerald-400 mt-1">78.0% <span class="text-xs text-slate-400 font-normal">(Base: 79.7%)</span></p>
+
+        <!-- Production VPS Card -->
+        <div class="glass-card p-5 rounded-2xl border border-indigo-500/30 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <span class="font-bold text-white text-sm flex items-center gap-2 font-mono">
+              <i class="fa-solid fa-server text-indigo-400"></i> PRODUCTION VPS (24/7 Server)
+            </span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              forward_trades_vps.json
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">HARVESTED TRADES</span>
+              <span id="forward-vps-trades" class="text-xl font-bold text-white mt-1 block">0 <span class="text-xs text-slate-500 font-normal">/ 50</span></span>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-slate-400 block font-mono text-[11px]">WIN RATE</span>
+              <span id="forward-vps-wr" class="text-xl font-bold text-emerald-400 mt-1 block">0.0%</span>
+            </div>
+          </div>
         </div>
-        <div class="glass-card p-4 rounded-xl border border-slate-800">
-          <span class="text-xs text-slate-400 font-mono">DEGRADATION RATE</span>
-          <p class="text-2xl font-bold text-emerald-400 mt-1">2.1% <span class="text-xs text-emerald-400 font-normal">(Batas Max 15%)</span></p>
-        </div>
-        <div class="glass-card p-4 rounded-xl border border-slate-800">
-          <span class="text-xs text-slate-400 font-mono">AVG SLIPPAGE</span>
-          <p class="text-2xl font-bold text-blue-400 mt-1">0.08 pts <span class="text-xs text-slate-400 font-normal">(Batas Max 1.5 pts)</span></p>
+      </div>
+
+      <!-- Out-of-Sample Fast Incubation Reference -->
+      <div class="glass-card p-5 rounded-2xl border border-slate-800 space-y-3">
+        <h3 class="text-xs font-bold text-slate-400 font-mono flex items-center gap-2">
+          <i class="fa-solid fa-microchip text-slate-400"></i> OUT-OF-SAMPLE BASELINE VALIDATION (10,000 UNSEEN BARS)
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="glass-card p-3 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-400 font-mono">TOTAL OOS TRADES</span>
+            <p class="text-lg font-bold text-white mt-0.5">359 <span class="text-[10px] text-emerald-400 font-normal">/ 50 req</span></p>
+          </div>
+          <div class="glass-card p-3 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-400 font-mono">REALIZED WIN RATE</span>
+            <p class="text-lg font-bold text-emerald-400 mt-0.5">78.0% <span class="text-[10px] text-slate-400 font-normal">(Base: 79.7%)</span></p>
+          </div>
+          <div class="glass-card p-3 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-400 font-mono">DEGRADATION RATE</span>
+            <p class="text-lg font-bold text-emerald-400 mt-0.5">2.1% <span class="text-[10px] text-emerald-400 font-normal">(Max 15%)</span></p>
+          </div>
+          <div class="glass-card p-3 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-400 font-mono">AVG SLIPPAGE</span>
+            <p class="text-lg font-bold text-blue-400 mt-0.5">0.08 pts <span class="text-[10px] text-slate-400 font-normal">(Max 1.5 pts)</span></p>
+          </div>
         </div>
       </div>
     </section>
@@ -899,7 +952,31 @@
 
       if (tabId === 'radar') fetchRadarData();
       if (tabId === 'accounts') fetchAccountsData();
+      if (tabId === 'forward') fetchForwardData();
       if (tabId === 'roadmap') fetchRoadmapData();
+    }
+
+    async function fetchForwardData() {
+      try {
+        const res = await fetch('/api/forward-trades');
+        const d = await res.json();
+
+        // 1. Local Trades
+        const loc = d.local || [];
+        const locWins = loc.filter(t => t.pnl > 0).length;
+        const locWr = loc.length > 0 ? ((locWins / loc.length) * 100).toFixed(1) : "0.0";
+        document.getElementById('forward-local-trades').innerHTML = `${loc.length} <span class="text-xs text-slate-500 font-normal">/ 50</span>`;
+        document.getElementById('forward-local-wr').innerText = `${locWr}%`;
+
+        // 2. VPS Trades
+        const vps = d.vps || [];
+        const vpsWins = vps.filter(t => t.pnl > 0).length;
+        const vpsWr = vps.length > 0 ? ((vpsWins / vps.length) * 100).toFixed(1) : "0.0";
+        document.getElementById('forward-vps-trades').innerHTML = `${vps.length} <span class="text-xs text-slate-500 font-normal">/ 50</span>`;
+        document.getElementById('forward-vps-wr').innerText = `${vpsWr}%`;
+      } catch (err) {
+        console.error("Failed to load forward test data:", err);
+      }
     }
 
     // ==========================================

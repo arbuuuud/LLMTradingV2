@@ -27,6 +27,8 @@ STATE_FILE = PROJECT_ROOT / "data" / "project_state.json"
 RADAR_STATE_PATH = PROJECT_ROOT / "reports" / "radar_state.json"
 CACHE_FILE = PROJECT_ROOT / "data" / "cache" / "live_snapshot_xauusd.json"
 FORWARD_TRADES_FILE = PROJECT_ROOT / "data" / "forward_trades_live.json"
+FORWARD_TRADES_LOCAL = PROJECT_ROOT / "data" / "forward_trades_local.json"
+FORWARD_TRADES_VPS = PROJECT_ROOT / "data" / "forward_trades_vps.json"
 HTML_FILE = Path(__file__).resolve().parent / "index.html"
 
 
@@ -557,12 +559,31 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/forward-trades":
-            if FORWARD_TRADES_FILE.exists():
-                self._set_json_headers(200)
-                self.wfile.write(FORWARD_TRADES_FILE.read_bytes())
-            else:
-                self._set_json_headers(200)
-                self.wfile.write(json.dumps([], indent=2).encode("utf-8"))
+            # Ingest and return both local and VPS trades distinctly
+            trades_local = []
+            trades_vps = []
+
+            p_loc = FORWARD_TRADES_LOCAL if FORWARD_TRADES_LOCAL.exists() else FORWARD_TRADES_FILE
+            if p_loc.exists():
+                try:
+                    trades_local = json.loads(p_loc.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+
+            if FORWARD_TRADES_VPS.exists():
+                try:
+                    trades_vps = json.loads(FORWARD_TRADES_VPS.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+
+            self._set_json_headers(200)
+            self.wfile.write(json.dumps({
+                "local": trades_local,
+                "vps": trades_vps,
+                "total_local": len(trades_local),
+                "total_vps": len(trades_vps),
+                "combined_total": len(trades_local) + len(trades_vps)
+            }, indent=2).encode("utf-8"))
             return
 
         elif path == "/api/snapshot":
