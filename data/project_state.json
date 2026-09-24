@@ -4,8 +4,8 @@
   "last_updated": "2026-09-24T18:00:00",
   "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
-    "total_tasks": 28,
-    "completed_tasks": 19,
+    "total_tasks": 30,
+    "completed_tasks": 21,
     "in_progress_tasks": 2,
     "pending_tasks": 7
   },
@@ -265,6 +265,20 @@
           "status": "COMPLETED",
           "branch": "main",
           "notes": "Verified (scripts/run_limit_style_tournament.py): KUBU-GRID-3-LAYER menjuarai turnamen dengan Profit Factor 269.66 dan Win Rate 96.3% di 300.440 bar M1."
+        },
+        {
+          "id": "T5-3E",
+          "title": "Subtask 5-3E: Fail-Safe Resilience & Disconnection Protection Plan",
+          "status": "COMPLETED",
+          "branch": "main",
+          "notes": "Verified: Heartbeat Watchdog di MQL5 membatalkan pending order jika Python mati > 10 detik, dan Atomic File Write (.tmp + os.replace) mencegah korupsi file log deal."
+        },
+        {
+          "id": "T5-3F",
+          "title": "Subtask 5-3F: Multi-Account Dynamic Fleet Management (PropFirm, SweetSpot, Aggressive, YOLO)",
+          "status": "COMPLETED",
+          "branch": "main",
+          "notes": "Verified: Mendukung auto-register profil 'none' (standby safe), dropdown profil risiko, tombol toggle saklar ACTIVE/INACTIVE di dashboard, targeted dispatcher, dan visualizer komparatif 4 akun."
         }
       ]
     }
