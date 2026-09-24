@@ -641,13 +641,29 @@ class LiveMT5BridgeCore:
         m1_setup = tf_dict.get("M1", {})
         if m1_setup.get("active_setup") and self.active_writers:
             dir_cmd = m1_setup["direction"]
-            # Cooldown: 1 order event per direction change or every 60s
-            if (dir_cmd != self._last_order_direction) or (now_time - self._last_order_time > 60.0):
+
+            # Strict Retest Rule: Only 1 pending order per active zone to avoid spamming duplicate limit orders
+            has_matching_pending = any(
+                (ord.get("type") == ("BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"))
+                for ord in self.live_pending_orders
+            )
+            has_active_pos = any(
+                (pos.get("type") == dir_cmd)
+                for pos in self.live_open_positions
+            )
+
+            # Cooldown: 1 order event per direction change, no duplicate pending in same zone, and cooldown > 30s
+            if not has_matching_pending and not has_active_pos and ((dir_cmd != self._last_order_direction) or (now_time - self._last_order_time > 60.0)):
                 self._last_order_direction = dir_cmd
                 self._last_order_time = now_time
 
                 side = "BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"
-                limit_p = round(m1_setup["buy_zone"]["untouched_top"] if dir_cmd == "BUY" else m1_setup["sell_zone"]["untouched_bottom"], 2)
+                # Ensure limit price is valid against current bid/ask
+                if dir_cmd == "BUY":
+                    limit_p = round(min(bid - 0.30, m1_setup["buy_zone"]["untouched_top"]), 2)
+                else:
+                    limit_p = round(max(ask + 0.30, m1_setup["sell_zone"]["untouched_bottom"]), 2)
+
                 sl = m1_setup["sl_hard"]
                 tp = m1_setup["tp_midpoint"]
 
