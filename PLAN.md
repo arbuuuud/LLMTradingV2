@@ -72,14 +72,14 @@
 ### ⏳ Fase 4: Forward Test Staging & Live Trading Engine (Workflow 4 & 3)
 - [x] **T4-1A**: Incubation Staging Gate Out-of-Sample Audit (`scripts/run_oos_forward_test.py`, `reports/forward_test_oos_report.md`). Mengaudit performa di 10.000 bars data tak terlihat dengan injeksi friksi spread & slippage nyata (359 trades, WR 78.0%, PF 437.7, Lulus degradasi $\le 15\%$). *(VERIFIED & COMPLETED)*
 - [ ] **T4-1B**: Live Demo MT5 Incubation Forward Test (Workflow 4 Opsi B). Menjalankan EA Bridge di MT5 akun demo secara berkala untuk memanen 50 trade riil. *(WAITING USER DEMO EXECUTION)*
-- [ ] **T4-1C: Root-Cause Disparity Audit (Forward Test vs Python Backtest Replication)**:
+- [x] **T4-1C: Root-Cause Disparity Audit (Forward Test vs Python Backtest Replication)**:
   - **Latar Belakang Ketidakpuasan (Disparity)**: Hasil forward test live sering kali jauh terdegradasi dibanding backtest teoritis (misal: backtest menghasilkan PF tinggi, namun live forward VPS menghasilkan PF 0.79 akibat friksi spread, slippage, eksekusi broker, dan BEP prematur).
   - **Protokol Investigasi Deterministik**: Setiap kali batch forward test selesai dipanen (`forward_trades_vps.json` atau `forward_trades_local.json`), sistem WAJIB mengekstrak rentang bar OHLCV yang sama persis dari Data Lake dan menjalankannya ulang di Python Backtest Engine (`src/workflows/backtest.py`).
   - **Disparity Matrix Comparison**:
     1. *Trade Match Rate*: Membandingkan entry price, timestamp, dan lot size antara Forward MT5 vs Backtest Python.
     2. *Execution Drift*: Mengukur deviasi slippage broker vs asumsi spread teoritis.
     3. *Exit Mismatch*: Mengisolasi penyebab trade ditutup (apakah kena BEP prematur, gap spread ask, atau logic divergence).
-  - **Output Wajib**: Laporan audit disparitas (`reports/forward_vs_backtest_disparity_report.md`) sebelum strategi diizinkan naik kelas ke live real.
+  - **Output Wajib**: Laporan audit disparitas (`reports/forward_vs_backtest_disparity_report.md`) sebelum strategi diizinkan naik kelas ke live real. *(VERIFIED & COMPLETED: BEP Choke Rate 63.2%, Payoff 0.29 terbukti merusak PF live)*
 - [x] **T4-2**: Live Execution Pipeline (`src/workflows/live_execution.py`). Mengorkestrasi rantai eksekusi: Tactician Agent $\to$ Risk Governor Veto $\to$ Broker Adapter Normalizer $\to$ Order Dispatch Command. *(VERIFIED & COMPLETED)*
 - [x] **T4-3**: Independent Circuit Breaker Sentinel (`src/workflows/live_execution.py`). Daemon pengawas mandiri dengan proteksi Hard Daily Drawdown (Max 3.0%) dan Manual Emergency Handbrake file lock. *(VERIFIED & COMPLETED)*
 

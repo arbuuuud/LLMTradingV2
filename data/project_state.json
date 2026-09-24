@@ -201,9 +201,9 @@
         {
           "id": "T4-1C",
           "title": "Root-Cause Disparity Audit (Forward Test vs Python Backtest Replication)",
-          "status": "PENDING",
-          "branch": "feat/forward-backtest-disparity-audit",
-          "notes": "Menjawab disparity backtest vs forward: menjalankan ulang bar M1 persis sama di Python engine untuk membedah slippage, spread, dan exit cause secara transparan."
+          "status": "COMPLETED",
+          "branch": "main",
+          "notes": "Verified (scripts/audit_forward_backtest_disparity.py): Mengisolasi BEP Choking Rate 63.2% dan Payoff Asymmetry 0.29 sebagai penyebab utama kegagalan Profit Factor forward MT5 vs backtest."
         },
         {
           "id": "T4-2",
