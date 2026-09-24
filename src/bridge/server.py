@@ -681,79 +681,89 @@ class LiveMT5BridgeCore:
                 side = "BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"
                 spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
 
-                # 1. Limit Order Price Adjustment (Spread Friction Compensated):
-                # - BUY_LIMIT: Fills when ASK drops to limit_p. Placed at untouched buy top.
-                #   Must be <= bid - 0.20 to be accepted by broker.
-                # - SELL_LIMIT: Fills when BID rises to limit_p. Placed at untouched sell bottom.
-                #   Must be >= ask + 0.20 to be accepted by broker.
-                if dir_cmd == "BUY":
-                    untouched_p = m1_setup["buy_zone"]["untouched_top"]
-                    limit_p = round(min(bid - 0.25, untouched_p), 2)
-                else:
-                    untouched_p = m1_setup["sell_zone"]["untouched_bottom"]
-                    limit_p = round(max(ask + 0.25, untouched_p), 2)
-
-                # 2. Hard Stop Loss Adjustment (Spread Compensated to prevent premature wicks):
-                # - For BUY: Exit is at BID. Base SL is sw_low - 2.5.
-                # - For SELL: Exit is at ASK (Ask = Bid + Spread). We add spread buffer to Hard SL
-                #   so market spread widening doesn't prematurely trigger the stop loss!
+                sw_low = m1_setup["swing_low"]
+                sw_high = m1_setup["swing_high"]
+                span = max(sw_high - sw_low, 1.0)
                 base_sl = m1_setup["sl_hard"]
+
+                # 1. Hard Stop Loss Adjustment (Spread Compensated)
                 if dir_cmd == "SELL":
                     sl = round(base_sl + spread_val, 2)
                 else:
                     sl = round(base_sl - spread_val, 2)
 
-                # 3. Take Profit Adjustment: Adaptive Quick Escape (Subtask 5-3C Juara Turnamen)
-                # Jika zona sudah teruji (retest >= 2), geser TP ke bibir zona agar tidak terperangkap pembalikan mendadak
+                # 2. Take Profit Adjustment: Shared Single Target TP (Adaptive Quick Escape Juara 5-3C)
                 base_tp = m1_setup["tp_midpoint"]
-                # Cek jika retest mode adaptive aktif pada setup M1
                 if dir_cmd == "BUY":
                     tp = round(base_tp, 2)
                 else:
                     tp = round(base_tp + spread_val, 2)
 
-                # Dynamic Risk-Based Lot Sizing based on real Account Equity
-                sl_distance = max(1.0, abs(limit_p - sl))
-                sl_dist_points = sl_distance / self.adapter.spec.point  # point = 0.01
-                # Standard Prop Firm / Sweet Spot risk: 0.50% of equity
-                calculated_raw_lot = self.adapter.calculate_lot(
-                    equity=max(100.0, self.equity),
-                    risk_pct=0.50,
-                    sl_distance_points=sl_dist_points
-                )
-                dynamic_lots = self.adapter.normalize_lot(calculated_raw_lot)
-                # Fallback safeguard minimum lot
-                if dynamic_lots <= 0.0:
-                    dynamic_lots = 0.01
+                # 3. KUBU-GRID-3-LAYER DISPATCHER (Juara Mutlak Turnamen Subtask 5-3D)
+                # Menebar 3 Limit Order Serentak dari Lantai Atas ke Dasar:
+                # Untuk BUY : Layer 1 di 25% (Lantai Atas Buy), Layer 2 di 12.5% (Tengah), Layer 3 di 0% (Dasar Lantai)
+                # Untuk SELL: Layer 1 di 75% (Lantai Bawah Sell), Layer 2 di 87.5% (Tengah), Layer 3 di 100% (Pucuk Atap)
+                # Total risiko tetap 0.50% equity (dibagi rata 3 layer = ~0.166% per layer)
+                num_layers = 3
+                risk_per_layer_pct = 0.50 / num_layers
 
-                order_cmd = {
-                    "action": "ORDER",
-                    "symbol": "XAUUSD",
-                    "side": side,
-                    "lots": dynamic_lots,
-                    "price": limit_p,
-                    "sl": sl,
-                    "tp": tp,
-                    "magic": 1001,
-                    "comment": "PAC_AUTO_LIMIT"
-                }
+                if dir_cmd == "BUY":
+                    target_levels = [
+                        round(min(bid - 0.25, sw_low + span * 0.25), 2),  # Layer 1: Bibir Masuk (25%)
+                        round(min(bid - 0.50, sw_low + span * 0.125), 2), # Layer 2: Kedalaman Murni (12.5%)
+                        round(min(bid - 0.75, sw_low + span * 0.00), 2)   # Layer 3: Lantai Dasar (0%)
+                    ]
+                else:
+                    target_levels = [
+                        round(max(ask + 0.25, sw_low + span * 0.75), 2),  # Layer 1: Bibir Masuk (75%)
+                        round(max(ask + 0.50, sw_low + span * 0.875), 2), # Layer 2: Kedalaman Murni (87.5%)
+                        round(max(ask + 0.75, sw_high), 2)                # Layer 3: Pucuk Atap (100%)
+                    ]
 
-                # Dispatch over socket to MT5 EA
-                asyncio.create_task(self.broadcast(order_cmd))
+                dispatched_orders = []
+                for lay_idx, limit_p in enumerate(target_levels):
+                    sl_dist = max(1.0, abs(limit_p - sl))
+                    sl_dist_points = sl_dist / self.adapter.spec.point
+
+                    calc_lot = self.adapter.calculate_lot(
+                        equity=max(100.0, self.equity),
+                        risk_pct=risk_per_layer_pct,
+                        sl_distance_points=sl_dist_points
+                    )
+                    layer_lot = self.adapter.normalize_lot(calc_lot)
+                    if layer_lot <= 0.0:
+                        layer_lot = 0.01
+
+                    order_cmd = {
+                        "action": "ORDER",
+                        "symbol": "XAUUSD",
+                        "side": side,
+                        "lots": layer_lot,
+                        "price": limit_p,
+                        "sl": sl,
+                        "tp": tp, # 1 titik Hard TP bersama
+                        "magic": 1001,
+                        "comment": f"PAC_GRID_L{lay_idx+1}"
+                    }
+
+                    # Dispatch ke MT5 EA
+                    asyncio.create_task(self.broadcast(order_cmd))
+                    dispatched_orders.append((limit_p, layer_lot))
 
                 # Push instant Snackbar Notification for Dashboard
+                summary_prices = ", ".join([f"${p:.2f} ({l:.2f}L)" for p, l in dispatched_orders])
                 notif = {
                     "id": int(now_time * 1000),
                     "timestamp": datetime.now().strftime("%H:%M:%S"),
-                    "title": f"🚀 {side} Dispatched to MT5!",
-                    "message": f"Target: ${limit_p:.2f} | SL: ${sl:.2f} | TP: ${tp:.2f} (Lot: {dynamic_lots:.2f} on ${self.equity:,.0f} Eq)",
+                    "title": f"🚀 3-LAYER GRID {side} DISPATCHED!",
+                    "message": f"Levels: {summary_prices} | SL: ${sl:.2f} | Shared TP: ${tp:.2f} (Total Risk 0.50% on ${self.equity:,.0f} Eq)",
                     "type": "BUY" if dir_cmd == "BUY" else "SELL",
-                    "price": limit_p
+                    "price": target_levels[0]
                 }
                 self.pending_notifications.append(notif)
                 if len(self.pending_notifications) > 10:
                     self.pending_notifications.pop(0)
-                logger.info(f"⚡ [AUTO-DISPATCH] Sent {side} order to MT5 EA at ${limit_p:.2f} (SL: ${sl:.2f}, TP: ${tp:.2f}) | Dynamic Lot: {dynamic_lots:.2f} (Equity: ${self.equity:.2f})")
+                logger.info(f"⚡ [3-LAYER GRID DISPATCH] Sent 3 {side} orders to MT5 EA: {summary_prices} (SL: ${sl:.2f}, TP: ${tp:.2f})")
 
         now_utc = datetime.now(timezone.utc)
         curr_h = now_utc.hour
