@@ -19,6 +19,7 @@ from typing import Dict, Any, List, Optional
 
 from src.data.adapter import BrokerAdapter, BrokerSpec
 from src.engine.force_close import ForceCloseGuardianEngine, ForceCloseAction
+from src.agents.sasuke import SasukeSharinganAgent, SharinganPerceptionLevel, SasukeAction
 
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -66,8 +67,9 @@ class LiveMT5BridgeCore:
         self.on_tick_callback = None
         self.on_order_status_callback = None
 
-        # Force Close Guardian Agent Engine
+        # Force Close Guardian Agent Engine & Sasuke Sharingan Overseer
         self.force_close_guardian = ForceCloseGuardianEngine()
+        self.sasuke_overseer = SasukeSharinganAgent(perception_level=SharinganPerceptionLevel.MANGEKYO, daily_max_loss_pct=-1.0)
         self._last_force_close_check = 0.0
 
         # Institutional Broker Adapter for Dynamic Lot Sizing
@@ -143,20 +145,28 @@ class LiveMT5BridgeCore:
         exit_t_sec = data.get("exit_time", time.time())
         exit_dt_str = datetime.fromtimestamp(exit_t_sec, tz=timezone.utc).isoformat()
 
+        entry_t_sec = data.get("entry_time", exit_t_sec)
+        entry_dt_str = datetime.fromtimestamp(entry_t_sec, tz=timezone.utc).isoformat()
+
+        entry_p = float(data.get("entry_price", data.get("exit_price", 0.0)))
+        exit_p = float(data.get("exit_price", entry_p))
+        lots = float(data.get("lots", 0.01))
+
         record = {
             "trade_id": trade_id,
             "position_id": str(data.get("position_id", trade_id)),
             "symbol": data.get("symbol", "XAUUSD"),
             "direction": data.get("direction", "BUY"),
             "timeframe": "M1",
-            "entry_time": exit_dt_str, # baseline timestamp
+            "entry_time": entry_dt_str,
             "exit_time": exit_dt_str,
-            "entry_price": float(data.get("exit_price", 0.0)),
-            "exit_price": float(data.get("exit_price", 0.0)),
+            "entry_price": entry_p,
+            "exit_price": exit_p,
+            "lots": lots,
             "sl_price": 0.0,
             "tp_price": 0.0,
-            "expected_entry_price": float(data.get("exit_price", 0.0)),
-            "actual_entry_price": float(data.get("exit_price", 0.0)),
+            "expected_entry_price": entry_p,
+            "actual_entry_price": entry_p,
             "slippage_pts": 0.05,
             "pnl": float(data.get("pnl", 0.0)),
             "r_multiple": round(float(data.get("pnl", 0.0)) / 5.0, 2),
@@ -259,49 +269,42 @@ class LiveMT5BridgeCore:
                 if len(self.pending_notifications) > 10:
                     self.pending_notifications.pop(0)
 
-            # 2. Structural Soft-SL Cut (Emergency Force Close on violation)
-            # If opposite momentum pushes past critical invalidation threshold
-            if side == "BUY" and cur_p <= (entry_p - 3.5):
-                logger.warning(f"🚨 [FORCE CLOSE] Structural breach on BUY #{ticket}! Closing at market...")
-                asyncio.create_task(self.broadcast({
-                    "action": "CLOSE_ALL",
-                    "symbol": "XAUUSD",
-                    "magic": pos.get("magic", 1001)
-                }))
+            # 2. Sasuke Sharingan Structural & Reversal Evaluation (Replaces naive 3.5pt emergency cut)
+            # Evaluate using recent M1 candles from history
+            if len(self.history_m1) >= 5:
+                recent_candles = self.history_m1[-10:]
+                initial_sl = pos.get("sl", entry_p - 3.0 if side == "BUY" else entry_p + 3.0)
+                if initial_sl == 0.0:
+                    initial_sl = entry_p - 3.0 if side == "BUY" else entry_p + 3.0
 
-                # Toast Notification for Emergency Force Close
-                notif = {
-                    "id": int(now * 1000),
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
-                    "title": f"🚨 EMERGENCY FORCE CLOSE!",
-                    "message": f"BUY #{ticket} soft-cut at market (${cur_p:.2f}) - Structural Breach Avoided!",
-                    "type": "FORCE_CLOSE",
-                    "price": cur_p
-                }
-                self.pending_notifications.append(notif)
-                if len(self.pending_notifications) > 10:
-                    self.pending_notifications.pop(0)
+                sasuke_decision = self.sasuke_overseer.evaluate_position_with_sharingan(
+                    pos_id=str(ticket),
+                    pos_side=side,
+                    entry_price=entry_p,
+                    current_price=cur_p,
+                    initial_sl=initial_sl,
+                    candles=recent_candles
+                )
 
-            elif side == "SELL" and cur_p >= (entry_p + 3.5):
-                logger.warning(f"🚨 [FORCE CLOSE] Structural breach on SELL #{ticket}! Closing at market...")
-                asyncio.create_task(self.broadcast({
-                    "action": "CLOSE_ALL",
-                    "symbol": "XAUUSD",
-                    "magic": pos.get("magic", 1001)
-                }))
+                if sasuke_decision.action in (SasukeAction.FORCE_CLOSE_100, SasukeAction.STRUCTURAL_CUT):
+                    logger.warning(f"👁️ [SASUKE SHARINGAN] Force Close triggered on #{ticket}! Reason: {sasuke_decision.reason_detail}")
+                    asyncio.create_task(self.broadcast({
+                        "action": "CLOSE_ALL",
+                        "symbol": "XAUUSD",
+                        "magic": pos.get("magic", 1001)
+                    }))
 
-                # Toast Notification for Emergency Force Close
-                notif = {
-                    "id": int(now * 1000),
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
-                    "title": f"🚨 EMERGENCY FORCE CLOSE!",
-                    "message": f"SELL #{ticket} soft-cut at market (${cur_p:.2f}) - Structural Breach Avoided!",
-                    "type": "FORCE_CLOSE",
-                    "price": cur_p
-                }
-                self.pending_notifications.append(notif)
-                if len(self.pending_notifications) > 10:
-                    self.pending_notifications.pop(0)
+                    notif = {
+                        "id": int(now * 1000),
+                        "timestamp": datetime.now().strftime("%H:%M:%S"),
+                        "title": f"👁️ SASUKE SHARINGAN CUT!",
+                        "message": f"{side} #{ticket} cut: {sasuke_decision.reason_detail}",
+                        "type": "FORCE_CLOSE",
+                        "price": cur_p
+                    }
+                    self.pending_notifications.append(notif)
+                    if len(self.pending_notifications) > 10:
+                        self.pending_notifications.pop(0)
 
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         client_addr = writer.get_extra_info("peername")
@@ -646,6 +649,14 @@ class LiveMT5BridgeCore:
         m1_setup = tf_dict.get("M1", {})
         if m1_setup.get("active_setup") and self.active_writers:
             dir_cmd = m1_setup["direction"]
+
+            # Sasuke Circuit Breaker Gate: Check if daily drawdown breached -1.0%
+            cb_status = self.sasuke_overseer.check_daily_circuit_breaker(self.equity)
+            if cb_status.is_tripped:
+                if not hasattr(self, "_last_cb_warn") or (now_time - getattr(self, "_last_cb_warn", 0) > 300.0):
+                    self._last_cb_warn = now_time
+                    logger.error(f"🚫 [SASUKE CIRCUIT BREAKER ACTIVE] Daily Drawdown limit (-1.0%) tripped: {cb_status.reason}. Trading HALTED!")
+                return
 
             # Strict Retest Rule: Only 1 pending order per active zone to avoid spamming duplicate limit orders
             has_matching_pending = any(

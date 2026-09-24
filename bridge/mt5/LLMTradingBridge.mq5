@@ -629,6 +629,24 @@ void OnTick()
                ENUM_DEAL_TYPE dType = (ENUM_DEAL_TYPE)HistoryDealGetInteger(dTicket, DEAL_TYPE);
                string dirStr = (dType == DEAL_TYPE_BUY) ? "SELL" : "BUY";
 
+               // Fetch true original Entry Price & Entry Time from Deal IN
+               double trueEntryPrice = exitPrice;
+               long trueEntryTime = exitTime;
+               if(HistorySelectByPosition(posId))
+               {
+                  int posDeals = HistoryDealsTotal();
+                  for(int pd = 0; pd < posDeals; pd++)
+                  {
+                     ulong pt = HistoryDealGetTicket(pd);
+                     if(pt > 0 && HistoryDealGetInteger(pt, DEAL_ENTRY) == DEAL_ENTRY_IN)
+                     {
+                        trueEntryPrice = HistoryDealGetDouble(pt, DEAL_PRICE);
+                        trueEntryTime = (long)HistoryDealGetInteger(pt, DEAL_TIME);
+                        break;
+                     }
+                  }
+               }
+
                string closeJson = StringFormat(
                   "{\"type\":\"CLOSED_TRADE\",\"data\":{"
                   "\"trade_id\":\"%I64u\","
@@ -637,15 +655,18 @@ void OnTick()
                   "\"direction\":\"%s\","
                   "\"timeframe\":\"M1\","
                   "\"lots\":%.2f,"
+                  "\"entry_price\":%.2f,"
                   "\"exit_price\":%.2f,"
-                  "\"pnl\":%.2f,"
+                  "\"entry_time\":%I64d,"
                   "\"exit_time\":%I64d,"
+                  "\"pnl\":%.2f,"
                   "\"magic\":%I64d}}\n",
-                  dTicket, posId, symbol, dirStr, lots, exitPrice, netPnl, exitTime, dMagic
+                  dTicket, posId, symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, dMagic
                );
 
                SendString(closeJson);
-               PrintFormat("[LLM Bridge] 💰 HISTORICAL DEAL TRANSMITTED: Deal #%I64u (Pos #%I64u) -> PnL: $%.2f", dTicket, posId, netPnl);
+               PrintFormat("[LLM Bridge] 💰 HISTORICAL DEAL TRANSMITTED: Deal #%I64u (Pos #%I64u) -> Entry: %.2f | Exit: %.2f | PnL: $%.2f",
+                           dTicket, posId, trueEntryPrice, exitPrice, netPnl);
             }
          }
       }
@@ -703,6 +724,24 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
                ENUM_DEAL_TYPE dType = (ENUM_DEAL_TYPE)HistoryDealGetInteger(dealTicket, DEAL_TYPE);
                string dirStr = (dType == DEAL_TYPE_BUY) ? "SELL" : "BUY"; // Deal out BUY closes a SELL
 
+               // Fetch true original Entry Price & Entry Time from Deal IN
+               double trueEntryPrice = exitPrice;
+               long trueEntryTime = exitTime;
+               if(HistorySelectByPosition(posId))
+               {
+                  int posDeals = HistoryDealsTotal();
+                  for(int pd = 0; pd < posDeals; pd++)
+                  {
+                     ulong pt = HistoryDealGetTicket(pd);
+                     if(pt > 0 && HistoryDealGetInteger(pt, DEAL_ENTRY) == DEAL_ENTRY_IN)
+                     {
+                        trueEntryPrice = HistoryDealGetDouble(pt, DEAL_PRICE);
+                        trueEntryTime = (long)HistoryDealGetInteger(pt, DEAL_TIME);
+                        break;
+                     }
+                  }
+               }
+
                string closeJson = StringFormat(
                   "{\"type\":\"CLOSED_TRADE\",\"data\":{"
                   "\"trade_id\":\"%I64u\","
@@ -711,16 +750,18 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
                   "\"direction\":\"%s\","
                   "\"timeframe\":\"M1\","
                   "\"lots\":%.2f,"
+                  "\"entry_price\":%.2f,"
                   "\"exit_price\":%.2f,"
-                  "\"pnl\":%.2f,"
+                  "\"entry_time\":%I64d,"
                   "\"exit_time\":%I64d,"
+                  "\"pnl\":%.2f,"
                   "\"magic\":%I64d}}\n",
-                  dealTicket, posId, symbol, dirStr, lots, exitPrice, netPnl, exitTime, magic
+                  dealTicket, posId, symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, magic
                );
 
                SendString(closeJson);
-               PrintFormat("[LLM Bridge] 💰 CLOSED TRADE TRANSMITTED: Deal #%I64u (Pos #%I64u) -> Net PnL: $%.2f | Price: %.2f",
-                           dealTicket, posId, netPnl, exitPrice);
+               PrintFormat("[LLM Bridge] 💰 CLOSED TRADE TRANSMITTED: Deal #%I64u (Pos #%I64u) -> Entry: %.2f | Exit: %.2f | PnL: $%.2f",
+                           dealTicket, posId, trueEntryPrice, exitPrice, netPnl);
             }
          }
       }
