@@ -219,55 +219,48 @@ class LiveMT5BridgeCore:
 
             spread_val = max(0.20, round(self.latest_tick.get("ask", 0) - self.latest_tick.get("bid", 0), 2)) if self.latest_tick else 0.35
 
-            # 1. Handover BEP Trigger (+1.0 point profit)
-            # Guarantee Net Profit > 0 after covering commission and bid-ask spread
-            if side == "BUY" and cur_p >= entry_p + 1.0 and sl < entry_p:
-                bep_sl = round(entry_p + 0.20, 2)  # Entry + positive buffer (Buy closed at Bid, so Bid = entry + 0.20 > entry)
-                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on BUY #{ticket} @ ${bep_sl:.2f} (Net Profit Guaranteed > 0)")
-                asyncio.create_task(self.broadcast({
-                    "action": "MODIFY_POSITION",
-                    "ticket": ticket,
-                    "sl": bep_sl,
-                    "tp": pos.get("tp", 0.0)
-                }))
+            # 1. Sasuke Sharingan Greed Trailing (Replaces legacy flat BEP +1.0pt)
+            pts_diff = (cur_p - entry_p) if side == "BUY" else (entry_p - cur_p)
+            sl_dist = max(abs(entry_p - pos.get("sl", entry_p - 3.0)), 0.5)
+            r_running = pts_diff / sl_dist
 
-                # Toast Notification for BEP Lock
-                notif = {
-                    "id": int(now * 1000),
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
-                    "title": f"🛡️ BEP Lock Activated!",
-                    "message": f"BUY #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Profit > $0 Guaranteed!",
-                    "type": "BEP",
-                    "price": bep_sl
-                }
-                self.pending_notifications.append(notif)
-                if len(self.pending_notifications) > 10:
-                    self.pending_notifications.pop(0)
+            # Trailing Stepped Lock:
+            # >= +2.0R -> lock SL at +1.5R
+            # >= +1.5R -> lock SL at +1.0R
+            # >= +1.0R -> lock SL at +0.5R
+            target_lock_r = None
+            if r_running >= 2.0:
+                target_lock_r = 1.5
+            elif r_running >= 1.5:
+                target_lock_r = 1.0
+            elif r_running >= 1.0:
+                target_lock_r = 0.5
 
-            elif side == "SELL" and cur_p <= entry_p - 1.0 and (sl > entry_p or sl == 0.0):
-                # For SELL: closure requires BUYING at ASK (Ask = Bid + Spread).
-                # To guarantee net profit > 0 when triggered at Ask, SL must be below entry by at least (spread + buffer)
-                bep_sl = round(entry_p - (spread_val + 0.15), 2)  # Entry - spread - buffer (Guarantees exit profit > $0)
-                logger.info(f"🛡️ [GUARDIAN BEP] Locking BEP on SELL #{ticket} @ ${bep_sl:.2f} (Net Profit Guaranteed > 0 covering spread {spread_val:.2f})")
-                asyncio.create_task(self.broadcast({
-                    "action": "MODIFY_POSITION",
-                    "ticket": ticket,
-                    "sl": bep_sl,
-                    "tp": pos.get("tp", 0.0)
-                }))
+            if target_lock_r is not None:
+                new_trail_sl = round(entry_p + (target_lock_r * sl_dist if side == "BUY" else -target_lock_r * sl_dist), 2)
+                cur_sl = float(pos.get("sl", 0.0))
+                should_update = (cur_sl == 0.0) or (side == "BUY" and new_trail_sl > cur_sl) or (side == "SELL" and new_trail_sl < cur_sl)
 
-                # Toast Notification for BEP Lock
-                notif = {
-                    "id": int(now * 1000),
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
-                    "title": f"🛡️ BEP Lock Activated!",
-                    "message": f"SELL #{ticket} Stop Loss moved to BEP (${bep_sl:.2f}) - Profit > $0 Guaranteed!",
-                    "type": "BEP",
-                    "price": bep_sl
-                }
-                self.pending_notifications.append(notif)
-                if len(self.pending_notifications) > 10:
-                    self.pending_notifications.pop(0)
+                if should_update:
+                    logger.info(f"👁️ [SASUKE GREED TRAILING] Locking SL on {side} #{ticket} @ ${new_trail_sl:.2f} (+{target_lock_r}R Locked | Running: +{r_running:.2f}R)")
+                    asyncio.create_task(self.broadcast({
+                        "action": "MODIFY_POSITION",
+                        "ticket": ticket,
+                        "sl": new_trail_sl,
+                        "tp": pos.get("tp", 0.0)
+                    }))
+
+                    notif = {
+                        "id": int(now * 1000),
+                        "timestamp": datetime.now().strftime("%H:%M:%S"),
+                        "title": f"👁️ Sasuke Greed Trailing Lock!",
+                        "message": f"{side} #{ticket} locked at +{target_lock_r}R (${new_trail_sl:.2f})",
+                        "type": "BEP",
+                        "price": new_trail_sl
+                    }
+                    self.pending_notifications.append(notif)
+                    if len(self.pending_notifications) > 10:
+                        self.pending_notifications.pop(0)
 
             # 2. Sasuke Sharingan Structural & Reversal Evaluation (Replaces naive 3.5pt emergency cut)
             # Evaluate using recent M1 candles from history
@@ -710,12 +703,14 @@ class LiveMT5BridgeCore:
                 else:
                     sl = round(base_sl - spread_val, 2)
 
-                # 3. Take Profit Adjustment (Spread Compensated for clean fills):
+                # 3. Take Profit Adjustment: Adaptive Quick Escape (Subtask 5-3C Juara Turnamen)
+                # Jika zona sudah teruji (retest >= 2), geser TP ke bibir zona agar tidak terperangkap pembalikan mendadak
                 base_tp = m1_setup["tp_midpoint"]
-                if dir_cmd == "SELL":
-                    tp = round(base_tp + spread_val, 2)
-                else:
+                # Cek jika retest mode adaptive aktif pada setup M1
+                if dir_cmd == "BUY":
                     tp = round(base_tp, 2)
+                else:
+                    tp = round(base_tp + spread_val, 2)
 
                 # Dynamic Risk-Based Lot Sizing based on real Account Equity
                 sl_distance = max(1.0, abs(limit_p - sl))

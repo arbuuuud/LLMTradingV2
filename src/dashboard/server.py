@@ -586,6 +586,21 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
             }, indent=2).encode("utf-8"))
             return
 
+        elif path == "/api/engine/spec":
+            engine_spec_path = PROJECT_ROOT / "configs" / "engines" / "pac_scalper.yaml"
+            if engine_spec_path.exists():
+                try:
+                    import yaml
+                    spec_data = yaml.safe_load(engine_spec_path.read_text(encoding="utf-8"))
+                    self._set_json_headers(200)
+                    self.wfile.write(json.dumps(spec_data, indent=2).encode("utf-8"))
+                    return
+                except Exception as e:
+                    pass
+            self._set_json_headers(200)
+            self.wfile.write(json.dumps({"error": "Engine spec not found"}).encode("utf-8"))
+            return
+
         elif path == "/api/snapshot":
             if CACHE_FILE.exists():
                 self._set_json_headers(200)

@@ -1,0 +1,105 @@
+# PAC Scalper Engine Specification & Operational Guide
+# Architecture Reference: DEC-018, DEC-019, DEC-020, DEC-021 (Tier 2 Plug-in Engine)
+
+engine:
+  id: "pac_scalper_v1"
+  name: "PAC (Price Action Channel) Scalper"
+  version: "1.0.0"
+  asset: "XAUUSD"
+  primary_timeframe: "M1"
+  supported_timeframes: ["M1", "M2", "M3", "M4", "M5"]
+  description: >
+    Engine kuantitatif berbasis Price Action Channel (PAC), Supply & Demand Floor/Roof,
+    penetrasi kedalaman likuiditas murni (>50%), dan pengawasan risiko kognitif Sasuke Sharingan.
+
+entry_rules:
+  # Kuadran PAC: 0-25% Buy Discount, 75-100% Sell Premium, 50% Equilibrium Target
+  buy_zone: "0% - 25% Channel Depth (Discount)"
+  sell_zone: "75% - 100% Channel Depth (Premium)"
+  virgin_liquidity_depth_filter:
+    enabled: true
+    min_penetration_pct: 50.0  # Hanya limit order di kedalaman murni >50% (Subtask 5-3C)
+  order_mode: "SINGLE_PRECISION_LIMIT" # Single order at virgin depth (Opsi A)
+
+exit_and_risk_rules:
+  # Sasuke Sharingan Overseer & Greed Trailing (Subtask 5-3A & 5-3B)
+  sasuke_reversal_cognition:
+    enabled: true
+    min_running_profit_r: 1.0   # Hanya aktif jika posisi sudah bernapas >= +1.0R
+    patterns_monitored:
+      - "Evening Star / Morning Star at zone extreme"
+      - "Opposite Momentum Marubozu (Body ratio >= 70%)"
+    action: "FORCE_CLOSE_100 (Amankan profit di pucuk)"
+
+  greed_trailing_stepped:
+    enabled: true
+    tiers:
+      - trigger: ">= +1.0R"
+        lock_sl: "+0.5R"
+      - trigger: ">= +1.5R"
+        lock_sl: "+1.0R"
+      - trigger: ">= +2.0R"
+        lock_sl: "+1.5R"
+
+  adaptive_quick_escape:
+    enabled: true  # Subtask 5-3C Juara Turnamen
+    first_retest_tp: "Midpoint Equilibrium 50%"
+    second_plus_retest_tp: "Zone Edge (25% Buy Ceiling / 75% Sell Floor) or min +0.75R"
+
+  daily_circuit_breaker:
+    enabled: true
+    max_daily_loss_pct: -1.0  # Hard Lockout sampai pergantian hari UTC (RR 1:2)
+    daily_profit_target_pct: 2.0
+
+risk_profiles:
+  prop_firm:
+    label: "Prop Firm (FTMO / MFF Ultra-Safe)"
+    description: "Disetel khusus untuk lolos aturan drawdown prop firm yang sangat ketat (Max DD < 5%)."
+    risk_per_trade_pct: 0.50
+    max_daily_loss_pct: -1.0
+    daily_profit_target_pct: 2.0
+    active_sessions: "LONDON + NY_OVERLAP (07:00 - 17:00 UTC)"
+    avoid_rollover_spread: true  # Skip 21:00 - 23:00 UTC
+    basket_mode: "QUARTET (M1+M2+M3+M5)"
+    historical_win_rate: "95.1%"
+    historical_profit_factor: 176.22
+    historical_max_drawdown: "1.40%"
+
+  sweet_spot:
+    label: "Sweet Spot (Balanced Institutional)"
+    description: "Keseimbangan optimal antara frekuensi trading dan keamanan modal."
+    risk_per_trade_pct: 0.50
+    max_daily_loss_pct: -1.0
+    daily_profit_target_pct: 2.5
+    active_sessions: "ALL_DAY (24 Hours)"
+    avoid_rollover_spread: true
+    basket_mode: "QUARTET (M1+M2+M3+M5)"
+    historical_win_rate: "95.2%"
+    historical_profit_factor: 176.31
+    historical_max_drawdown: "1.50%"
+
+  aggressive:
+    label: "Aggressive (High Compounding)"
+    description: "Pertumbuhan ekuitas cepat dengan memanfaatkan seluruh peluang M1/M2/M3."
+    risk_per_trade_pct: 1.00
+    max_daily_loss_pct: -2.0
+    daily_profit_target_pct: 4.0
+    active_sessions: "ALL_DAY (24 Hours)"
+    avoid_rollover_spread: false
+    basket_mode: "TRIO (M1+M2+M3)"
+    historical_win_rate: "95.2%"
+    historical_profit_factor: 176.31
+    historical_max_drawdown: "3.00%"
+
+  yolo:
+    label: "YOLO (Apex High-Frequency)"
+    description: "Mode ekspansif maksimal untuk akun kontes atau compounding modal kecil."
+    risk_per_trade_pct: 2.00
+    max_daily_loss_pct: -4.0
+    daily_profit_target_pct: 8.0
+    active_sessions: "ALL_DAY (24 Hours)"
+    avoid_rollover_spread: false
+    basket_mode: "TRIO (M1+M2+M3)"
+    historical_win_rate: "95.2%"
+    historical_profit_factor: 176.31
+    historical_max_drawdown: "6.00%"

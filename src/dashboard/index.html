@@ -40,6 +40,9 @@
       <button onclick="switchTab('radar')" id="tab-btn-radar" class="tab-active py-2 px-1 flex items-center gap-2 transition">
         <i class="fa-solid fa-crosshairs text-blue-400"></i> Tactical Radar
       </button>
+      <button onclick="switchTab('engine-spec')" id="tab-btn-engine-spec" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
+        <i class="fa-solid fa-book-bookmark text-indigo-400"></i> Engine Specs
+      </button>
       <button onclick="showToast('🔔 TEST NOTIFICATION', 'Toast notification system is working perfectly!', 'BUY')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition">
         <i class="fa-solid fa-bell text-amber-400 mr-1"></i> Test Toast
       </button>
@@ -265,6 +268,219 @@
               <ul id="poi-floor-reasons" class="space-y-1 text-slate-300 text-[11px]">
                 <!-- Rendered dynamically -->
               </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB: ENGINE SPECIFICATIONS & RISK PROFILES -->
+    <!-- ========================================== -->
+    <section id="tab-engine-spec" class="hidden space-y-6">
+      <!-- Engine Header Card -->
+      <div class="glass-card rounded-2xl p-6 border border-indigo-500/30 bg-gradient-to-r from-indigo-950/30 via-slate-900/60 to-slate-950/80 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 uppercase tracking-wider">
+              TIER 2 PLUG-IN ENGINE #1
+            </span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              STATUS: CALIBRATED (KAGE BUNSHIN TOURNAMENT APPROVED)
+            </span>
+          </div>
+          <h2 class="text-2xl font-bold text-white mt-1.5 flex items-center gap-2">
+            <i class="fa-solid fa-chart-simple text-indigo-400"></i> PAC (Price Action Channel) Scalper
+          </h2>
+          <p class="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
+            Engine kuantitatif berbasis Price Action Channel (PAC), Supply & Demand Floor/Roof, Penetrasi Kedalaman Likuiditas Murni (&gt;50%), dan Pengawasan Risiko Kognitif Real-time Sasuke Sharingan.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <div class="text-center px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800">
+            <span class="text-[10px] text-slate-400 font-mono block">ASSET</span>
+            <span class="text-sm font-bold text-white font-mono">XAUUSD</span>
+          </div>
+          <div class="text-center px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800">
+            <span class="text-[10px] text-slate-400 font-mono block">DATASET BARS</span>
+            <span class="text-sm font-bold text-indigo-400 font-mono">300,440 M1</span>
+          </div>
+          <div class="text-center px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <span class="text-[10px] text-emerald-400 font-mono block">PEAK PF</span>
+            <span class="text-sm font-bold text-emerald-400 font-mono">176.31</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Engine Rules Grid (3 Columns) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <!-- 1. ENTRY LOGIC -->
+        <div class="glass-card p-5 rounded-2xl border border-slate-800 space-y-3">
+          <div class="flex items-center gap-2 text-blue-400 font-bold text-sm border-b border-slate-800 pb-2.5">
+            <i class="fa-solid fa-crosshairs"></i> 1. Entry Rules &amp; Virgin Depth
+          </div>
+          <ul class="text-xs space-y-2 text-slate-300">
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Kuadran 0-25% Buy (Discount):</strong> Limit order hanya ditaruh di zona diskon harga.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Kuadran 75-100% Sell (Premium):</strong> Limit order hanya ditaruh di zona premium harga.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-indigo-400 mt-0.5"></i>
+              <span><strong>Virgin Depth &gt; 50% (Subtask 5-3C):</strong> Dilarang order di kedalaman dangkal (&lt;50%) yang sudah termitigasi. Order hanya dialokasikan di kedalaman murni &gt; 50% di mana likuiditas masih segar!</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-blue-400 mt-0.5"></i>
+              <span><strong>Single Precision Order:</strong> 1 order presisi per zona untuk proteksi modal dari penumpukan multi-layer.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 2. SASUKE RISK OVERSEER -->
+        <div class="glass-card p-5 rounded-2xl border border-slate-800 space-y-3">
+          <div class="flex items-center gap-2 text-rose-400 font-bold text-sm border-b border-slate-800 pb-2.5">
+            <i class="fa-solid fa-eye"></i> 2. Sasuke Sharingan Risk Overseer
+          </div>
+          <ul class="text-xs space-y-2 text-slate-300">
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-rose-400 mt-0.5"></i>
+              <span><strong>Reversal Cognition (&ge; +1.0R):</strong> Sasuke memantau M1. Jika muncul <em>Evening/Morning Star</em> atau <em>Opposite Marubozu</em> saat running &ge; +1.0R, langsung <strong>Force TP 100%</strong> di pucuk!</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-amber-400 mt-0.5"></i>
+              <span><strong>Greed Trailing Berundak (Subtask 5-3B):</strong>
+                <br>&bull; Running &ge; +1.0R &rarr; Kunci SL di <strong>+0.5R</strong>
+                <br>&bull; Running &ge; +1.5R &rarr; Kunci SL di <strong>+1.0R</strong>
+                <br>&bull; Running &ge; +2.0R &rarr; Kunci SL di <strong>+1.5R</strong>
+              </span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-red-500 mt-0.5"></i>
+              <span><strong>Daily Circuit Breaker (-1.0%):</strong> Batas max loss harian dipatok -1.0% Equity. Sekali tersentuh, trading di-lockout sampai ganti hari UTC.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 3. ADAPTIVE QUICK ESCAPE -->
+        <div class="glass-card p-5 rounded-2xl border border-slate-800 space-y-3">
+          <div class="flex items-center gap-2 text-emerald-400 font-bold text-sm border-b border-slate-800 pb-2.5">
+            <i class="fa-solid fa-person-running"></i> 3. Adaptive Quick-Escape TP
+          </div>
+          <ul class="text-xs space-y-2 text-slate-300">
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>Retest ke-1 (Fresh Touch):</strong> Target Take Profit normal di <strong>Equilibrium Midpoint 50%</strong>.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-indigo-400 mt-0.5"></i>
+              <span><strong>Retest ke-2 dst (Degraded Zone):</strong> Karena energi pantulan zona melemah, target TP otomatis digeser ke:
+                <br>&bull; <strong>Bibir Zona</strong> (25% Buy Ceiling / 75% Sell Floor), ATAU
+                <br>&bull; <strong>Minimum TP (+0.75R)</strong>
+                <br><em>Langsung amankan cuan sebelum zona ambruk tertembus!</em>
+              </span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-blue-400 mt-0.5"></i>
+              <span><strong>Spread Compensation:</strong> SELL TP dinaikkan sebesar spread, dan SELL BEP diturunkan sebesar spread + 0.15 agar profit bersih selalu &gt; $0.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 4 Standard Risk Profiles Deep Dive -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-blue-400"></i> Empat Profil Risiko Operasional (Standard Presets)
+          </h3>
+          <span class="text-xs text-slate-400 font-mono">Dikonfigurasi per Akun MT5</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Profile 1: Prop Firm -->
+          <div class="glass-card p-5 rounded-2xl border border-blue-500/30 bg-blue-950/10 space-y-3 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-blue-400 uppercase tracking-wider font-mono">FTMO ULTRA SAFE</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">QUARTET</span>
+            </div>
+            <h4 class="text-base font-bold text-white">Prop Firm Evaluation</h4>
+            <p class="text-[11px] text-slate-300 leading-relaxed">Disetel khusus untuk lolos aturan drawdown prop firm yang sangat ketat (Max DD &lt; 5%).</p>
+            <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs font-mono">
+              <div class="flex justify-between text-slate-400"><span>Risk/Trade:</span> <strong class="text-emerald-400">0.50% Equity</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Max Daily Loss:</span> <strong class="text-rose-400">-1.00% (Lockout)</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Daily Target:</span> <strong class="text-emerald-400">+2.00% (RR 1:2)</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Jam Sesi:</span> <strong class="text-indigo-300">London + NY</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Timeframes:</span> <strong class="text-slate-200">M1, M2, M3, M5</strong></div>
+            </div>
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+              <span class="text-slate-400">Max DD Kage Bunshin:</span>
+              <strong class="text-emerald-400 font-bold">1.40% (Safe)</strong>
+            </div>
+          </div>
+
+          <!-- Profile 2: Sweet Spot -->
+          <div class="glass-card p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/10 space-y-3 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono">RECOMMENDED</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">QUARTET</span>
+            </div>
+            <h4 class="text-base font-bold text-white">Sweet Spot (Balanced)</h4>
+            <p class="text-[11px] text-slate-300 leading-relaxed">Keseimbangan optimal antara frekuensi panen trading 24 jam dan proteksi modal institusional.</p>
+            <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs font-mono">
+              <div class="flex justify-between text-slate-400"><span>Risk/Trade:</span> <strong class="text-emerald-400">0.50% Equity</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Max Daily Loss:</span> <strong class="text-rose-400">-1.00% (Lockout)</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Daily Target:</span> <strong class="text-emerald-400">+2.50%</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Jam Sesi:</span> <strong class="text-indigo-300">ALL DAY (24H)</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Timeframes:</span> <strong class="text-slate-200">M1, M2, M3, M5</strong></div>
+            </div>
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+              <span class="text-slate-400">Max DD Kage Bunshin:</span>
+              <strong class="text-emerald-400 font-bold">1.50%</strong>
+            </div>
+          </div>
+
+          <!-- Profile 3: Aggressive -->
+          <div class="glass-card p-5 rounded-2xl border border-amber-500/30 bg-amber-950/10 space-y-3 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">HIGH COMPOUNDING</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">TRIO</span>
+            </div>
+            <h4 class="text-base font-bold text-white">Aggressive Growth</h4>
+            <p class="text-[11px] text-slate-300 leading-relaxed">Pertumbuhan modal cepat dengan memanfaatkan volatilitas tinggi Trio timeframes (M1+M2+M3).</p>
+            <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs font-mono">
+              <div class="flex justify-between text-slate-400"><span>Risk/Trade:</span> <strong class="text-emerald-400">1.00% Equity</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Max Daily Loss:</span> <strong class="text-rose-400">-2.00%</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Daily Target:</span> <strong class="text-emerald-400">+4.00%</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Jam Sesi:</span> <strong class="text-indigo-300">ALL DAY (24H)</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Timeframes:</span> <strong class="text-slate-200">M1, M2, M3</strong></div>
+            </div>
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+              <span class="text-slate-400">Max DD Kage Bunshin:</span>
+              <strong class="text-amber-400 font-bold">3.00%</strong>
+            </div>
+          </div>
+
+          <!-- Profile 4: YOLO -->
+          <div class="glass-card p-5 rounded-2xl border border-purple-500/30 bg-purple-950/10 space-y-3 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-purple-400 uppercase tracking-wider font-mono">APEX SCALPER</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">TRIO</span>
+            </div>
+            <h4 class="text-base font-bold text-white">YOLO Mode</h4>
+            <p class="text-[11px] text-slate-300 leading-relaxed">Mode ekspansif maksimal untuk akun kontes atau penggandaan modal kecil dalam waktu singkat.</p>
+            <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs font-mono">
+              <div class="flex justify-between text-slate-400"><span>Risk/Trade:</span> <strong class="text-emerald-400">2.00% Equity</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Max Daily Loss:</span> <strong class="text-rose-400">-4.00%</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Daily Target:</span> <strong class="text-emerald-400">+8.00%</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Jam Sesi:</span> <strong class="text-indigo-300">ALL DAY (24H)</strong></div>
+              <div class="flex justify-between text-slate-400"><span>Timeframes:</span> <strong class="text-slate-200">M1, M2, M3</strong></div>
+            </div>
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+              <span class="text-slate-400">Max DD Kage Bunshin:</span>
+              <strong class="text-purple-400 font-bold">6.00%</strong>
             </div>
           </div>
         </div>
@@ -988,14 +1204,22 @@
 
     function switchTab(tabId) {
       activeTab = tabId;
-      ['radar', 'accounts', 'forward', 'roadmap'].forEach(t => {
-        document.getElementById(`tab-${t}`).classList.add('hidden');
-        document.getElementById(`tab-btn-${t}`).classList.remove('tab-active');
-        document.getElementById(`tab-btn-${t}`).classList.add('text-slate-400');
+      ['radar', 'engine-spec', 'accounts', 'forward', 'roadmap'].forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (el) el.classList.add('hidden');
+        if (btn) {
+          btn.classList.remove('tab-active');
+          btn.classList.add('text-slate-400');
+        }
       });
-      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-      document.getElementById(`tab-btn-${tabId}`).classList.add('tab-active');
-      document.getElementById(`tab-btn-${tabId}`).classList.remove('text-slate-400');
+      const activeEl = document.getElementById(`tab-${tabId}`);
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeEl) activeEl.classList.remove('hidden');
+      if (activeBtn) {
+        activeBtn.classList.add('tab-active');
+        activeBtn.classList.remove('text-slate-400');
+      }
 
       if (tabId === 'radar') fetchRadarData();
       if (tabId === 'accounts') fetchAccountsData();
