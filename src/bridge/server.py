@@ -531,10 +531,22 @@ class LiveMT5BridgeCore:
             in_discount = mid <= buy_zone_top
             in_premium = mid >= sell_zone_bottom
 
-            # Calculate Untouched / Fresh Depth Boundary for Visual Chart
+            # Calculate Untouched / Fresh Depth Boundary for Visual Chart (>50% Penetration)
             # An area is untouched if current/recent bar wicks haven't consumed that depth
-            untouched_buy_top = round(sw_low + (total_range * 0.15), 2)  # Deeper 0-15% fresh zone
-            untouched_sell_bottom = round(sw_low + (total_range * 0.85), 2)  # Higher 85-100% fresh zone
+            untouched_buy_top = round(sw_low + (total_range * 0.125), 2)  # >50% depth of discount (0-12.5%)
+            untouched_sell_bottom = round(sw_low + (total_range * 0.875), 2)  # >50% depth of premium (87.5-100%)
+
+            # 3-Layer Grid Target Levels for this TF
+            buy_grid_levels = [
+                round(buy_zone_top, 2),                  # L1: 25% Lantai Atas Buy
+                round(sw_low + (total_range * 0.125), 2),# L2: 12.5% Kedalaman Murni
+                round(sw_low, 2)                         # L3: 0% Dasar Lantai
+            ]
+            sell_grid_levels = [
+                round(sell_zone_bottom, 2),              # L1: 75% Lantai Bawah Sell
+                round(sw_low + (total_range * 0.875), 2),# L2: 87.5% Kedalaman Murni
+                round(sw_high, 2)                        # L3: 100% Pucuk Atap
+            ]
 
             if in_discount:
                 dir_label = "BUY"
@@ -601,7 +613,8 @@ class LiveMT5BridgeCore:
                     "reasons": [
                         f"Liquidity Sweep Peak at ${sw_high:.2f} ({roof_time_str})",
                         f"Premium 75-100% Imbalance Zone (${sell_zone_bottom:.2f} - ${sw_high:.2f})",
-                        f"Untouched Liquidity Depth above ${untouched_sell_bottom:.2f}"
+                        f"3-Layer Sell Grid: L1=${sell_grid_levels[0]:.2f}, L2=${sell_grid_levels[1]:.2f}, L3=${sell_grid_levels[2]:.2f}",
+                        f"Virgin Depth >50% Untouched above ${untouched_sell_bottom:.2f}"
                     ]
                 },
                 "floor": {
@@ -617,7 +630,8 @@ class LiveMT5BridgeCore:
                     "reasons": [
                         f"Demand Absorption Low at ${sw_low:.2f} ({floor_time_str})",
                         f"Discount 0-25% Valuation Base (${sw_low:.2f} - ${buy_zone_top:.2f})",
-                        f"Untouched Liquidity Depth below ${untouched_buy_top:.2f}"
+                        f"3-Layer Buy Grid: L1=${buy_grid_levels[0]:.2f}, L2=${buy_grid_levels[1]:.2f}, L3=${buy_grid_levels[2]:.2f}",
+                        f"Virgin Depth >50% Untouched below ${untouched_buy_top:.2f}"
                     ]
                 }
             }
@@ -633,6 +647,7 @@ class LiveMT5BridgeCore:
                 "swing_low": sw_low,
                 "equilibrium": equilibrium,
                 "poi_reasoning": poi_reasoning,
+                "grid_levels": buy_grid_levels if dir_label == "BUY" else sell_grid_levels,
                 "buy_zone": {
                     "bottom": buy_zone_bottom,
                     "top": buy_zone_top,
