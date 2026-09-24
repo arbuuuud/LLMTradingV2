@@ -441,6 +441,16 @@ void ProcessCommand(string cmdJson)
    }
    else if(action == "CLOSE_ALL")
    {
+      string targetAcc = ExtractJsonString(cmdJson, "account_number");
+      if(targetAcc != "")
+      {
+         string myAcc = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+         if(targetAcc != myAcc)
+         {
+            return; // Targeted for a different MT5 terminal account
+         }
+      }
+
       string symbol = ExtractJsonString(cmdJson, "symbol");
       long   magic  = (long)ExtractJsonDouble(cmdJson, "magic");
       int closedPos = 0;

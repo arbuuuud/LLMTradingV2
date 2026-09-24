@@ -306,6 +306,7 @@ class LiveMT5BridgeCore:
                     logger.warning(f"👁️ [SASUKE SHARINGAN] Force TP triggered on #{ticket}! Reason: {sasuke_verdict.rationale}")
                     asyncio.create_task(self.broadcast({
                         "action": "CLOSE_ALL",
+                        "account_number": str(pos.get("account_number", "")),
                         "symbol": "XAUUSD",
                         "magic": pos.get("magic", 1001)
                     }))
@@ -447,6 +448,9 @@ class LiveMT5BridgeCore:
         elif msg_type == "CLOSED_TRADE":
             trade_data = msg.get("data", {})
             if trade_data:
+                # Ensure account number from message envelope is attached to trade data
+                if "account_number" not in trade_data and "account_id" in msg:
+                    trade_data["account_number"] = str(msg["account_id"])
                 self._record_closed_trade(trade_data)
 
         # 5. TICK (Live High-Frequency Quotes)
