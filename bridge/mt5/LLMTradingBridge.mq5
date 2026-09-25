@@ -552,6 +552,16 @@ void ProcessCommand(string cmdJson)
    }
    else if(action == "CANCEL_PENDING")
    {
+      string targetAcc = ExtractJsonString(cmdJson, "account_number");
+      if(targetAcc != "")
+      {
+         string myAcc = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+         if(targetAcc != myAcc)
+         {
+            return; // Targeted for a different MT5 terminal account
+         }
+      }
+
       string symbol = ExtractJsonString(cmdJson, "symbol");
       long magic = (long)ExtractJsonDouble(cmdJson, "magic");
       int deletedCount = 0;
@@ -563,14 +573,14 @@ void ProcessCommand(string cmdJson)
             long ordMagic = OrderGetInteger(ORDER_MAGIC);
             string ordSym = OrderGetString(ORDER_SYMBOL);
             bool matchMagic = (magic <= 0) || (ordMagic == magic);
-            if(matchMagic && (symbol == "" || ordSym == symbol))
+            if(matchMagic && (symbol == "" || ordSym == symbol || StringFind(ordSym, symbol) >= 0))
             {
                if(m_trade.OrderDelete(ticket))
                   deletedCount++;
             }
          }
       }
-      PrintFormat("[LLM Bridge] Cancel Pending -> Deleted %d pending orders for %s", deletedCount, symbol);
+      PrintFormat("[LLM Bridge] Cancel Pending -> Deleted %d pending orders for %s (Acc: %s)", deletedCount, symbol, targetAcc != "" ? targetAcc : "ALL");
    }
 }
 

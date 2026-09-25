@@ -104,6 +104,10 @@ class LiveMT5BridgeCore:
         self.current_session_day: str = ""
         self.session_status_desc: str = "Active"
 
+        # Per-Account Dynamic Session Budgeting (DEC-030: Independent Account Isolation)
+        # acc_id -> {"start_equity": float, "peak_pnl": float, "halted": bool, "prior_pnl": float, "status": str}
+        self.account_sessions: Dict[str, Dict[str, Any]] = {}
+
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
 
@@ -802,6 +806,9 @@ class LiveMT5BridgeCore:
             self.session_halted = (active_sess == "OFF_HOURS")
             self.session_status_desc = f"{active_sess} Active" if not self.session_halted else "Off-Hours Standby"
 
+            # Reset per-account session tracking on session boundary
+            self.account_sessions.clear()
+
         # 2. Multi-Session Equity Budgeting & Dynamic Greed Trailing
         # Budget loss dasar per-sesi: -0.50% dari ekuitas total fleet
         # House Money (CLONE-08): Jika sesi sebelumnya profit >= +1.0%, tambahkan 25% profit ke budget risiko sesi ini!
@@ -835,8 +842,8 @@ class LiveMT5BridgeCore:
         if m1_setup.get("active_setup") and self.active_writers:
             dir_cmd = m1_setup["direction"]
 
-            # Sasuke Circuit Breaker Gate: Check if session is halted or daily drawdown breached -1.0%
-            if self.session_halted:
+            # Note: Global self.session_halted acts as fallback, but evaluation is prioritized per-account below
+            if self.session_halted and not self.account_sessions:
                 return
 
             cb_status = self.sasuke_overseer.check_daily_circuit_breaker(account_equity=self.equity, starting_equity=self.balance)
@@ -950,6 +957,46 @@ class LiveMT5BridgeCore:
                     acc_prof = acc_info["profile"]
                     acc_eq = max(100.0, acc_info["equity"])
                     acc_risk_tot = acc_info["risk_pct"]
+
+                    # Per-Account Dynamic Session Risk & Greed Trailing Evaluation (DEC-030)
+                    acc_sess = self.account_sessions.setdefault(acc_num, {
+                        "start_equity": acc_eq,
+                        "peak_pnl": 0.0,
+                        "halted": False,
+                        "reason": ""
+                    })
+
+                    acc_pnl = acc_eq - acc_sess["start_equity"]
+                    if acc_pnl > acc_sess["peak_pnl"]:
+                        acc_sess["peak_pnl"] = acc_pnl
+
+                    # Budget kerugian per-sesi untuk akun ini (-0.50% dari start_equity akun)
+                    acc_loss_budget = acc_sess["start_equity"] * 0.005
+                    acc_floor_pnl = -acc_loss_budget
+                    acc_target_1pct = acc_sess["start_equity"] * 0.010
+                    acc_step_05pct = acc_sess["start_equity"] * 0.005
+
+                    # Stepped greed trailing per akun
+                    if acc_sess["peak_pnl"] >= acc_target_1pct:
+                        steps = int((acc_sess["peak_pnl"] - acc_target_1pct) / acc_step_05pct)
+                        acc_floor_pnl = (acc_target_1pct * 0.50) + (steps * acc_step_05pct)
+
+                    if acc_pnl <= acc_floor_pnl and active_sess != "OFF_HOURS":
+                        if not acc_sess["halted"]:
+                            acc_sess["halted"] = True
+                            acc_sess["reason"] = f"Account Session Threshold Hit (PnL: ${acc_pnl:+.2f})"
+                            logger.info(f"🛑 [ACCOUNT SESSION HALT] Account #{acc_num} ({acc_prof}) reached threshold: PnL ${acc_pnl:+.2f}. Trading halted for this account.")
+                            # Batalkan pending order hanya untuk akun spesifik ini
+                            asyncio.create_task(self.broadcast({
+                                "action": "CANCEL_PENDING",
+                                "symbol": "XAUUSD",
+                                "account_number": acc_num,
+                                "magic": 1001
+                            }))
+
+                    if acc_sess["halted"]:
+                        # Lewati hanya akun yang terkena halt, akun lain yang masih sehat tetap boleh trade!
+                        continue
 
                     for lay_idx, limit_p in enumerate(target_levels):
                         # Terapkan bobot Pyramid per layer
