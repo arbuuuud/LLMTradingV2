@@ -1519,6 +1519,10 @@
         candleCtx.restore();
       }
 
+      // Detect POI anchor candle timestamps to highlight on chart
+      const roofTime = tfInfo && tfInfo.poi_reasoning && tfInfo.poi_reasoning.roof && tfInfo.poi_reasoning.roof.base_candle ? tfInfo.poi_reasoning.roof.base_candle.timestamp : 0;
+      const floorTime = tfInfo && tfInfo.poi_reasoning && tfInfo.poi_reasoning.floor && tfInfo.poi_reasoning.floor.base_candle ? tfInfo.poi_reasoning.floor.base_candle.timestamp : 0;
+
       // Draw Complete Market Structure (Fractal Swings: HH, HL, LH, LL & Zig-Zag Vector)
       const mktStruct = tfInfo && tfInfo.market_structure ? tfInfo.market_structure : [];
       if (mktStruct.length >= 2) {
@@ -1631,9 +1635,6 @@
       }
 
       // Draw Candlesticks (High Definition Sharp Institutional Styling)
-      // Detect POI anchor candle timestamps to highlight on chart
-      const roofTime = tfInfo && tfInfo.poi_reasoning && tfInfo.poi_reasoning.roof && tfInfo.poi_reasoning.roof.base_candle ? tfInfo.poi_reasoning.roof.base_candle.timestamp : 0;
-      const floorTime = tfInfo && tfInfo.poi_reasoning && tfInfo.poi_reasoning.floor && tfInfo.poi_reasoning.floor.base_candle ? tfInfo.poi_reasoning.floor.base_candle.timestamp : 0;
 
       candles.forEach((c, idx) => {
         const x = padLeft + idx * stepX + stepX / 2;

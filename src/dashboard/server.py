@@ -523,6 +523,11 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "Dashboard HTML file not found")
             return
 
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return
+
         # 2. Tactical Radar API (M1, M2, M3, M4, M5 for PAC Engine)
         if path == "/api/radar":
             radar_data = build_tactical_radar_pac()
