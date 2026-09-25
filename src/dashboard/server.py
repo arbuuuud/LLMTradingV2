@@ -637,6 +637,48 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
             }, indent=2).encode("utf-8"))
             return
 
+        # 6. Secret Internal Live Positions & Pending Orders API
+        elif path == "/api/internal/live-positions":
+            account_data = {}
+            if RADAR_STATE_PATH.exists():
+                try:
+                    r_data = json.loads(RADAR_STATE_PATH.read_text(encoding="utf-8"))
+                    account_data = r_data.get("account", {})
+                except Exception as e:
+                    account_data = {"error": str(e)}
+
+            # Also load accounts.yaml for comprehensive context
+            cfg = load_accounts_config()
+            self._set_json_headers(200)
+            self.wfile.write(json.dumps({
+                "status": "OK",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "open_positions": account_data.get("open_positions", []),
+                "pending_orders": account_data.get("pending_orders", []),
+                "total_open_positions": len(account_data.get("open_positions", [])),
+                "total_pending_orders": len(account_data.get("pending_orders", [])),
+                "accounts": cfg.get("accounts", {})
+            }, indent=2).encode("utf-8"))
+            return
+
+        # 7. Secret Internal Raw File Download API (forward_trades_vps.json or backup archives)
+        elif path == "/api/internal/download-vps-trades":
+            target_file = FORWARD_TRADES_VPS
+            content = "[]"
+            if target_file.exists():
+                try:
+                    content = target_file.read_text(encoding="utf-8")
+                except Exception as e:
+                    content = json.dumps({"error": f"Failed to read file: {e}"})
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="forward_trades_vps.json"')
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(content.encode("utf-8"))
+            return
+
         self.send_error(404, "Endpoint not found")
 
     def do_POST(self):
