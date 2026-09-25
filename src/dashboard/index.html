@@ -767,17 +767,22 @@
         </div>
       </div>
 
-      <!-- Environment Separation Cards: Local vs VPS -->
+      <!-- Environment Separation Cards: Local vs VPS (Clickable Filter) -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Local Mac Card -->
-        <div class="glass-card p-5 rounded-2xl border border-blue-500/30 space-y-4">
+        <!-- Local Mac Card (Clickable) -->
+        <div onclick="switchForwardEnv('local')" id="card-env-local" class="glass-card p-5 rounded-2xl border-2 border-blue-500 bg-blue-950/20 shadow-lg shadow-blue-500/10 space-y-4 cursor-pointer transition transform hover:scale-[1.01]">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <span class="font-bold text-white text-sm flex items-center gap-2 font-mono">
               <i class="fa-solid fa-laptop text-blue-400"></i> LOCAL ENVIRONMENT (Mac)
             </span>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              forward_trades_local.json
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span id="badge-env-local" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500 text-white shadow-sm flex items-center gap-1">
+                <i class="fa-solid fa-check text-[9px]"></i> ACTIVE VIEW
+              </span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                forward_trades_local.json
+              </span>
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-3 text-xs">
             <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
@@ -799,15 +804,20 @@
           </div>
         </div>
 
-        <!-- Production VPS Card -->
-        <div class="glass-card p-5 rounded-2xl border border-indigo-500/30 space-y-4">
+        <!-- Production VPS Card (Clickable) -->
+        <div onclick="switchForwardEnv('vps')" id="card-env-vps" class="glass-card p-5 rounded-2xl border border-slate-800 opacity-80 hover:opacity-100 hover:border-indigo-500/50 space-y-4 cursor-pointer transition transform hover:scale-[1.01]">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <span class="font-bold text-white text-sm flex items-center gap-2 font-mono">
               <i class="fa-solid fa-server text-indigo-400"></i> PRODUCTION VPS (24/7 Server)
             </span>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              forward_trades_vps.json
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span id="badge-env-vps" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden">
+                CLICK TO VIEW
+              </span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                forward_trades_vps.json
+              </span>
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-3 text-xs">
             <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
@@ -1617,13 +1627,139 @@
       if (tabId === 'roadmap') fetchRoadmapData();
     }
 
+    // Forward Telemetry State
+    let currentForwardEnv = 'local'; // 'local' or 'vps'
+    let cachedForwardData = { local: [], vps: [] };
+
+    function switchForwardEnv(env) {
+      currentForwardEnv = env;
+      const cardLoc = document.getElementById('card-env-local');
+      const cardVps = document.getElementById('card-env-vps');
+      const badgeLoc = document.getElementById('badge-env-local');
+      const badgeVps = document.getElementById('badge-env-vps');
+
+      if (env === 'local') {
+        if (cardLoc) {
+          cardLoc.className = "glass-card p-5 rounded-2xl border-2 border-blue-500 bg-blue-950/20 shadow-lg shadow-blue-500/10 space-y-4 cursor-pointer transition transform hover:scale-[1.01]";
+        }
+        if (cardVps) {
+          cardVps.className = "glass-card p-5 rounded-2xl border border-slate-800 opacity-70 hover:opacity-100 hover:border-indigo-500/50 space-y-4 cursor-pointer transition transform hover:scale-[1.01]";
+        }
+        if (badgeLoc) {
+          badgeLoc.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500 text-white shadow-sm flex items-center gap-1";
+          badgeLoc.innerHTML = '<i class="fa-solid fa-check text-[9px]"></i> ACTIVE VIEW';
+        }
+        if (badgeVps) {
+          badgeVps.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+          badgeVps.innerText = "CLICK TO VIEW";
+        }
+      } else {
+        if (cardLoc) {
+          cardLoc.className = "glass-card p-5 rounded-2xl border border-slate-800 opacity-70 hover:opacity-100 hover:border-blue-500/50 space-y-4 cursor-pointer transition transform hover:scale-[1.01]";
+        }
+        if (cardVps) {
+          cardVps.className = "glass-card p-5 rounded-2xl border-2 border-indigo-500 bg-indigo-950/20 shadow-lg shadow-indigo-500/10 space-y-4 cursor-pointer transition transform hover:scale-[1.01]";
+        }
+        if (badgeLoc) {
+          badgeLoc.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+          badgeLoc.innerText = "CLICK TO VIEW";
+        }
+        if (badgeVps) {
+          badgeVps.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-indigo-500 text-white shadow-sm flex items-center gap-1";
+          badgeVps.innerHTML = '<i class="fa-solid fa-check text-[9px]"></i> ACTIVE VIEW';
+        }
+      }
+
+      renderForwardFilteredView();
+    }
+
+    function renderForwardFilteredView() {
+      const activeDeals = currentForwardEnv === 'local' ? (cachedForwardData.local || []) : (cachedForwardData.vps || []);
+      const envName = currentForwardEnv === 'local' ? 'LOCAL ENVIRONMENT (Mac)' : 'PRODUCTION VPS (Server)';
+      const envBadgeColor = currentForwardEnv === 'local' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10';
+
+      // 1. Update 4 Risk Profiles Multi-Account Matrix Metrics based on selected environment
+      const profileKeys = ['prop_firm', 'sweet_spot', 'aggressive', 'yolo'];
+      profileKeys.forEach(k => {
+        const profDeals = activeDeals.filter(t => (t.risk_profile || '').toLowerCase() === k);
+        const pWins = profDeals.filter(t => (t.pnl || 0) > 0).length;
+        const pWr = profDeals.length > 0 ? ((pWins / profDeals.length) * 100).toFixed(1) : "0.0";
+        const pNetPnl = profDeals.reduce((sum, t) => sum + (t.pnl || 0), 0);
+
+        const elTr = document.getElementById(`prof-${k}-trades`);
+        const elWr = document.getElementById(`prof-${k}-wr`);
+        const elPnl = document.getElementById(`prof-${k}-pnl`);
+
+        if (elTr) elTr.innerText = `${profDeals.length} deals`;
+        if (elWr) elWr.innerText = `${pWr}%`;
+        if (elPnl) {
+          elPnl.innerText = `${pNetPnl >= 0 ? '+' : ''}$${pNetPnl.toFixed(2)}`;
+          elPnl.className = `text-sm font-mono font-bold ${pNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        }
+      });
+
+      // 2. Render Real-time Closed Deals Table for selected environment
+      const tbody = document.getElementById('forward-deals-tbody');
+      const countLabel = document.getElementById('forward-table-count');
+      if (countLabel) {
+        countLabel.innerHTML = `Menampilkan <strong class="text-white">${activeDeals.length}</strong> deals (<span class="px-1.5 py-0.2 rounded border font-mono ${envBadgeColor}">${envName}</span>)`;
+      }
+
+      if (tbody) {
+        if (activeDeals.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500 font-mono"><i class="fa-solid fa-folder-open mr-2 text-slate-600"></i>Belum ada closed deal tercatat di ${envName}.</td></tr>`;
+        } else {
+          // Sort newest exit first
+          const sorted = [...activeDeals].sort((a, b) => new Date(b.exit_time || 0) - new Date(a.exit_time || 0));
+          tbody.innerHTML = sorted.map(t => {
+            const isWin = (t.pnl || 0) >= 0;
+            const pnlClass = isWin ? 'text-emerald-400' : 'text-rose-400';
+            const pnlSign = isWin ? '+' : '';
+            const exitTimeStr = t.exit_time ? new Date(t.exit_time).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '-';
+            const isBuy = t.direction === 'BUY';
+            const typeBadge = isBuy
+              ? '<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">BUY</span>'
+              : '<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px]">SELL</span>';
+
+            const prof = (t.risk_profile || 'standard').toUpperCase();
+            const profColor = prof.includes('PROP') ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
+                             (prof.includes('SWEET') ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                             (prof.includes('AGGR') ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+                             (prof.includes('YOLO') ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' : 'text-slate-400 border-slate-700 bg-slate-800')));
+
+            return `
+              <tr class="hover:bg-slate-800/40 transition">
+                <td class="py-2.5 px-4 text-slate-400">#${t.trade_id}</td>
+                <td class="py-2.5 px-4">
+                  <span class="font-bold text-white">${t.account_number || '-'}</span>
+                  <span class="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold border ${profColor}">${prof}</span>
+                </td>
+                <td class="py-2.5 px-4 font-bold text-white">${t.symbol || 'XAUUSD'}</td>
+                <td class="py-2.5 px-4">${typeBadge}</td>
+                <td class="py-2.5 px-4 font-mono text-slate-300">${(t.lots || 0.01).toFixed(2)}</td>
+                <td class="py-2.5 px-4 text-right font-mono">$${(t.exit_price || 0).toFixed(2)}</td>
+                <td class="py-2.5 px-4 text-right font-mono font-bold ${pnlClass}">${pnlSign}$${(t.pnl || 0).toFixed(2)}</td>
+                <td class="py-2.5 px-4 text-right text-slate-400 font-mono text-[11px]">${exitTimeStr}</td>
+                <td class="py-2.5 px-4 text-center">
+                  <span class="px-2 py-0.5 rounded text-[10px] ${isWin ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                    ${isWin ? 'WIN' : 'LOSS'}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+    }
+
     async function fetchForwardData() {
       try {
         const res = await fetch('/api/forward-trades');
         const d = await res.json();
+        cachedForwardData = { local: d.local || [], vps: d.vps || [] };
 
-        // 1. Local Trades
-        const loc = d.local || [];
+        // 1. Local Trades Card Stats
+        const loc = cachedForwardData.local;
         const locWins = loc.filter(t => t.pnl > 0).length;
         const locWr = loc.length > 0 ? ((locWins / loc.length) * 100).toFixed(1) : "0.0";
         const locNetPnl = loc.reduce((sum, t) => sum + (t.pnl || 0), 0);
@@ -1635,8 +1771,8 @@
           elLocPnl.className = `text-xl font-bold mt-1 block ${locNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
         }
 
-        // 2. VPS Trades
-        const vps = d.vps || [];
+        // 2. VPS Trades Card Stats
+        const vps = cachedForwardData.vps;
         const vpsWins = vps.filter(t => t.pnl > 0).length;
         const vpsWr = vps.length > 0 ? ((vpsWins / vps.length) * 100).toFixed(1) : "0.0";
         const vpsNetPnl = vps.reduce((sum, t) => sum + (t.pnl || 0), 0);
@@ -1648,77 +1784,8 @@
           elVpsPnl.className = `text-xl font-bold mt-1 block ${vpsNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
         }
 
-        // 2B. 4 Risk Profiles Multi-Account Matrix Metrics
-        const allDeals = [...loc, ...vps];
-        const profileKeys = ['prop_firm', 'sweet_spot', 'aggressive', 'yolo'];
-        profileKeys.forEach(k => {
-          const profDeals = allDeals.filter(t => (t.risk_profile || '').toLowerCase() === k);
-          const pWins = profDeals.filter(t => (t.pnl || 0) > 0).length;
-          const pWr = profDeals.length > 0 ? ((pWins / profDeals.length) * 100).toFixed(1) : "0.0";
-          const pNetPnl = profDeals.reduce((sum, t) => sum + (t.pnl || 0), 0);
-
-          const elTr = document.getElementById(`prof-${k}-trades`);
-          const elWr = document.getElementById(`prof-${k}-wr`);
-          const elPnl = document.getElementById(`prof-${k}-pnl`);
-
-          if (elTr) elTr.innerText = `${profDeals.length} deals`;
-          if (elWr) elWr.innerText = `${pWr}%`;
-          if (elPnl) {
-            elPnl.innerText = `${pNetPnl >= 0 ? '+' : ''}$${pNetPnl.toFixed(2)}`;
-            elPnl.className = `text-sm font-mono font-bold ${pNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-          }
-        });
-
-        // 3. Render Real-time Closed Deals Table
-        const tbody = document.getElementById('forward-deals-tbody');
-        const countLabel = document.getElementById('forward-table-count');
-        if (countLabel) countLabel.innerText = `Menampilkan ${allDeals.length} closed deals`;
-
-        if (tbody) {
-          if (allDeals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-6 text-slate-500">Belum ada closed deal tercatat.</td></tr>';
-          } else {
-            // Sort newest exit first
-            allDeals.sort((a, b) => new Date(b.exit_time || 0) - new Date(a.exit_time || 0));
-            tbody.innerHTML = allDeals.map(t => {
-              const isWin = (t.pnl || 0) >= 0;
-              const pnlClass = isWin ? 'text-emerald-400' : 'text-rose-400';
-              const pnlSign = isWin ? '+' : '';
-              const exitTimeStr = t.exit_time ? new Date(t.exit_time).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '-';
-              const isBuy = t.direction === 'BUY';
-              const typeBadge = isBuy
-                ? '<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">BUY</span>'
-                : '<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px]">SELL</span>';
-
-              const prof = (t.risk_profile || 'standard').toUpperCase();
-              const profColor = prof.includes('PROP') ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
-                               (prof.includes('SWEET') ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-                               (prof.includes('AGGR') ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
-                               (prof.includes('YOLO') ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' : 'text-slate-400 border-slate-700 bg-slate-800')));
-
-              return `
-                <tr class="hover:bg-slate-800/40 transition">
-                  <td class="py-2.5 px-4 text-slate-400">#${t.trade_id}</td>
-                  <td class="py-2.5 px-4">
-                    <span class="font-bold text-white">${t.account_number || '-'}</span>
-                    <span class="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold border ${profColor}">${prof}</span>
-                  </td>
-                  <td class="py-2.5 px-4 font-bold text-white">${t.symbol || 'XAUUSD'}</td>
-                  <td class="py-2.5 px-4">${typeBadge}</td>
-                  <td class="py-2.5 px-4 font-mono text-slate-300">${(t.lots || 0.01).toFixed(2)}</td>
-                  <td class="py-2.5 px-4 text-right font-mono">$${(t.exit_price || 0).toFixed(2)}</td>
-                  <td class="py-2.5 px-4 text-right font-mono font-bold ${pnlClass}">${pnlSign}$${(t.pnl || 0).toFixed(2)}</td>
-                  <td class="py-2.5 px-4 text-right text-slate-400 font-mono text-[11px]">${exitTimeStr}</td>
-                  <td class="py-2.5 px-4 text-center">
-                    <span class="px-2 py-0.5 rounded text-[10px] ${isWin ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
-                      ${isWin ? 'WIN' : 'LOSS'}
-                    </span>
-                  </td>
-                </tr>
-              `;
-            }).join('');
-          }
-        }
+        // 3. Render Table & 4 Risk Profiles according to selected environment view
+        renderForwardFilteredView();
       } catch (err) {
         console.error("Failed to load forward test data:", err);
       }
