@@ -403,6 +403,34 @@ void ProcessCommand(string cmdJson)
       else
          m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
 
+      // 4. Adapt symbol: if symbol passed from Python is generic ("XAUUSD"), check if chart symbol matches (e.g. XAUUSD.sc, XAUUSD.u)
+      if(symbol != _Symbol && (StringFind(_Symbol, symbol) >= 0 || StringFind(symbol, _Symbol) >= 0))
+      {
+         symbol = _Symbol;
+      }
+
+      // 5. Expiration handling for brokers with specific order expiration policies (e.g. PUPrime Cent, Exness)
+      uint expFlags = (uint)SymbolInfoInteger(symbol, SYMBOL_EXPIRATION_MODE);
+      ENUM_ORDER_TYPE_TIME orderTime = ORDER_TIME_GTC;
+      datetime orderExpiration = 0;
+
+      if((expFlags & SYMBOL_EXPIRATION_GTC) != 0)
+      {
+         orderTime = ORDER_TIME_GTC;
+         orderExpiration = 0;
+      }
+      else if((expFlags & SYMBOL_EXPIRATION_DAY) != 0)
+      {
+         orderTime = ORDER_TIME_DAY;
+         orderExpiration = 0;
+      }
+      else if((expFlags & SYMBOL_EXPIRATION_SPECIFIED) != 0)
+      {
+         orderTime = ORDER_TIME_SPECIFIED;
+         // Set expiration 24 hours ahead if broker demands explicitly specified expiration time
+         orderExpiration = TimeCurrent() + 86400;
+      }
+
       bool success = false;
       if(side == "BUY")
       {
@@ -420,13 +448,13 @@ void ProcessCommand(string cmdJson)
       {
          double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
          double execPrice = (price > 0.0) ? price : (ask - 2.0);
-         success = m_trade.BuyLimit(lots, execPrice, symbol, sl, tp, ORDER_TIME_GTC, 0, comment);
+         success = m_trade.BuyLimit(lots, execPrice, symbol, sl, tp, orderTime, orderExpiration, comment);
       }
       else if(side == "SELL_LIMIT")
       {
          double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
          double execPrice = (price > 0.0) ? price : (bid + 2.0);
-         success = m_trade.SellLimit(lots, execPrice, symbol, sl, tp, ORDER_TIME_GTC, 0, comment);
+         success = m_trade.SellLimit(lots, execPrice, symbol, sl, tp, orderTime, orderExpiration, comment);
       }
 
       // Send execution receipt back to Python
