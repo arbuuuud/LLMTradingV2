@@ -760,6 +760,7 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
                 "server": payload.get("server", existing_acc.get("server", "Demo-Server")),
                 "account_type": payload.get("account_type", existing_acc.get("account_type", "DEMO")),
                 "risk_profile": payload.get("risk_profile", existing_acc.get("risk_profile", "none")),
+                "engine_2_profile": payload.get("engine_2_profile", existing_acc.get("engine_2_profile", "none")),
                 "active": bool(payload.get("active", existing_acc.get("active", False))),
                 "status": payload.get("status", existing_acc.get("status", "CONNECTED")),
                 "balance": float(payload.get("balance", existing_acc.get("balance", 10000.0))),
@@ -776,11 +777,13 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
         # 2B. Quick Update Account Profile or Active Toggle
         elif path == "/api/accounts/update-settings":
             cfg = load_accounts_config()
-            acc_id = payload.get("account_id")
+            acc_id = payload.get("account_id") or payload.get("id")
             if acc_id and acc_id in cfg.get("accounts", {}):
                 acc = cfg["accounts"][acc_id]
                 if "risk_profile" in payload:
                     acc["risk_profile"] = str(payload["risk_profile"]).lower()
+                if "engine_2_profile" in payload:
+                    acc["engine_2_profile"] = str(payload["engine_2_profile"]).lower()
                 if "active" in payload:
                     acc["active"] = bool(payload["active"])
                 acc["updated_at"] = datetime.now().isoformat()

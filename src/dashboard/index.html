@@ -693,7 +693,16 @@
             <tr>
               <th class="p-4">ACCOUNT NO / BROKER</th>
               <th class="p-4">TIPE AKUN</th>
-              <th class="p-4">RISK PROFILE (STRATEGY)</th>
+              <th class="p-4">
+                <div class="flex items-center gap-1.5 text-blue-400">
+                  <i class="fa-solid fa-chart-simple"></i> PAC SCALPER PROFILE
+                </div>
+              </th>
+              <th class="p-4">
+                <div class="flex items-center gap-1.5 text-amber-400">
+                  <i class="fa-solid fa-cubes-stacked"></i> ENGINE #2 (SLOT)
+                </div>
+              </th>
               <th class="p-4 text-center">AUTO DISPATCH</th>
               <th class="p-4">BALANCE / EQUITY</th>
               <th class="p-4">CONNECTION</th>
@@ -1910,20 +1919,31 @@
         row.className = 'hover:bg-slate-800/40 transition';
 
         const currentProfile = (acc.risk_profile || 'none').toLowerCase();
+        const currentEng2Profile = (acc.engine_2_profile || 'none').toLowerCase();
         const isActive = acc.active === true;
         const isConnected = acc.status === 'CONNECTED';
 
         const profileOptions = [
-          { val: 'none', label: '⛔ NONE (STANDBY - NO TRADES)' },
-          { val: 'prop_firm', label: '🛡️ PROP FIRM (0.25% - FTMO)' },
-          { val: 'sweet_spot', label: '📈 SWEET SPOT (0.50% - BALANCED)' },
-          { val: 'aggressive', label: '⚡ AGGRESSIVE (1.00% - FAST)' },
-          { val: 'yolo', label: '🚀 YOLO (2.00% - MAX)' }
+          { val: 'none', label: '⛔ None (Standby)' },
+          { val: 'prop_firm', label: '🛡️ Prop Firm (0.25%)' },
+          { val: 'sweet_spot', label: '📈 Sweet Spot (0.50%)' },
+          { val: 'aggressive', label: '⚡ Aggressive (1.00%)' },
+          { val: 'yolo', label: '🚀 YOLO (2.00%)' }
         ];
 
-        const selectHtml = `
+        const selectPacHtml = `
           <select onchange="updateAccountProfile('${id}', this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-white font-mono focus:border-blue-500 focus:outline-none">
             ${profileOptions.map(opt => `<option value="${opt.val}" ${currentProfile === opt.val ? 'selected' : ''}>${opt.label}</option>`).join('')}
+          </select>
+        `;
+
+        const selectEng2Html = `
+          <select onchange="updateAccountEng2Profile('${id}', this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-amber-300/80 font-mono focus:border-amber-500 focus:outline-none">
+            <option value="none" ${currentEng2Profile === 'none' ? 'selected' : ''}>⛔ None (Disabled)</option>
+            <option value="prop_firm" ${currentEng2Profile === 'prop_firm' ? 'selected' : ''}>🛡️ Prop Firm (0.25%)</option>
+            <option value="sweet_spot" ${currentEng2Profile === 'sweet_spot' ? 'selected' : ''}>📈 Sweet Spot (0.50%)</option>
+            <option value="aggressive" ${currentEng2Profile === 'aggressive' ? 'selected' : ''}>⚡ Aggressive (1.00%)</option>
+            <option value="yolo" ${currentEng2Profile === 'yolo' ? 'selected' : ''}>🚀 YOLO (2.00%)</option>
           </select>
         `;
 
@@ -1949,7 +1969,10 @@
             <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700">${acc.account_type || 'DEMO'}</span>
           </td>
           <td class="p-4">
-            ${selectHtml}
+            ${selectPacHtml}
+          </td>
+          <td class="p-4">
+            ${selectEng2Html}
           </td>
           <td class="p-4 text-center">
             ${toggleBtn}
@@ -1981,6 +2004,28 @@
         await fetch('/api/accounts/update-settings', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({id: accId, risk_profile: newProfile})
+        });
+        showToast('Settings Saved', `Akun ${accId} PAC profile diubah ke ${newProfile}`, 'BUY');
+        fetchAccountsData();
+      } catch (err) {
+        console.error("Failed to update profile:", err);
+      }
+    }
+
+    async function updateAccountEng2Profile(accId, newProfile) {
+      try {
+        await fetch('/api/accounts/update-settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({id: accId, engine_2_profile: newProfile})
+        });
+        showToast('Settings Saved', `Akun ${accId} Engine #2 profile diubah ke ${newProfile}`, 'BEP');
+        fetchAccountsData();
+      } catch (err) {
+        console.error("Failed to update Engine #2 profile:", err);
+      }
+    }
           body: JSON.stringify({ account_id: accId, risk_profile: newProfile })
         });
         showToast('Profil Disimpan', `Akun ${accId} kini menggunakan profil ${newProfile.toUpperCase()}`, 'SUCCESS');
