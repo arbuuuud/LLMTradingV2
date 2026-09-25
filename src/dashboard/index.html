@@ -245,16 +245,23 @@
             <!-- Base Candle Detail & Interactive Mini-Visualizer -->
             <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-2">
               <div class="flex items-center justify-between">
+                <span class="text-slate-400">Structure Pattern:</span>
+                <span id="poi-roof-pattern" class="px-1.5 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">RBD SWEEP LEG</span>
+              </div>
+              <div class="flex items-center justify-between">
                 <span class="text-slate-400">Base Anchor Candle:</span>
                 <strong id="poi-roof-candle-time" class="text-rose-400">12:35 UTC</strong>
               </div>
               <div id="poi-roof-candle-ohlc" class="text-slate-300">
                 O: 4316.80 | H: 4319.17 | L: 4316.10 | C: 4318.50
               </div>
-              <!-- Mini Candle Graphic Canvas for Roof Anchor -->
-              <div class="pt-1 flex items-center justify-between border-t border-slate-900">
-                <span class="text-[10px] text-slate-500 font-sans">Candle Anchor Visual:</span>
-                <canvas id="poi-roof-mini-canvas" width="220" height="42" class="rounded bg-slate-900/60 border border-slate-800/80"></canvas>
+              <!-- Structural Leg-In / Leg-Out Multi-Candle Visualizer Canvas -->
+              <div class="pt-1.5 space-y-1 border-t border-slate-900">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="text-slate-400 font-sans">Multi-Candle Leg Context:</span>
+                  <span class="text-slate-500 font-mono text-[9px]">Leg-In ➔ Anchor ➔ Leg-Out</span>
+                </div>
+                <canvas id="poi-roof-mini-canvas" height="64" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
               </div>
             </div>
 
@@ -279,16 +286,23 @@
             <!-- Base Candle Detail & Interactive Mini-Visualizer -->
             <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-2">
               <div class="flex items-center justify-between">
+                <span class="text-slate-400">Structure Pattern:</span>
+                <span id="poi-floor-pattern" class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">DBR DEMAND LEG</span>
+              </div>
+              <div class="flex items-center justify-between">
                 <span class="text-slate-400">Base Anchor Candle:</span>
                 <strong id="poi-floor-candle-time" class="text-emerald-400">12:20 UTC</strong>
               </div>
               <div id="poi-floor-candle-ohlc" class="text-slate-300">
                 O: 4310.20 | H: 4311.50 | L: 4308.11 | C: 4309.80
               </div>
-              <!-- Mini Candle Graphic Canvas for Floor Anchor -->
-              <div class="pt-1 flex items-center justify-between border-t border-slate-900">
-                <span class="text-[10px] text-slate-500 font-sans">Candle Anchor Visual:</span>
-                <canvas id="poi-floor-mini-canvas" width="220" height="42" class="rounded bg-slate-900/60 border border-slate-800/80"></canvas>
+              <!-- Structural Leg-In / Leg-Out Multi-Candle Visualizer Canvas -->
+              <div class="pt-1.5 space-y-1 border-t border-slate-900">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="text-slate-400 font-sans">Multi-Candle Leg Context:</span>
+                  <span class="text-slate-500 font-mono text-[9px]">Leg-In ➔ Anchor ➔ Leg-Out</span>
+                </div>
+                <canvas id="poi-floor-mini-canvas" height="64" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
               </div>
             </div>
 
@@ -1505,6 +1519,53 @@
         candleCtx.restore();
       }
 
+      // Draw Swings Zig-Zag Structure Line (Connecting Swing Low and Swing High)
+      if (tfInfo && tfInfo.swing_high && tfInfo.swing_low) {
+        let swHighIdx = -1;
+        let swLowIdx = -1;
+
+        candles.forEach((c, idx) => {
+          if (roofTime && c.time === roofTime) swHighIdx = idx;
+          else if (swHighIdx === -1 && Math.abs(c.high - tfInfo.swing_high) < 0.05) swHighIdx = idx;
+
+          if (floorTime && c.time === floorTime) swLowIdx = idx;
+          else if (swLowIdx === -1 && Math.abs(c.low - tfInfo.swing_low) < 0.05) swLowIdx = idx;
+        });
+
+        if (swHighIdx !== -1 && swLowIdx !== -1) {
+          const xH = padLeft + swHighIdx * stepX + stepX / 2;
+          const yH = getY(tfInfo.swing_high);
+          const xL = padLeft + swLowIdx * stepX + stepX / 2;
+          const yL = getY(tfInfo.swing_low);
+
+          candleCtx.save();
+          candleCtx.strokeStyle = 'rgba(147, 197, 253, 0.45)';
+          candleCtx.lineWidth = 1.8;
+          candleCtx.setLineDash([4, 3]);
+          candleCtx.beginPath();
+          candleCtx.moveTo(xL, yL);
+          candleCtx.lineTo(xH, yH);
+          candleCtx.stroke();
+
+          // Draw Structure Swings Connecting Points
+          candleCtx.fillStyle = '#60a5fa';
+          candleCtx.beginPath();
+          candleCtx.arc(xL, yL, 3.5, 0, Math.PI * 2);
+          candleCtx.fill();
+          candleCtx.beginPath();
+          candleCtx.arc(xH, yH, 3.5, 0, Math.PI * 2);
+          candleCtx.fill();
+
+          // Swing Range Label at midpoint of structure line
+          const midX = (xL + xH) / 2;
+          const midY = (yL + yH) / 2;
+          candleCtx.fillStyle = '#93c5fd';
+          candleCtx.font = 'bold 8.5px ui-monospace, monospace';
+          candleCtx.fillText(`SWING LEG: $${(tfInfo.swing_high - tfInfo.swing_low).toFixed(2)}`, midX - 35, midY - 6);
+          candleCtx.restore();
+        }
+      }
+
       // Draw Candlesticks (High Definition Sharp Institutional Styling)
       // Detect POI anchor candle timestamps to highlight on chart
       const roofTime = tfInfo && tfInfo.poi_reasoning && tfInfo.poi_reasoning.roof && tfInfo.poi_reasoning.roof.base_candle ? tfInfo.poi_reasoning.roof.base_candle.timestamp : 0;
@@ -1977,6 +2038,9 @@
 
       // 1. Render Roof
       document.getElementById('poi-roof-range').innerText = poi.roof.zone_range;
+      if (document.getElementById('poi-roof-pattern')) {
+        document.getElementById('poi-roof-pattern').innerText = poi.roof.structure_context || "RBD SWEEP LEG";
+      }
       document.getElementById('poi-roof-candle-time').innerText = poi.roof.base_candle.time;
       document.getElementById('poi-roof-candle-ohlc').innerText = 
         `O: ${poi.roof.base_candle.open.toFixed(2)} | H: ${poi.roof.base_candle.high.toFixed(2)} | L: ${poi.roof.base_candle.low.toFixed(2)} | C: ${poi.roof.base_candle.close.toFixed(2)}`;
@@ -1992,6 +2056,9 @@
 
       // 2. Render Floor
       document.getElementById('poi-floor-range').innerText = poi.floor.zone_range;
+      if (document.getElementById('poi-floor-pattern')) {
+        document.getElementById('poi-floor-pattern').innerText = poi.floor.structure_context || "DBR DEMAND LEG";
+      }
       document.getElementById('poi-floor-candle-time').innerText = poi.floor.base_candle.time;
       document.getElementById('poi-floor-candle-ohlc').innerText = 
         `O: ${poi.floor.base_candle.open.toFixed(2)} | H: ${poi.floor.base_candle.high.toFixed(2)} | L: ${poi.floor.base_candle.low.toFixed(2)} | C: ${poi.floor.base_candle.close.toFixed(2)}`;
@@ -2005,75 +2072,123 @@
         floorUl.appendChild(li);
       });
 
-      // 3. Render Dedicated Mini-Visualizers for Anchor Candles
-      drawMiniAnchorCandle('poi-roof-mini-canvas', poi.roof.base_candle, '#f43f5e', '#fb7185', 'ROOF SWEEP PEAK');
-      drawMiniAnchorCandle('poi-floor-mini-canvas', poi.floor.base_candle, '#10b981', '#34d399', 'FLOOR DEMAND ABSORPTION');
+      // 3. Render Dedicated Multi-Candle Leg Context Visualizers
+      drawLegCandlesVisualizer('poi-roof-mini-canvas', poi.roof.leg_candles, poi.roof.base_candle, '#f43f5e', 'ROOF PIVOT');
+      drawLegCandlesVisualizer('poi-floor-mini-canvas', poi.floor.leg_candles, poi.floor.base_candle, '#10b981', 'FLOOR PIVOT');
     }
 
-    function drawMiniAnchorCandle(canvasId, candle, themeColor, wickColor, tagLabel) {
+    function drawLegCandlesVisualizer(canvasId, legCandles, fallbackAnchor, themeColor, pivotLabel) {
       const c = document.getElementById(canvasId);
       if (!c) return;
+
+      // Adjust internal canvas width to container width
+      if (c.parentElement) {
+        c.width = c.parentElement.clientWidth || 240;
+      }
       const ctx = c.getContext('2d');
       const W = c.width;
       const H = c.height;
       ctx.clearRect(0, 0, W, H);
 
-      if (!candle || !candle.high) return;
+      let bars = legCandles && legCandles.length > 0 ? legCandles : [
+        { open: fallbackAnchor.open - 1, high: fallbackAnchor.open, low: fallbackAnchor.open - 2, close: fallbackAnchor.open - 0.5, role: 'LEG_IN' },
+        { ...fallbackAnchor, is_anchor: true, role: 'ANCHOR' },
+        { open: fallbackAnchor.close, high: fallbackAnchor.close + 0.5, low: fallbackAnchor.close - 1.5, close: fallbackAnchor.close - 1, role: 'LEG_OUT' }
+      ];
 
-      const pad = 6;
-      const minP = candle.low;
-      const maxP = candle.high;
+      let minP = Infinity;
+      let maxP = -Infinity;
+      bars.forEach(b => {
+        if (b.low < minP) minP = b.low;
+        if (b.high > maxP) maxP = b.high;
+      });
+      const padTop = 14;
+      const padBottom = 16;
+      const padSide = 16;
       const span = (maxP - minP) || 0.50;
 
       function getY(p) {
-        return pad + (H - pad * 2) - ((p - minP) / span) * (H - pad * 2);
+        return padTop + (H - padTop - padBottom) - ((p - minP) / span) * (H - padTop - padBottom);
       }
 
-      // Draw subtle background guide lines
+      // Draw dashed reference grid
       ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(pad, H / 2);
-      ctx.lineTo(W - pad, H / 2);
+      ctx.moveTo(padSide, H / 2);
+      ctx.lineTo(W - padSide, H / 2);
       ctx.stroke();
 
-      // Center X for candle
-      const cx = 35;
-      const yO = getY(candle.open);
-      const yC = getY(candle.close);
-      const yH = getY(candle.high);
-      const yL = getY(candle.low);
-      const isBull = candle.close >= candle.open;
+      const numBars = bars.length;
+      const stepX = (W - padSide * 2) / numBars;
+      const barW = Math.max(5, Math.min(14, stepX * 0.55));
 
-      // Wick
-      ctx.strokeStyle = wickColor;
-      ctx.lineWidth = 1.6;
+      // Draw Structural ZigZag path through candle midpoints
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([2, 2]);
       ctx.beginPath();
-      ctx.moveTo(cx, yH);
-      ctx.lineTo(cx, yL);
+      bars.forEach((b, idx) => {
+        const x = padSide + idx * stepX + stepX / 2;
+        const midVal = (b.high + b.low) / 2;
+        const y = getY(midVal);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
       ctx.stroke();
+      ctx.restore();
 
-      // Body
-      const barW = 12;
-      const top = Math.min(yO, yC);
-      const bodyH = Math.max(3, Math.abs(yO - yC));
-      ctx.fillStyle = isBull ? '#22c55e' : '#ef4444';
-      ctx.fillRect(cx - barW / 2, top, barW, bodyH);
-      ctx.strokeStyle = isBull ? '#16a34a' : '#dc2626';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(cx - barW / 2, top, barW, bodyH);
+      // Render Candlesticks in sequence
+      bars.forEach((b, idx) => {
+        const x = padSide + idx * stepX + stepX / 2;
+        const yO = getY(b.open);
+        const yC = getY(b.close);
+        const yH = getY(b.high);
+        const yL = getY(b.low);
+        const isBull = b.close >= b.open;
 
-      // Label & Metrics on Right side
-      ctx.fillStyle = themeColor;
-      ctx.font = 'bold 9px ui-monospace, monospace';
-      ctx.fillText(tagLabel, 60, 15);
+        // Halo / Indicator on the Anchor Candle
+        if (b.is_anchor) {
+          ctx.save();
+          ctx.fillStyle = themeColor === '#f43f5e' ? 'rgba(244, 63, 94, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+          ctx.strokeStyle = themeColor;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.roundRect(x - barW - 3, 4, barW * 2 + 6, H - 8, 4);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
 
-      const wickUpper = candle.high - Math.max(candle.open, candle.close);
-      const wickLower = Math.min(candle.open, candle.close) - candle.low;
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '8px ui-monospace, monospace';
-      ctx.fillText(`Top Wick: +$${wickUpper.toFixed(2)} | Bot Wick: -$${wickLower.toFixed(2)}`, 60, 27);
-      ctx.fillText(`Range: $${(candle.high - candle.low).toFixed(2)} (${candle.time})`, 60, 37);
+          // Anchor Badge Text
+          ctx.fillStyle = themeColor;
+          ctx.font = 'bold 8px ui-monospace, monospace';
+          ctx.fillText(pivotLabel, x - 22, 10);
+        }
+
+        // Wick
+        ctx.strokeStyle = isBull ? '#4ade80' : '#f87171';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, yH);
+        ctx.lineTo(x, yL);
+        ctx.stroke();
+
+        // Body
+        const top = Math.min(yO, yC);
+        const bodyH = Math.max(2, Math.abs(yO - yC));
+        ctx.fillStyle = isBull ? '#22c55e' : '#ef4444';
+        ctx.fillRect(x - barW / 2, top, barW, bodyH);
+        ctx.strokeStyle = isBull ? '#16a34a' : '#dc2626';
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(x - barW / 2, top, barW, bodyH);
+
+        // Role Label below candle (Leg-In / Anchor / Leg-Out)
+        ctx.fillStyle = b.is_anchor ? '#ffffff' : '#64748b';
+        ctx.font = '7.5px ui-monospace, monospace';
+        const roleShort = b.role === 'LEG_IN' ? 'IN' : (b.role === 'LEG_OUT' ? 'OUT' : '★');
+        ctx.fillText(roleShort, x - (roleShort === '★' ? 3 : 5), H - 4);
+      });
     }
 
     // ==========================================

@@ -674,8 +674,40 @@ class LiveMT5BridgeCore:
             tf_candles[tf] = tf_bar_list
 
             # Find specific anchor/base candles for Roof (Swing High) and Floor (Swing Low)
-            roof_anchor = max(lookback_sw, key=lambda x: x["high"]) if lookback_sw else None
-            floor_anchor = min(lookback_sw, key=lambda x: x["low"]) if lookback_sw else None
+            roof_idx = max(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["high"]) if lookback_sw else None
+            floor_idx = min(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["low"]) if lookback_sw else None
+
+            roof_anchor = lookback_sw[roof_idx] if roof_idx is not None else None
+            floor_anchor = lookback_sw[floor_idx] if floor_idx is not None else None
+
+            # Extract Leg-In & Leg-Out Structural Window (3 bars before, anchor bar, up to 3 bars after)
+            roof_leg_bars = []
+            if roof_idx is not None:
+                start_r = max(0, roof_idx - 3)
+                end_r = min(len(lookback_sw), roof_idx + 4)
+                roof_leg_bars = [{
+                    "time": b["time"],
+                    "open": b["open"],
+                    "high": b["high"],
+                    "low": b["low"],
+                    "close": b["close"],
+                    "is_anchor": (i == roof_idx),
+                    "role": "LEG_IN" if i < roof_idx else ("ANCHOR" if i == roof_idx else "LEG_OUT")
+                } for i, b in enumerate(lookback_sw) if start_r <= i < end_r]
+
+            floor_leg_bars = []
+            if floor_idx is not None:
+                start_f = max(0, floor_idx - 3)
+                end_f = min(len(lookback_sw), floor_idx + 4)
+                floor_leg_bars = [{
+                    "time": b["time"],
+                    "open": b["open"],
+                    "high": b["high"],
+                    "low": b["low"],
+                    "close": b["close"],
+                    "is_anchor": (i == floor_idx),
+                    "role": "LEG_IN" if i < floor_idx else ("ANCHOR" if i == floor_idx else "LEG_OUT")
+                } for i, b in enumerate(lookback_sw) if start_f <= i < end_f]
 
             roof_time_val = roof_anchor["time"] if roof_anchor else 0
             floor_time_val = floor_anchor["time"] if floor_anchor else 0
@@ -687,6 +719,7 @@ class LiveMT5BridgeCore:
                 "roof": {
                     "price_high": sw_high,
                     "zone_range": f"${sell_zone_bottom:.2f} - ${sw_high:.2f}",
+                    "structure_context": "Rally-Base-Drop (RBD) Sweep Leg" if roof_leg_bars else "Swing High Pivot",
                     "base_candle": {
                         "time": roof_time_str,
                         "timestamp": roof_time_val,
@@ -695,6 +728,7 @@ class LiveMT5BridgeCore:
                         "low": roof_anchor["low"] if roof_anchor else sw_high,
                         "close": roof_anchor["close"] if roof_anchor else sw_high,
                     },
+                    "leg_candles": roof_leg_bars,
                     "reasons": [
                         f"Liquidity Sweep Peak at ${sw_high:.2f} ({roof_time_str})",
                         f"Premium 75-100% Imbalance Zone (${sell_zone_bottom:.2f} - ${sw_high:.2f})",
@@ -705,6 +739,7 @@ class LiveMT5BridgeCore:
                 "floor": {
                     "price_low": sw_low,
                     "zone_range": f"${sw_low:.2f} - ${buy_zone_top:.2f}",
+                    "structure_context": "Drop-Base-Rally (DBR) Demand Leg" if floor_leg_bars else "Swing Low Pivot",
                     "base_candle": {
                         "time": floor_time_str,
                         "timestamp": floor_time_val,
@@ -713,6 +748,7 @@ class LiveMT5BridgeCore:
                         "low": floor_anchor["low"] if floor_anchor else sw_low,
                         "close": floor_anchor["close"] if floor_anchor else sw_low,
                     },
+                    "leg_candles": floor_leg_bars,
                     "reasons": [
                         f"Demand Absorption Low at ${sw_low:.2f} ({floor_time_str})",
                         f"Discount 0-25% Valuation Base (${sw_low:.2f} - ${buy_zone_top:.2f})",
