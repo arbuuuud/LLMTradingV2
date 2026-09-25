@@ -53,10 +53,10 @@ class LiveMT5BridgeCore:
         self.active_writers: List[asyncio.StreamWriter] = []
         self.history_m1: List[Dict[str, Any]] = []
         self.latest_tick: Optional[Dict[str, Any]] = None
-        self.active_account_id = "112655823"
-        self.account_company = "MetaQuotes Software Corp."
-        self.balance = 10000.0
-        self.equity = 10000.0
+        self.active_account_id = ""
+        self.account_company = ""
+        self.balance = 0.0
+        self.equity = 0.0
         self._last_radar_save = 0.0
 
         # Live Order Dispatching & Notification State
