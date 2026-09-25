@@ -108,6 +108,8 @@ class LiveMT5BridgeCore:
         self._pending_sync_bars: List[Dict[str, Any]] = []
 
     def _auto_register_account(self, acc_id: str, company: str, server: str, balance: float, equity: float):
+        if not acc_id or not str(acc_id).strip():
+            return
         if not ACCOUNTS_CONFIG_PATH.exists():
             return
         try:
@@ -116,7 +118,7 @@ class LiveMT5BridgeCore:
                 cfg = yaml.safe_load(f) or {}
 
             accounts = cfg.setdefault("accounts", {})
-            acc_key = f"ACC-{acc_id}"
+            acc_key = f"ACC-{acc_id.strip()}"
 
             if acc_key not in accounts:
                 # Newly discovered MT5 account -> Default to NONE and INACTIVE for safety
@@ -228,6 +230,8 @@ class LiveMT5BridgeCore:
             logger.error(f"Failed to save closed trade record: {e}")
 
     def _update_account_equity(self, acc_id: str, balance: float, equity: float):
+        if not acc_id or not str(acc_id).strip():
+            return
         if not ACCOUNTS_CONFIG_PATH.exists():
             return
         try:
@@ -236,7 +240,7 @@ class LiveMT5BridgeCore:
                 cfg = yaml.safe_load(f) or {}
 
             accounts = cfg.setdefault("accounts", {})
-            acc_key = f"ACC-{acc_id}"
+            acc_key = f"ACC-{acc_id.strip()}"
             if acc_key in accounts:
                 accounts[acc_key]["balance"] = round(balance, 2)
                 accounts[acc_key]["equity"] = round(equity, 2)
@@ -481,21 +485,23 @@ class LiveMT5BridgeCore:
             ask = float(msg.get("ask", 0.0))
             mid = round((bid + ask) / 2.0, 2)
             c = float(msg.get("last", mid))
-            acc_id = str(msg.get("account_id", self.active_account_id))
-            self.active_account_id = acc_id
+            acc_id = str(msg.get("account_id") or (self.active_account_id if self.active_account_id else ""))
+            if acc_id:
+                self.active_account_id = acc_id
             self.equity = float(msg.get("equity", self.equity))
             self.balance = float(msg.get("balance", self.balance))
             self.unrealized_pnl = float(msg.get("unrealized", 0.0))
 
             # Store per-account positions & orders into multi-account map
-            if "positions" in msg and isinstance(msg["positions"], list):
-                for p in msg["positions"]:
-                    p["account_number"] = acc_id
-                self.accounts_open_positions[acc_id] = msg["positions"]
-            if "orders" in msg and isinstance(msg["orders"], list):
-                for o in msg["orders"]:
-                    o["account_number"] = acc_id
-                self.accounts_pending_orders[acc_id] = msg["orders"]
+            if acc_id:
+                if "positions" in msg and isinstance(msg["positions"], list):
+                    for p in msg["positions"]:
+                        p["account_number"] = acc_id
+                    self.accounts_open_positions[acc_id] = msg["positions"]
+                if "orders" in msg and isinstance(msg["orders"], list):
+                    for o in msg["orders"]:
+                        o["account_number"] = acc_id
+                    self.accounts_pending_orders[acc_id] = msg["orders"]
 
             # Flatten all active accounts positions & orders for global evaluation
             all_open = []
