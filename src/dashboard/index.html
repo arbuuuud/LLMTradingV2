@@ -2026,14 +2026,6 @@
         console.error("Failed to update Engine #2 profile:", err);
       }
     }
-          body: JSON.stringify({ account_id: accId, risk_profile: newProfile })
-        });
-        showToast('Profil Disimpan', `Akun ${accId} kini menggunakan profil ${newProfile.toUpperCase()}`, 'SUCCESS');
-        fetchAccountsData();
-      } catch (err) {
-        console.error("Gagal update profil:", err);
-      }
-    }
 
     async function toggleAccountActive(accId, nextActiveState) {
       try {
