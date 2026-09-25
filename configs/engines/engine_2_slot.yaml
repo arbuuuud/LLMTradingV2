@@ -1,0 +1,78 @@
+# Engine Specification Template for Future Plug-in Engines
+# Architecture Reference: DEC-021 (Tier 2 Plug-in Engine Architecture)
+
+engine:
+  id: "engine_2_slot"
+  name: "Plug-in Engine #2 (Modular Slot)"
+  version: "0.1.0-alpha"
+  asset: "XAUUSD / Cross-Majors"
+  primary_timeframe: "M5"
+  supported_timeframes: ["M1", "M5", "M15"]
+  status: "STAGING_BLUEPRINT"
+  description: >
+    Slot koridor siap-pakai untuk Plug-in Strategy Engine #2. Mengadopsi standar arsitektur DEC-021:
+    logika matematika deterministik dihitung di layer features, evaluasi checklist mandiri,
+    dan memiliki 4 preset profil risiko tersendiri.
+
+entry_rules:
+  setup_type: "Structure Liquidity / Sweep Pattern"
+  trigger_conditions:
+    - "Primary Timeframe confirmation trigger"
+    - "Clean liquidity sweep / structural orderblock bounce"
+    - "Spread & slippage friction tolerance check"
+  order_mode: "PENDING_LIMIT_OR_STOP"
+
+exit_and_risk_rules:
+  guardian_sentinel:
+    enabled: true
+    rule: "Force-close upon structural invalidation or counter momentum"
+  session_budgeting:
+    enabled: true
+    rule: "Independent session risk allocation"
+  take_profit_target: "Dynamic structural liquidity level / R:R >= 1:2"
+  hard_stop_loss: "Invalidation swing point"
+
+risk_profiles:
+  prop_firm:
+    label: "Prop Firm (Ultra-Safe)"
+    description: "Khusus evaluasi prop firm dengan batasan ketat drawdown (Max DD < 5%)."
+    risk_per_trade_pct: 0.25
+    max_daily_loss_pct: -1.0
+    daily_profit_target_pct: 2.0
+    active_sessions: "LONDON + NY_OVERLAP"
+    historical_win_rate: "TBD (Awaiting Tournament)"
+    historical_profit_factor: 0.0
+    historical_max_drawdown: "0.0%"
+
+  sweet_spot:
+    label: "Sweet Spot (Balanced)"
+    description: "Keseimbangan seimbang antara pertumbuhan profit dan proteksi modal institusional."
+    risk_per_trade_pct: 0.50
+    max_daily_loss_pct: -1.0
+    daily_profit_target_pct: 2.5
+    active_sessions: "ALL_DAY (24 Hours)"
+    historical_win_rate: "TBD (Awaiting Tournament)"
+    historical_profit_factor: 0.0
+    historical_max_drawdown: "0.0%"
+
+  aggressive:
+    label: "Aggressive (High Compounding)"
+    description: "Akumulasi pertumbuhan cepat dengan toleransi risiko lebih tinggi."
+    risk_per_trade_pct: 1.00
+    max_daily_loss_pct: -2.0
+    daily_profit_target_pct: 4.0
+    active_sessions: "ALL_DAY (24 Hours)"
+    historical_win_rate: "TBD (Awaiting Tournament)"
+    historical_profit_factor: 0.0
+    historical_max_drawdown: "0.0%"
+
+  yolo:
+    label: "YOLO (Apex High-Frequency)"
+    description: "Mode ekspansif maksimal untuk kontes trading atau akselerasi modal mikro."
+    risk_per_trade_pct: 2.00
+    max_daily_loss_pct: -4.0
+    daily_profit_target_pct: 8.0
+    active_sessions: "ALL_DAY (24 Hours)"
+    historical_win_rate: "TBD (Awaiting Tournament)"
+    historical_profit_factor: 0.0
+    historical_max_drawdown: "0.0%"

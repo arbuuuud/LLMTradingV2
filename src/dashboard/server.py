@@ -589,18 +589,57 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/engine/spec":
-            engine_spec_path = PROJECT_ROOT / "configs" / "engines" / "pac_scalper.yaml"
-            if engine_spec_path.exists():
+            query = parse_qs(parsed.query)
+            engine_id = query.get("id", ["pac_scalper"])[0]
+
+            engines_dir = PROJECT_ROOT / "configs" / "engines"
+            available_engines = []
+            if engines_dir.exists():
+                for p in sorted(engines_dir.glob("*.yaml")):
+                    try:
+                        import yaml
+                        data = yaml.safe_load(p.read_text(encoding="utf-8"))
+                        eng_meta = data.get("engine", {})
+                        available_engines.append({
+                            "file": p.name,
+                            "id": eng_meta.get("id", p.stem),
+                            "name": eng_meta.get("name", p.stem),
+                            "version": eng_meta.get("version", "1.0.0"),
+                            "asset": eng_meta.get("asset", "XAUUSD"),
+                            "status": eng_meta.get("status", "PRODUCTION" if "pac" in p.name else "STAGING")
+                        })
+                    except Exception:
+                        pass
+
+            # Determine which file to load
+            target_file = engines_dir / "pac_scalper.yaml"
+            if engine_id and engine_id != "pac_scalper":
+                candidate = engines_dir / f"{engine_id}.yaml"
+                if candidate.exists():
+                    target_file = candidate
+                else:
+                    # check by id field
+                    for p in engines_dir.glob("*.yaml"):
+                        try:
+                            import yaml
+                            d = yaml.safe_load(p.read_text(encoding="utf-8"))
+                            if d.get("engine", {}).get("id") == engine_id or p.stem == engine_id:
+                                target_file = p
+                                break
+                        except Exception:
+                            pass
+
+            spec_data = {}
+            if target_file.exists():
                 try:
                     import yaml
-                    spec_data = yaml.safe_load(engine_spec_path.read_text(encoding="utf-8"))
-                    self._set_json_headers(200)
-                    self.wfile.write(json.dumps(spec_data, indent=2).encode("utf-8"))
-                    return
+                    spec_data = yaml.safe_load(target_file.read_text(encoding="utf-8"))
                 except Exception as e:
-                    pass
+                    spec_data = {"error": f"Failed to parse engine spec: {e}"}
+
+            spec_data["_catalog"] = available_engines
             self._set_json_headers(200)
-            self.wfile.write(json.dumps({"error": "Engine spec not found"}).encode("utf-8"))
+            self.wfile.write(json.dumps(spec_data, indent=2).encode("utf-8"))
             return
 
         elif path == "/api/snapshot":
