@@ -81,6 +81,8 @@ Manajemen ide dan eksperimen terstruktur. Setiap hipotesis, perubahan parameter,
 LLMTradingV2/
 ├── README.md                          # Dokumentasi overview proyek
 ├── BLUEPRINT.md                       # Single Source of Truth arsitektur sistem
+├── PLAN.md                            # Roadmap task, status subtask & DEC decisions log
+├── RUNBOOK.md                         # SOP pengecekan production VPS & internal diagnostic endpoints
 ├── requirements.txt                   # Dependensi Python
 ├── pyproject.toml                     # Konfigurasi packaging & toolchain
 ├── configs/                           # Konfigurasi aset & limit risiko
