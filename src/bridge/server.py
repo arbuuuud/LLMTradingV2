@@ -760,6 +760,21 @@ class LiveMT5BridgeCore:
         else:
             active_sess = "OFF_HOURS"
 
+        # Hitung Total Ekuitas Gabungan Seluruh Akun Aktif (Fleet Multi-Account)
+        total_fleet_equity = 0.0
+        if ACCOUNTS_CONFIG_PATH.exists():
+            try:
+                import yaml
+                with open(ACCOUNTS_CONFIG_PATH, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                for acc_k, acc_v in cfg.get("accounts", {}).items():
+                    if acc_v.get("active", False):
+                        total_fleet_equity += float(acc_v.get("equity", 0.0))
+            except Exception:
+                pass
+        if total_fleet_equity <= 0:
+            total_fleet_equity = self.equity
+
         # Cek Transisi Hari & Sesi
         if today_str != self.current_session_day:
             self.current_session_day = today_str
@@ -767,30 +782,23 @@ class LiveMT5BridgeCore:
 
         if active_sess != self.current_session_name:
             if self.current_session_name != "" and self.current_session_name != "OFF_HOURS":
-                self.prior_session_pnl = self.equity - self.session_start_equity
+                self.prior_session_pnl = total_fleet_equity - self.session_start_equity
                 logger.info(f"🏁 [SESSION TRANSITION] {self.current_session_name} ended with PnL: ${self.prior_session_pnl:+.2f}")
 
             self.current_session_name = active_sess
-            # Anchor initial session equity accurately based on active account equity from MT5
-            self.session_start_equity = max(100.0, self.equity)
+            self.session_start_equity = max(100.0, total_fleet_equity)
             self.session_peak_pnl = 0.0
             self.session_halted = (active_sess == "OFF_HOURS")
             self.session_status_desc = f"{active_sess} Active" if not self.session_halted else "Off-Hours Standby"
 
-        # Jika ekuitas awal sesi belum terkalibrasi dengan ekuitas riil MT5 (masih default), sinkronisasikan
-        if self.session_start_equity == 10000.0 and self.equity > 0 and abs(self.equity - 10000.0) > 500.0:
-            self.session_start_equity = self.equity
-            self.session_peak_pnl = 0.0
-            self.session_halted = False
-
         # 2. Multi-Session Equity Budgeting & Dynamic Greed Trailing
-        # Budget loss dasar per-sesi: -0.50% dari ekuitas awal sesi
+        # Budget loss dasar per-sesi: -0.50% dari ekuitas total fleet
         # House Money (CLONE-08): Jika sesi sebelumnya profit >= +1.0%, tambahkan 25% profit ke budget risiko sesi ini!
         base_sess_loss = self.session_start_equity * 0.005 # 0.5%
         if self.prior_session_pnl > (self.session_start_equity * 0.01):
             base_sess_loss += (self.prior_session_pnl * 0.25)
 
-        curr_sess_pnl = self.equity - self.session_start_equity
+        curr_sess_pnl = total_fleet_equity - self.session_start_equity
         if curr_sess_pnl > self.session_peak_pnl:
             self.session_peak_pnl = curr_sess_pnl
 
