@@ -612,6 +612,31 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"status": "NO_ACTIVE_SNAPSHOT", "message": "Feed standby"}).encode("utf-8"))
             return
 
+        # 5. Secret Internal Live Logs API (For Agent & Diagnostics Only)
+        elif path == "/api/internal/bridge-logs":
+            query = parse_qs(parsed.query)
+            tail_lines = int(query.get("tail", [100])[0])
+            log_path = PROJECT_ROOT / "logs" / "bridge.log"
+
+            logs = []
+            if log_path.exists():
+                try:
+                    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                        lines = f.readlines()
+                        logs = [l.strip() for l in lines[-tail_lines:]]
+                except Exception as e:
+                    logs = [f"Error reading logs: {e}"]
+
+            self._set_json_headers(200)
+            self.wfile.write(json.dumps({
+                "status": "OK",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "file_path": str(log_path),
+                "total_lines": len(logs),
+                "logs": logs
+            }, indent=2).encode("utf-8"))
+            return
+
         self.send_error(404, "Endpoint not found")
 
     def do_POST(self):

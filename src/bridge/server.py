@@ -30,8 +30,18 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 RADAR_STATE_PATH = REPORTS_DIR / "radar_state.json"
 CONFIGS_DIR = PROJECT_ROOT / "configs"
 ACCOUNTS_CONFIG_PATH = CONFIGS_DIR / "accounts.yaml"
+LOGS_DIR = PROJECT_ROOT / "logs"
+BRIDGE_LOG_FILE = LOGS_DIR / "bridge.log"
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [Bridge]: %(message)s")
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [Bridge]: %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(BRIDGE_LOG_FILE, mode="a", encoding="utf-8")
+    ]
+)
 logger = logging.getLogger("BridgeServer")
 
 
