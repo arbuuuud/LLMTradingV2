@@ -1,0 +1,308 @@
+{
+  "timestamp": "2026-09-25 11:50:27",
+  "total_bars": 300440,
+  "total_clones": 30,
+  "execution_time_sec": 2048.25,
+  "results": [
+    {
+      "clone_id": "CLONE-00-BASELINE-CHAMPION",
+      "total_trades": 85266,
+      "win_rate_pct": 94.3,
+      "profit_factor": 133.33,
+      "net_pnl": 10020342.18,
+      "roi_pct": 100203.4,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-ADX-MAX-50",
+      "total_trades": 84257,
+      "win_rate_pct": 94.2,
+      "profit_factor": 126.46,
+      "net_pnl": 9608486.64,
+      "roi_pct": 96084.9,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-RVOL-MIN-0.75",
+      "total_trades": 82603,
+      "win_rate_pct": 93.8,
+      "profit_factor": 118.34,
+      "net_pnl": 9572904.96,
+      "roi_pct": 95729.0,
+      "max_drawdown_pct": 2.3,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-ADX-MAX-45",
+      "total_trades": 83121,
+      "win_rate_pct": 94.1,
+      "profit_factor": 121.08,
+      "net_pnl": 9342979.01,
+      "roi_pct": 93429.8,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-HTF-BUFFER-0.25x",
+      "total_trades": 84097,
+      "win_rate_pct": 94.4,
+      "profit_factor": 136.17,
+      "net_pnl": 9217919.99,
+      "roi_pct": 92179.2,
+      "max_drawdown_pct": 2.1,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-ADX-MAX-40",
+      "total_trades": 80936,
+      "win_rate_pct": 93.8,
+      "profit_factor": 112.33,
+      "net_pnl": 8808478.86,
+      "roi_pct": 88084.8,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-HTF-BUFFER-0.5x",
+      "total_trades": 83301,
+      "win_rate_pct": 94.3,
+      "profit_factor": 133.52,
+      "net_pnl": 8370600.44,
+      "roi_pct": 83706.0,
+      "max_drawdown_pct": 1.9,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-VWAP-DISCOUNT-ONLY",
+      "total_trades": 76747,
+      "win_rate_pct": 88.1,
+      "profit_factor": 57.65,
+      "net_pnl": 8306561.54,
+      "roi_pct": 83065.6,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-ADX-MAX-35",
+      "total_trades": 76859,
+      "win_rate_pct": 93.2,
+      "profit_factor": 98.65,
+      "net_pnl": 8060982.72,
+      "roi_pct": 80609.8,
+      "max_drawdown_pct": 2.6,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF0.5-ADX45",
+      "total_trades": 81211,
+      "win_rate_pct": 94.0,
+      "profit_factor": 121.03,
+      "net_pnl": 7811427.51,
+      "roi_pct": 78114.3,
+      "max_drawdown_pct": 1.9,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-HTF-BUFFER-0.75x",
+      "total_trades": 82703,
+      "win_rate_pct": 94.2,
+      "profit_factor": 132.71,
+      "net_pnl": 7720672.14,
+      "roi_pct": 77206.7,
+      "max_drawdown_pct": 1.8,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-HTF-BUFFER-1.0x",
+      "total_trades": 82140,
+      "win_rate_pct": 94.0,
+      "profit_factor": 136.34,
+      "net_pnl": 7412930.88,
+      "roi_pct": 74129.3,
+      "max_drawdown_pct": 1.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-RVOL-MIN-1.0",
+      "total_trades": 68017,
+      "win_rate_pct": 90.4,
+      "profit_factor": 67.95,
+      "net_pnl": 7274396.93,
+      "roi_pct": 72744.0,
+      "max_drawdown_pct": 2.1,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF0.5-VWAP",
+      "total_trades": 74455,
+      "win_rate_pct": 88.2,
+      "profit_factor": 57.54,
+      "net_pnl": 6970215.68,
+      "roi_pct": 69702.2,
+      "max_drawdown_pct": 2.3,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-ADX-MAX-30",
+      "total_trades": 69975,
+      "win_rate_pct": 92.4,
+      "profit_factor": 81.98,
+      "net_pnl": 6948298.28,
+      "roi_pct": 69483.0,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF1.0-ADX45",
+      "total_trades": 80096,
+      "win_rate_pct": 93.8,
+      "profit_factor": 123.3,
+      "net_pnl": 6902243.26,
+      "roi_pct": 69022.4,
+      "max_drawdown_pct": 1.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-HTF-BUFFER-1.25x",
+      "total_trades": 81705,
+      "win_rate_pct": 93.9,
+      "profit_factor": 135.1,
+      "net_pnl": 6879146.17,
+      "roi_pct": 68791.5,
+      "max_drawdown_pct": 1.5,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF0.5-ADX35",
+      "total_trades": 75113,
+      "win_rate_pct": 93.2,
+      "profit_factor": 98.6,
+      "net_pnl": 6742326.9,
+      "roi_pct": 67423.3,
+      "max_drawdown_pct": 1.9,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF1.0-VWAP",
+      "total_trades": 73155,
+      "win_rate_pct": 87.9,
+      "profit_factor": 58.25,
+      "net_pnl": 6134451.52,
+      "roi_pct": 61344.5,
+      "max_drawdown_pct": 2.2,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF0.5-ADX40-VWAP",
+      "total_trades": 70328,
+      "win_rate_pct": 87.4,
+      "profit_factor": 49.09,
+      "net_pnl": 6019445.81,
+      "roi_pct": 60194.5,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-HTF-BUFFER-1.5x",
+      "total_trades": 81340,
+      "win_rate_pct": 93.8,
+      "profit_factor": 124.89,
+      "net_pnl": 5975552.9,
+      "roi_pct": 59755.5,
+      "max_drawdown_pct": 1.4,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF1.0-ADX35",
+      "total_trades": 74094,
+      "win_rate_pct": 93.0,
+      "profit_factor": 99.95,
+      "net_pnl": 5939003.69,
+      "roi_pct": 59390.0,
+      "max_drawdown_pct": 1.9,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-ADX-MAX-25",
+      "total_trades": 59018,
+      "win_rate_pct": 90.9,
+      "profit_factor": 62.44,
+      "net_pnl": 5317083.23,
+      "roi_pct": 53170.8,
+      "max_drawdown_pct": 2.5,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-SYNERGY-BUF1.0-ADX40-VWAP",
+      "total_trades": 69106,
+      "win_rate_pct": 87.1,
+      "profit_factor": 49.46,
+      "net_pnl": 5275807.42,
+      "roi_pct": 52758.1,
+      "max_drawdown_pct": 2.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-ADX-MAX-20",
+      "total_trades": 41554,
+      "win_rate_pct": 89.1,
+      "profit_factor": 44.68,
+      "net_pnl": 3262264.85,
+      "roi_pct": 32622.6,
+      "max_drawdown_pct": 2.9,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-HTF-BUFFER-2.0x",
+      "total_trades": 80844,
+      "win_rate_pct": 93.6,
+      "profit_factor": 75.62,
+      "net_pnl": 3215651.62,
+      "roi_pct": 32156.5,
+      "max_drawdown_pct": 1.4,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-RVOL-MIN-1.25",
+      "total_trades": 24778,
+      "win_rate_pct": 86.2,
+      "profit_factor": 48.23,
+      "net_pnl": 2762906.01,
+      "roi_pct": 27629.1,
+      "max_drawdown_pct": 2.0,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-RVOL-MIN-1.5",
+      "total_trades": 10722,
+      "win_rate_pct": 85.4,
+      "profit_factor": 48.2,
+      "net_pnl": 1272892.52,
+      "roi_pct": 12728.9,
+      "max_drawdown_pct": 2.0,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-RVOL-MIN-1.75",
+      "total_trades": 5749,
+      "win_rate_pct": 84.9,
+      "profit_factor": 45.75,
+      "net_pnl": 677093.09,
+      "roi_pct": 6770.9,
+      "max_drawdown_pct": 1.7,
+      "disqualified": false
+    },
+    {
+      "clone_id": "CLONE-RVOL-MIN-2.0",
+      "total_trades": 3324,
+      "win_rate_pct": 85.1,
+      "profit_factor": 46.01,
+      "net_pnl": 387590.22,
+      "roi_pct": 3875.9,
+      "max_drawdown_pct": 1.5,
+      "disqualified": false
+    }
+  ]
+}

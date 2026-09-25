@@ -310,6 +310,14 @@ class ShadowCloneSpec(BaseModel):
     # Dimensi 4: Session
     session: SessionKillzone = SessionKillzone.ALL_DAY
 
+    # Dimensi 5: Quantitative Feature Pillars & HTF Confluence (Subtask 5-3G / DEC-028)
+    htf_alignment_timeframe: Optional[str] = None # None, "M5", "M15", "H1", "H4"
+    htf_sl_buffer_mode: str = "LOCAL_M1"          # "LOCAL_M1", "HTF_STRUCTURE_ROOF_FLOOR", "ATR_BUFFER"
+    htf_sl_atr_multiplier: float = 1.0            # 0.5, 1.0, 1.5 ATR buffer
+    adx_max_entry_gate: Optional[float] = None    # e.g. 35.0 (Block limit entry if ADX > 35, i.e. super-trend spike)
+    rvol_min_reaction_gate: Optional[float] = None # e.g. 1.5 (Require RVOL >= 1.5 for confirmed entries)
+    vwap_filter_mode: str = "NONE"                # "NONE", "BUY_BELOW_VWAP", "SELL_ABOVE_VWAP", "BAND_REVERSION"
+
     # Anti-Overfitting Safeguards
     min_trades_per_month: int = 30                # Disqualify if dormant
 

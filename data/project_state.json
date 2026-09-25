@@ -282,10 +282,10 @@
         },
         {
           "id": "T5-3G",
-          "title": "Subtask 5-3G: Eksplorasi Pilar Fitur Kuantitatif Tambahan (ADX, VWAP, RVOL)",
-          "status": "PENDING",
+          "title": "Subtask 5-3G: Eksplorasi Pilar Fitur Kuantitatif Tambahan (ADX, VWAP, RVOL) & Dynamic SL Buffer",
+          "status": "COMPLETED",
           "branch": "main",
-          "notes": "Eksplorasi pilar konfirmasi kekuatan tren (ADX), benchmark harga wajar institusi (VWAP/Anchored VWAP), dan rasio volume pintar (RVOL) untuk memfilter false breakout/retest pada zona PAC."
+          "notes": "Verified (scripts/run_htf_pillars_tournament.py): Uji 30 klon di 300.440 bar M1. VWAP, RVOL, dan ADX ditolak karena over-filtering dan degradasi performa. Dynamic SL Buffer 0.25x (CLONE-HTF-BUFFER-0.25x) lolos sebagai Juara Mutlak, mendongkrak Profit Factor ke 136.17, memangkas Max Drawdown 22%, dan mengeliminasi false SL wick-hunting seperti kasus $4295."
         }
       ]
     }

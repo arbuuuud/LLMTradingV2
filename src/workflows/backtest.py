@@ -30,6 +30,7 @@ from src.core.types import (
     PACHandoverMode
 )
 from src.features.structure import detect_swing_points
+from src.features.indicators import calculate_adx, calculate_vwap, calculate_rvol
 
 
 class TradeRecord:
@@ -103,6 +104,25 @@ class BacktestEngine:
         closes = df["close"].to_numpy()
         timestamps = df["timestamp"].to_list()
         hours = np.array([t.hour for t in timestamps])
+
+        # Precompute Quantitative Feature Pillars if demanded by spec
+        adx_values = None
+        if getattr(spec, "adx_max_entry_gate", None) is not None:
+            if "adx_14" not in df.columns:
+                df = calculate_adx(df, period=14)
+            adx_values = df["adx_14"].to_numpy()
+
+        rvol_values = None
+        if getattr(spec, "rvol_min_reaction_gate", None) is not None:
+            if "rvol_20" not in df.columns:
+                df = calculate_rvol(df, lookback=20)
+            rvol_values = df["rvol_20"].to_numpy()
+
+        vwap_values = None
+        if getattr(spec, "vwap_filter_mode", "NONE") != "NONE":
+            if "vwap" not in df.columns:
+                df = calculate_vwap(df, anchor="D")
+            vwap_values = df["vwap"].to_numpy()
 
         closed_trades: List[TradeRecord] = []
         open_trades: List[TradeRecord] = []
@@ -392,9 +412,30 @@ class BacktestEngine:
                 elif spec.session == SessionKillzone.NY_OVERLAP and not (12 <= hr < 17): sess_ok = False
 
                 if sess_ok:
+                    # Feature Pillars Entry Gatekeeper (Subtask 5-3G)
+                    # 1. ADX Gate: Block limit entry if ADX > max (e.g. runaway super-trend spike)
+                    if adx_values is not None and spec.adx_max_entry_gate is not None:
+                        if adx_values[i] > spec.adx_max_entry_gate:
+                            continue
+
+                    # 2. RVOL Gate: Block entry if volume participation is too weak (< threshold)
+                    if rvol_values is not None and spec.rvol_min_reaction_gate is not None:
+                        if rvol_values[i] < spec.rvol_min_reaction_gate:
+                            continue
+
                     # BUY TRIGGER
                     if l <= buy_zone_ceiling and c > current_floor:
+                        # 3. VWAP Gate for BUY: e.g. BUY only below VWAP (true institutional discount)
+                        if vwap_values is not None and spec.vwap_filter_mode == "BUY_BELOW_VWAP":
+                            if c >= vwap_values[i]:
+                                continue
+
                         hard_sl = current_floor + span * (spec.hard_sl_pct / 100.0)
+                        # Dynamic HTF / ATR SL Buffer (Avoid wick hunts like $4295)
+                        if getattr(spec, "htf_sl_buffer_mode", "LOCAL_M1") == "ATR_BUFFER":
+                            atr_buffer = getattr(spec, "htf_sl_atr_multiplier", 1.0) * (span * 0.15)
+                            hard_sl = hard_sl - atr_buffer
+
                         soft_sl = current_floor + span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
 
                         # Determine Shared Single Hard TP (1 titik untuk seluruh order)
@@ -443,7 +484,17 @@ class BacktestEngine:
 
                     # SELL TRIGGER
                     elif h >= sell_zone_floor and c < current_roof:
+                        # 3. VWAP Gate for SELL: e.g. SELL only above VWAP (true institutional premium)
+                        if vwap_values is not None and spec.vwap_filter_mode == "SELL_ABOVE_VWAP":
+                            if c <= vwap_values[i]:
+                                continue
+
                         hard_sl = current_roof - span * (spec.hard_sl_pct / 100.0)
+                        # Dynamic HTF / ATR SL Buffer (Avoid wick hunts like $4295)
+                        if getattr(spec, "htf_sl_buffer_mode", "ATR_BUFFER") == "ATR_BUFFER":
+                            atr_buffer = getattr(spec, "htf_sl_atr_multiplier", 1.0) * (span * 0.15)
+                            hard_sl = hard_sl + atr_buffer
+
                         soft_sl = current_roof - span * (spec.soft_sl_candle_close_pct / 100.0) if spec.soft_sl_candle_close_pct is not None else None
 
                         # Determine Shared Single Hard TP (1 titik untuk seluruh order)

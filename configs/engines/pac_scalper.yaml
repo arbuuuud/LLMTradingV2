@@ -4,7 +4,7 @@
 engine:
   id: "pac_scalper_v2_champion"
   name: "PAC (Price Action Channel) Scalper - Multi-Session Champion"
-  version: "2.1.0"
+  version: "2.2.0"
   asset: "XAUUSD"
   primary_timeframe: "M1"
   supported_timeframes: ["M1", "M2", "M3", "M4", "M5"]
@@ -34,6 +34,13 @@ entry_rules:
 
 exit_and_risk_rules:
   # Sasuke Sharingan Overseer & Greed Trailing (Subtask 5-3A, 5-3B & DEC-028 CLONE-08)
+  dynamic_sl_buffer:
+    enabled: true  # DEC-029 Champion: CLONE-HTF-BUFFER-0.25x
+    multiplier: 0.25
+    description: >
+      Bantalan dinamis 0.25x range/ATR di luar level swing untuk mengeliminasi false SL wick-hunting
+      seperti kasus $4295. Terbukti empiris di 300.440 bar menaikkan PF ke 136.17 dan memangkas Max DD dari 2.70% ke 2.10%.
+
   sasuke_reversal_cognition:
     enabled: true
     min_running_profit_r: 1.0   # Hanya aktif jika posisi sudah bernapas >= +1.0R

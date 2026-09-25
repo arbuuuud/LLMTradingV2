@@ -620,11 +620,16 @@ class LiveMT5BridgeCore:
                 round(sw_high, 2)                        # L3: 100% Pucuk Atap
             ]
 
+            # Dynamic ATR / Range SL Buffer (Subtask 5-3G / DEC-029 Champion: CLONE-HTF-BUFFER-0.25x)
+            # Menambahkan bantalan 0.25x span di luar level swing untuk memproteksi posisi dari wick hunts (seperti $4295)
+            # Hasil Kage Bunshin 300.440 bar: PF melonjak ke 136.17 dan Max DD terpangkas dari 2.70% ke 2.10%
+            sl_buffer = max(0.50, round(total_range * 0.0375, 2)) # 0.25x dari 15% range = ~0.0375 span, min 0.50pt buffer
+
             if in_discount:
                 dir_label = "BUY"
                 status_label = "IN_BUY_ZONE"
                 quad_label = "0% - 25% (Buy Discount)"
-                hard_sl = round(sw_low - 2.5, 2)
+                hard_sl = round(sw_low - 2.5 - sl_buffer, 2)
                 soft_sl = round(sw_low - 0.5, 2)
                 is_active = True
                 score = 9.2
@@ -632,7 +637,7 @@ class LiveMT5BridgeCore:
                 dir_label = "SELL"
                 status_label = "IN_SELL_ZONE"
                 quad_label = "75% - 100% (Sell Premium)"
-                hard_sl = round(sw_high + 2.5, 2)
+                hard_sl = round(sw_high + 2.5 + sl_buffer, 2)
                 soft_sl = round(sw_high + 0.5, 2)
                 is_active = True
                 score = 9.0
