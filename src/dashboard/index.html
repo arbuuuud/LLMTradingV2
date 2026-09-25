@@ -261,7 +261,7 @@
                   <span class="text-slate-400 font-sans">Multi-Candle Leg Context:</span>
                   <span class="text-slate-500 font-mono text-[9px]">Leg-In ➔ Anchor ➔ Leg-Out</span>
                 </div>
-                <canvas id="poi-roof-mini-canvas" height="64" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
+                <canvas id="poi-roof-mini-canvas" height="90" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
               </div>
             </div>
 
@@ -302,7 +302,7 @@
                   <span class="text-slate-400 font-sans">Multi-Candle Leg Context:</span>
                   <span class="text-slate-500 font-mono text-[9px]">Leg-In ➔ Anchor ➔ Leg-Out</span>
                 </div>
-                <canvas id="poi-floor-mini-canvas" height="64" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
+                <canvas id="poi-floor-mini-canvas" height="90" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
               </div>
             </div>
 
@@ -1252,6 +1252,8 @@
         currentChartData = data;
 
         resizeCanvases();
+        // Re-render POI reasoning now that full chart candle data is loaded
+        renderPoiReasoning(selectedRadarTf);
       } catch (err) {
         console.error("Failed to load chart data:", err);
       }
@@ -2138,8 +2140,68 @@
       });
 
       // 3. Render Dedicated Multi-Candle Leg Context Visualizers
-      drawLegCandlesVisualizer('poi-roof-mini-canvas', poi.roof.leg_candles, poi.roof.base_candle, '#f43f5e', 'ROOF PIVOT');
-      drawLegCandlesVisualizer('poi-floor-mini-canvas', poi.floor.leg_candles, poi.floor.base_candle, '#10b981', 'FLOOR PIVOT');
+      // Extract rich multi-candle sequence directly from currentChartData (candles window)
+      let roofLegBars = poi.roof.leg_candles;
+      let floorLegBars = poi.floor.leg_candles;
+
+      if ((!roofLegBars || roofLegBars.length <= 3) && currentChartData && currentChartData.candles) {
+        const allC = currentChartData.candles;
+        // Find roof anchor in all candles
+        let rIdx = -1;
+        if (poi.roof.base_candle && poi.roof.base_candle.timestamp) {
+          rIdx = allC.findIndex(c => c.time === poi.roof.base_candle.timestamp);
+        }
+        if (rIdx === -1 && tfData.swing_high) {
+          rIdx = allC.findIndex(c => Math.abs(c.high - tfData.swing_high) < 0.05);
+        }
+        if (rIdx !== -1) {
+          const startR = Math.max(0, rIdx - 5);
+          const endR = Math.min(allC.length, rIdx + 6);
+          roofLegBars = allC.slice(startR, endR).map((b, idxInSlice) => {
+            const actualIdx = startR + idxInSlice;
+            return {
+              time: b.time,
+              open: b.open,
+              high: b.high,
+              low: b.low,
+              close: b.close,
+              is_anchor: (actualIdx === rIdx),
+              role: actualIdx < rIdx ? 'LEG_IN' : (actualIdx === rIdx ? 'ANCHOR' : 'LEG_OUT')
+            };
+          });
+        }
+      }
+
+      if ((!floorLegBars || floorLegBars.length <= 3) && currentChartData && currentChartData.candles) {
+        const allC = currentChartData.candles;
+        // Find floor anchor in all candles
+        let fIdx = -1;
+        if (poi.floor.base_candle && poi.floor.base_candle.timestamp) {
+          fIdx = allC.findIndex(c => c.time === poi.floor.base_candle.timestamp);
+        }
+        if (fIdx === -1 && tfData.swing_low) {
+          fIdx = allC.findIndex(c => Math.abs(c.low - tfData.swing_low) < 0.05);
+        }
+        if (fIdx !== -1) {
+          const startF = Math.max(0, fIdx - 5);
+          const endF = Math.min(allC.length, fIdx + 6);
+          floorLegBars = allC.slice(startF, endF).map((b, idxInSlice) => {
+            const actualIdx = startF + idxInSlice;
+            return {
+              time: b.time,
+              open: b.open,
+              high: b.high,
+              low: b.low,
+              close: b.close,
+              is_anchor: (actualIdx === fIdx),
+              role: actualIdx < fIdx ? 'LEG_IN' : (actualIdx === fIdx ? 'ANCHOR' : 'LEG_OUT')
+            };
+          });
+        }
+      }
+
+      drawLegCandlesVisualizer('poi-roof-mini-canvas', roofLegBars, poi.roof.base_candle, '#f43f5e', 'ROOF PIVOT');
+      drawLegCandlesVisualizer('poi-floor-mini-canvas', floorLegBars, poi.floor.base_candle, '#10b981', 'FLOOR PIVOT');
     }
 
     function drawLegCandlesVisualizer(canvasId, legCandles, fallbackAnchor, themeColor, pivotLabel) {
