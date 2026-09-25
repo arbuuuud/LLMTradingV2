@@ -1004,11 +1004,11 @@ class LiveMT5BridgeCore:
             "session_budget": {
                 "active_session": self.current_session_name,
                 "session_start_equity": self.session_start_equity,
-                "session_pnl": self.equity - self.session_start_equity,
-                "session_peak_pnl": self.session_peak_pnl,
+                "session_pnl": round(curr_sess_pnl, 2),
+                "session_peak_pnl": round(self.session_peak_pnl, 2),
                 "session_halted": self.session_halted,
                 "status_desc": self.session_status_desc,
-                "prior_session_pnl": self.prior_session_pnl
+                "prior_session_pnl": round(self.prior_session_pnl, 2)
             },
             "notifications": list(self.pending_notifications),
             "account": {
