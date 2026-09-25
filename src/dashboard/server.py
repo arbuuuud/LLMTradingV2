@@ -113,6 +113,8 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                     "current_price": live_data["current_price"],
                     "session": f"{session_label} (LIVE MT5: {live_data.get('bid', 0)}/{live_data.get('ask', 0)})",
                     "updated_at": live_data.get("updated_at", now_utc.isoformat()),
+                    "session_budget": live_data.get("session_budget"),
+                    "account": live_data.get("account"),
                     "notifications": live_data.get("notifications", []),
                     "ensemble_confluence": {
                         "bullish_timeframes": bull_count,
