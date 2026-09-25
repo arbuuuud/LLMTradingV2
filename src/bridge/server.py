@@ -16,10 +16,12 @@ import logging
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
+import numpy as np
 
 from src.data.adapter import BrokerAdapter, BrokerSpec
 from src.engine.force_close import ForceCloseGuardianEngine, ForceCloseAction
 from src.agents.sasuke import SasukeSharinganAgent, SharinganPerceptionLevel, SasukeAction
+from src.features.structure import detect_swing_points, evaluate_market_structure
 
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -758,6 +760,42 @@ class LiveMT5BridgeCore:
                 }
             }
 
+            # Deterministic Fractal Market Structure Detection (HH, HL, LH, LL, BOS, CHoCH)
+            market_structure_points = []
+            if len(aggregated) >= 9:
+                try:
+                    c_highs = np.array([x["high"] for x in aggregated], dtype=float)
+                    c_lows = np.array([x["low"] for x in aggregated], dtype=float)
+                    c_closes = np.array([x["close"] for x in aggregated], dtype=float)
+                    c_times = [datetime.fromtimestamp(x["time"], tz=timezone.utc) for x in aggregated]
+
+                    sh_list, sl_list = detect_swing_points(c_highs, c_lows, c_times, window=2)
+                    struct_state = evaluate_market_structure(c_closes, sh_list, sl_list, c_times)
+
+                    # Merge & sort swing points sequentially by candle index
+                    combined_swings = []
+                    for sh in sh_list:
+                        combined_swings.append({
+                            "type": "HIGH",
+                            "index": sh.index,
+                            "price": round(sh.price, 2),
+                            "label": sh.label,  # HH, LH, SH, EQH
+                            "time": aggregated[sh.index]["time"] if sh.index < len(aggregated) else 0
+                        })
+                    for sl in sl_list:
+                        combined_swings.append({
+                            "type": "LOW",
+                            "index": sl.index,
+                            "price": round(sl.price, 2),
+                            "label": sl.label,  # HL, LL, SL, EQL
+                            "time": aggregated[sl.index]["time"] if sl.index < len(aggregated) else 0
+                        })
+
+                    combined_swings.sort(key=lambda x: x["index"])
+                    market_structure_points = combined_swings
+                except Exception as e:
+                    logger.debug(f"Market structure calc warning: {e}")
+
             tf_dict[tf] = {
                 "timeframe": tf,
                 "active_setup": is_active,
@@ -769,6 +807,7 @@ class LiveMT5BridgeCore:
                 "swing_low": sw_low,
                 "equilibrium": equilibrium,
                 "poi_reasoning": poi_reasoning,
+                "market_structure": market_structure_points,
                 "grid_levels": buy_grid_levels if dir_label == "BUY" else sell_grid_levels,
                 "buy_zone": {
                     "bottom": buy_zone_bottom,

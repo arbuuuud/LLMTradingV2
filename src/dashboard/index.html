@@ -1519,8 +1519,74 @@
         candleCtx.restore();
       }
 
-      // Draw Swings Zig-Zag Structure Line (Connecting Swing Low and Swing High)
-      if (tfInfo && tfInfo.swing_high && tfInfo.swing_low) {
+      // Draw Complete Market Structure (Fractal Swings: HH, HL, LH, LL & Zig-Zag Vector)
+      const mktStruct = tfInfo && tfInfo.market_structure ? tfInfo.market_structure : [];
+      if (mktStruct.length >= 2) {
+        candleCtx.save();
+        candleCtx.strokeStyle = 'rgba(96, 165, 250, 0.55)';
+        candleCtx.lineWidth = 1.8;
+        candleCtx.setLineDash([4, 3]);
+        candleCtx.beginPath();
+
+        mktStruct.forEach((sp, sIdx) => {
+          let cIdx = -1;
+          if (sp.time) {
+            cIdx = candles.findIndex(c => c.time === sp.time);
+          }
+          if (cIdx === -1 && sp.index !== undefined && sp.index < candles.length) {
+            cIdx = sp.index;
+          }
+          if (cIdx !== -1) {
+            const x = padLeft + cIdx * stepX + stepX / 2;
+            const y = getY(sp.price);
+            if (sIdx === 0) candleCtx.moveTo(x, y);
+            else candleCtx.lineTo(x, y);
+          }
+        });
+        candleCtx.stroke();
+
+        // Render Swing Labels (HH, HL, LH, LL) and Node Disks
+        mktStruct.forEach(sp => {
+          let cIdx = -1;
+          if (sp.time) {
+            cIdx = candles.findIndex(c => c.time === sp.time);
+          }
+          if (cIdx === -1 && sp.index !== undefined && sp.index < candles.length) {
+            cIdx = sp.index;
+          }
+          if (cIdx !== -1) {
+            const x = padLeft + cIdx * stepX + stepX / 2;
+            const y = getY(sp.price);
+            const isHigh = sp.type === "HIGH";
+
+            // Node Disk
+            candleCtx.fillStyle = isHigh ? '#f43f5e' : '#10b981';
+            candleCtx.beginPath();
+            candleCtx.arc(x, y, 4, 0, Math.PI * 2);
+            candleCtx.fill();
+            candleCtx.strokeStyle = '#ffffff';
+            candleCtx.lineWidth = 1.2;
+            candleCtx.stroke();
+
+            // Badge Pill for Classification Label (HH, HL, LH, LL)
+            const lbl = sp.label || (isHigh ? "SH" : "SL");
+            candleCtx.font = 'bold 9px ui-monospace, monospace';
+            const badgeW = candleCtx.measureText(lbl).width + 8;
+            const badgeH = 14;
+            const badgeY = isHigh ? y - 18 : y + 6;
+
+            candleCtx.fillStyle = isHigh ? 'rgba(225, 29, 72, 0.85)' : 'rgba(16, 185, 129, 0.85)';
+            candleCtx.beginPath();
+            candleCtx.roundRect(x - badgeW / 2, badgeY, badgeW, badgeH, 3);
+            candleCtx.fill();
+
+            candleCtx.fillStyle = '#ffffff';
+            candleCtx.fillText(lbl, x - badgeW / 2 + 4, badgeY + 10.5);
+          }
+        });
+        candleCtx.restore();
+      } else if (tfInfo && tfInfo.swing_high && tfInfo.swing_low) {
+        // Fallback: 2 Recent Swings Line if fractal points not yet populated
         let swHighIdx = -1;
         let swLowIdx = -1;
 
@@ -1547,7 +1613,6 @@
           candleCtx.lineTo(xH, yH);
           candleCtx.stroke();
 
-          // Draw Structure Swings Connecting Points
           candleCtx.fillStyle = '#60a5fa';
           candleCtx.beginPath();
           candleCtx.arc(xL, yL, 3.5, 0, Math.PI * 2);
@@ -1556,7 +1621,6 @@
           candleCtx.arc(xH, yH, 3.5, 0, Math.PI * 2);
           candleCtx.fill();
 
-          // Swing Range Label at midpoint of structure line
           const midX = (xL + xH) / 2;
           const midY = (yL + yH) / 2;
           candleCtx.fillStyle = '#93c5fd';
@@ -2123,16 +2187,16 @@
       const stepX = (W - padSide * 2) / numBars;
       const barW = Math.max(5, Math.min(14, stepX * 0.55));
 
-      // Draw Structural ZigZag path through candle midpoints
+      // Draw Structural ZigZag Peak & Valley Connecting Vectors
       ctx.save();
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([2, 2]);
+      ctx.strokeStyle = themeColor === '#f43f5e' ? 'rgba(244, 63, 94, 0.45)' : 'rgba(16, 185, 129, 0.45)';
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([3, 2]);
       ctx.beginPath();
       bars.forEach((b, idx) => {
         const x = padSide + idx * stepX + stepX / 2;
-        const midVal = (b.high + b.low) / 2;
-        const y = getY(midVal);
+        const pivotVal = b.is_anchor ? (themeColor === '#f43f5e' ? b.high : b.low) : ((b.high + b.low) / 2);
+        const y = getY(pivotVal);
         if (idx === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
