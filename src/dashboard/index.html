@@ -43,9 +43,6 @@
       <button onclick="switchTab('engine-spec')" id="tab-btn-engine-spec" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
         <i class="fa-solid fa-book-bookmark text-indigo-400"></i> Engine Specs
       </button>
-      <button onclick="showToast('🔔 TEST NOTIFICATION', 'Toast notification system is working perfectly!', 'BUY')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition">
-        <i class="fa-solid fa-bell text-amber-400 mr-1"></i> Test Toast
-      </button>
       <button onclick="switchTab('accounts')" id="tab-btn-accounts" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
         <i class="fa-solid fa-users-gear"></i> User & Accounts
       </button>
@@ -106,7 +103,7 @@
                   </li>
                   <li class="flex items-start gap-2">
                     <i class="fa-solid fa-check text-indigo-400 mt-0.5"></i>
-                    <span><strong>3-Layer Grid Juara (Subtask 5-3D):</strong> 3 Limit Order terpasang serentak dengan risiko terbagi (0.16% per layer).</span>
+                    <span><strong>Pyramid 20-30-50 Grid (DEC-028):</strong> 3 Limit Order serentak (L1: 20% Bibir, L2: 30% Mid, L3: 50% Dasar) untuk memaksimalkan harga diskon & meminimalisir jarak SL.</span>
                   </li>
                   <li class="flex items-start gap-2">
                     <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
@@ -118,7 +115,7 @@
                   </li>
                   <li class="flex items-start gap-2">
                     <i class="fa-solid fa-check text-rose-400 mt-0.5"></i>
-                    <span><strong>Sasuke Greed Trailing:</strong> Proteksi trailing berundak (+0.5R, +1.0R, +1.5R) mengunci cuan.</span>
+                    <span><strong>3-Session Budgeting & Stepped Greed Trailing (CLONE-08):</strong> Pembagian 3 sesi mandiri (Asian, London, NY) dengan trailing lock undak +0.5% dan 25% house money carryover.</span>
                   </li>
                 </ul>
               </div>
@@ -317,24 +314,24 @@
         <!-- 1. ENTRY LOGIC -->
         <div class="glass-card p-5 rounded-2xl border border-slate-800 space-y-3">
           <div class="flex items-center gap-2 text-blue-400 font-bold text-sm border-b border-slate-800 pb-2.5">
-            <i class="fa-solid fa-crosshairs"></i> 1. Entry Rules &amp; Virgin Depth
+            <i class="fa-solid fa-crosshairs"></i> 1. Entry Rules &amp; Pyramid Grid
           </div>
           <ul class="text-xs space-y-2 text-slate-300">
             <li class="flex items-start gap-2">
               <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-              <span><strong>Kuadran 0-25% Buy (Discount):</strong> Limit order hanya ditaruh di zona diskon harga.</span>
+              <span><strong>Kuadran 0-25% Buy (Discount):</strong> Limit order disebar di zona diskon harga.</span>
             </li>
             <li class="flex items-start gap-2">
               <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-              <span><strong>Kuadran 75-100% Sell (Premium):</strong> Limit order hanya ditaruh di zona premium harga.</span>
+              <span><strong>Kuadran 75-100% Sell (Premium):</strong> Limit order disebar di zona premium harga.</span>
             </li>
             <li class="flex items-start gap-2">
               <i class="fa-solid fa-check text-indigo-400 mt-0.5"></i>
-              <span><strong>Virgin Depth &gt; 50% (Subtask 5-3C):</strong> Dilarang order di kedalaman dangkal (&lt;50%) yang sudah termitigasi. Order hanya dialokasikan di kedalaman murni &gt; 50% di mana likuiditas masih segar!</span>
+              <span><strong>Simultaneous 3-Layer Grid (Subtask 5-3D):</strong> 3 limit order serentak terpasang saat setup valid.</span>
             </li>
             <li class="flex items-start gap-2">
               <i class="fa-solid fa-check text-blue-400 mt-0.5"></i>
-              <span><strong>Single Precision Order:</strong> 1 order presisi per zona untuk proteksi modal dari penumpukan multi-layer.</span>
+              <span><strong>Alokasi Pyramid 20-30-50 (DEC-028):</strong> 20% lot di L1 (bibir), 30% di L2 (tengah), dan 50% di L3 (dasar) untuk memaksimalkan average entry & mempersempit jarak ke SL.</span>
             </li>
           </ul>
         </div>
@@ -342,24 +339,24 @@
         <!-- 2. SASUKE RISK OVERSEER -->
         <div class="glass-card p-5 rounded-2xl border border-slate-800 space-y-3">
           <div class="flex items-center gap-2 text-rose-400 font-bold text-sm border-b border-slate-800 pb-2.5">
-            <i class="fa-solid fa-eye"></i> 2. Sasuke Sharingan Risk Overseer
+            <i class="fa-solid fa-eye"></i> 2. 3-Session Budgeting &amp; Greed Trailing
           </div>
           <ul class="text-xs space-y-2 text-slate-300">
             <li class="flex items-start gap-2">
-              <i class="fa-solid fa-check text-rose-400 mt-0.5"></i>
-              <span><strong>Reversal Cognition (&ge; +1.0R):</strong> Sasuke memantau M1. Jika muncul <em>Evening/Morning Star</em> atau <em>Opposite Marubozu</em> saat running &ge; +1.0R, langsung <strong>Force TP 100%</strong> di pucuk!</span>
+              <i class="fa-solid fa-check text-indigo-400 mt-0.5"></i>
+              <span><strong>3 Sesi Mandiri (DEC-028 Champion CLONE-08):</strong> Asian (00-07 UTC), London (07-13:30 UTC), dan NY Overlap (13:30-21 UTC). Sesi yang loss tidak mematikan peluang sesi berikutnya!</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+              <span><strong>House Money Carryover:</strong> Jika sesi sebelumnya profit &ge; +1.0%, tambahkan 25% profit ke budget risiko sesi berikutnya.</span>
             </li>
             <li class="flex items-start gap-2">
               <i class="fa-solid fa-check text-amber-400 mt-0.5"></i>
-              <span><strong>Greed Trailing Berundak (Subtask 5-3B):</strong>
-                <br>&bull; Running &ge; +1.0R &rarr; Kunci SL di <strong>+0.5R</strong>
-                <br>&bull; Running &ge; +1.5R &rarr; Kunci SL di <strong>+1.0R</strong>
-                <br>&bull; Running &ge; +2.0R &rarr; Kunci SL di <strong>+1.5R</strong>
-              </span>
+              <span><strong>Stepped Greed Trailing:</strong> Capai +1.0% lock +0.5%, capai +1.5% lock +1.0%, dst. Pullback 0.5% &rarr; sesi diistirahatkan (Circuit Breaker).</span>
             </li>
             <li class="flex items-start gap-2">
-              <i class="fa-solid fa-check text-red-500 mt-0.5"></i>
-              <span><strong>Daily Circuit Breaker (-1.0%):</strong> Batas max loss harian dipatok -1.0% Equity. Sekali tersentuh, trading di-lockout sampai ganti hari UTC.</span>
+              <i class="fa-solid fa-check text-rose-400 mt-0.5"></i>
+              <span><strong>Sasuke Reversal Cognition:</strong> Force TP 100% jika terdeteksi Evening/Morning Star atau Opposite Marubozu saat running profit &ge; +1.0R.</span>
             </li>
           </ul>
         </div>
