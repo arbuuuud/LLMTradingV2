@@ -719,89 +719,6 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
 }
 
 //+------------------------------------------------------------------+
-//| Audit & Transmit Any Missed Closed Deals (Catch-Up Scanner)      |
-//+------------------------------------------------------------------+
-void AuditRecentClosedDeals()
-{
-   if(!m_connected) return;
-
-   // Query deals over the last 12 hours
-   datetime fromTime = TimeCurrent() - (12 * 3600);
-   datetime toTime = TimeCurrent() + 60;
-
-   if(!HistorySelect(fromTime, toTime))
-      return;
-
-   int totalDeals = HistoryDealsTotal();
-   for(int i = 0; i < totalDeals; i++)
-   {
-      ulong dealTicket = HistoryDealGetTicket(i);
-      if(dealTicket <= 0) continue;
-
-      long dealEntry = HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
-      // DEAL_ENTRY_OUT means closed position
-      if(dealEntry == DEAL_ENTRY_OUT || dealEntry == DEAL_ENTRY_INOUT || dealEntry == DEAL_ENTRY_OUT_BY)
-      {
-         long magic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
-         if(magic == 1001 || magic == 2001 || magic == (long)InpMagicNumber)
-         {
-            long posId = HistoryDealGetInteger(dealTicket, DEAL_POSITION_ID);
-            string symbol = HistoryDealGetString(dealTicket, DEAL_SYMBOL);
-            double profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT);
-            double swap = HistoryDealGetDouble(dealTicket, DEAL_SWAP);
-            double comm = HistoryDealGetDouble(dealTicket, DEAL_COMMISSION);
-            double netPnl = profit + swap + comm;
-            double exitPrice = HistoryDealGetDouble(dealTicket, DEAL_PRICE);
-            double lots = HistoryDealGetDouble(dealTicket, DEAL_VOLUME);
-            long exitTime = (long)HistoryDealGetInteger(dealTicket, DEAL_TIME);
-            ENUM_DEAL_TYPE dType = (ENUM_DEAL_TYPE)HistoryDealGetInteger(dealTicket, DEAL_TYPE);
-            string dirStr = (dType == DEAL_TYPE_BUY) ? "SELL" : "BUY";
-
-            // Fetch true original Entry Price & Entry Time from Deal IN
-            double trueEntryPrice = exitPrice;
-            long trueEntryTime = exitTime;
-            if(HistorySelectByPosition(posId))
-            {
-               int posDeals = HistoryDealsTotal();
-               for(int pd = 0; pd < posDeals; pd++)
-               {
-                  ulong pt = HistoryDealGetTicket(pd);
-                  if(pt > 0 && HistoryDealGetInteger(pt, DEAL_ENTRY) == DEAL_ENTRY_IN)
-                  {
-                     trueEntryPrice = HistoryDealGetDouble(pt, DEAL_PRICE);
-                     trueEntryTime = (long)HistoryDealGetInteger(pt, DEAL_TIME);
-                     break;
-                  }
-               }
-               // Reselect main window history
-               HistorySelect(fromTime, toTime);
-            }
-
-            string closeJson = StringFormat(
-               "{\"type\":\"CLOSED_TRADE\",\"account_id\":\"%I64d\",\"data\":{"
-               "\"trade_id\":\"%I64u\","
-               "\"position_id\":\"%I64u\","
-               "\"account_number\":\"%I64d\","
-               "\"symbol\":\"%s\","
-               "\"direction\":\"%s\","
-               "\"timeframe\":\"M1\","
-               "\"lots\":%.2f,"
-               "\"entry_price\":%.2f,"
-               "\"exit_price\":%.2f,"
-               "\"entry_time\":%I64d,"
-               "\"exit_time\":%I64d,"
-               "\"pnl\":%.2f,"
-               "\"magic\":%I64d}}\n",
-               AccountInfoInteger(ACCOUNT_LOGIN), dealTicket, posId, AccountInfoInteger(ACCOUNT_LOGIN), symbol, dirStr, lots, trueEntryPrice, exitPrice, trueEntryTime, exitTime, netPnl, magic
-            );
-
-            SendString(closeJson);
-         }
-      }
-   }
-}
-
-//+------------------------------------------------------------------+
 //| Timer function (Heartbeat, Reconnect & Sleep-Wake Auto-Sync)     |
 //+------------------------------------------------------------------+
 //| Timer function (Heartbeat, Reconnect & Sleep-Wake Auto-Sync)     |
@@ -865,15 +782,6 @@ void OnTimer()
 
       // Check for incoming commands during quiet periods
       PollIncomingCommands();
-
-      // 3. Periodic Deal History Audit (Catch-Up Scanner)
-      // Ensures no closed deals are ever missed if OnTradeTransaction fired during socket reconnect/buffer flush
-      static ulong last_deal_audit_ms = 0;
-      if(now_ms - last_deal_audit_ms >= 5000)
-      {
-         last_deal_audit_ms = now_ms;
-         AuditRecentClosedDeals();
-      }
    }
 }
 //+------------------------------------------------------------------+
