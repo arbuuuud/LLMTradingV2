@@ -242,14 +242,19 @@
               <span id="poi-roof-range" class="font-mono text-xs text-white font-bold">$4316.40 - $4319.17</span>
             </div>
 
-            <!-- Base Candle Detail -->
-            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-1">
-              <div class="text-slate-400 flex items-center justify-between">
-                <span>Base Anchor Candle:</span>
-                <strong id="poi-roof-candle-time" class="text-blue-400">12:35 UTC</strong>
+            <!-- Base Candle Detail & Interactive Mini-Visualizer -->
+            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Base Anchor Candle:</span>
+                <strong id="poi-roof-candle-time" class="text-rose-400">12:35 UTC</strong>
               </div>
               <div id="poi-roof-candle-ohlc" class="text-slate-300">
                 O: 4316.80 | H: 4319.17 | L: 4316.10 | C: 4318.50
+              </div>
+              <!-- Mini Candle Graphic Canvas for Roof Anchor -->
+              <div class="pt-1 flex items-center justify-between border-t border-slate-900">
+                <span class="text-[10px] text-slate-500 font-sans">Candle Anchor Visual:</span>
+                <canvas id="poi-roof-mini-canvas" width="220" height="42" class="rounded bg-slate-900/60 border border-slate-800/80"></canvas>
               </div>
             </div>
 
@@ -271,14 +276,19 @@
               <span id="poi-floor-range" class="font-mono text-xs text-white font-bold">$4308.11 - $4310.87</span>
             </div>
 
-            <!-- Base Candle Detail -->
-            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-1">
-              <div class="text-slate-400 flex items-center justify-between">
-                <span>Base Anchor Candle:</span>
-                <strong id="poi-floor-candle-time" class="text-blue-400">12:20 UTC</strong>
+            <!-- Base Candle Detail & Interactive Mini-Visualizer -->
+            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Base Anchor Candle:</span>
+                <strong id="poi-floor-candle-time" class="text-emerald-400">12:20 UTC</strong>
               </div>
               <div id="poi-floor-candle-ohlc" class="text-slate-300">
                 O: 4310.20 | H: 4311.50 | L: 4308.11 | C: 4309.80
+              </div>
+              <!-- Mini Candle Graphic Canvas for Floor Anchor -->
+              <div class="pt-1 flex items-center justify-between border-t border-slate-900">
+                <span class="text-[10px] text-slate-500 font-sans">Candle Anchor Visual:</span>
+                <canvas id="poi-floor-mini-canvas" width="220" height="42" class="rounded bg-slate-900/60 border border-slate-800/80"></canvas>
               </div>
             </div>
 
@@ -1496,6 +1506,10 @@
       }
 
       // Draw Candlesticks (High Definition Sharp Institutional Styling)
+      // Detect POI anchor candle timestamps to highlight on chart
+      const roofTime = tfInfo && tfInfo.poi_reasoning && tfInfo.poi_reasoning.roof && tfInfo.poi_reasoning.roof.base_candle ? tfInfo.poi_reasoning.roof.base_candle.timestamp : 0;
+      const floorTime = tfInfo && tfInfo.poi_reasoning && tfInfo.poi_reasoning.floor && tfInfo.poi_reasoning.floor.base_candle ? tfInfo.poi_reasoning.floor.base_candle.timestamp : 0;
+
       candles.forEach((c, idx) => {
         const x = padLeft + idx * stepX + stepX / 2;
         const yO = getY(c.open);
@@ -1503,6 +1517,48 @@
         const yH = getY(c.high);
         const yL = getY(c.low);
         const isBull = c.close >= c.open;
+
+        const isRoofAnchor = (roofTime && c.time === roofTime) || (!roofTime && tfInfo && Math.abs(c.high - tfInfo.swing_high) < 0.05);
+        const isFloorAnchor = (floorTime && c.time === floorTime) || (!floorTime && tfInfo && Math.abs(c.low - tfInfo.swing_low) < 0.05);
+
+        // Visual Highlight Halo on Main Chart for POI Anchor Candles
+        if (isRoofAnchor) {
+          // Roof Supply Highlight Halo (Rose)
+          candleCtx.save();
+          candleCtx.fillStyle = 'rgba(244, 63, 94, 0.22)';
+          candleCtx.strokeStyle = '#f43f5e';
+          candleCtx.lineWidth = 1.5;
+          candleCtx.setLineDash([2, 2]);
+          candleCtx.beginPath();
+          candleCtx.roundRect(x - barWidth - 4, yH - 18, barWidth * 2 + 8, (yL - yH) + 24, 6);
+          candleCtx.fill();
+          candleCtx.stroke();
+
+          // Anchor Badge on top
+          candleCtx.setLineDash([]);
+          candleCtx.fillStyle = '#f43f5e';
+          candleCtx.font = 'bold 9px ui-monospace, monospace';
+          candleCtx.fillText('▼ ROOF POI', x - 26, yH - 6);
+          candleCtx.restore();
+        } else if (isFloorAnchor) {
+          // Floor Demand Highlight Halo (Emerald)
+          candleCtx.save();
+          candleCtx.fillStyle = 'rgba(16, 185, 129, 0.22)';
+          candleCtx.strokeStyle = '#10b981';
+          candleCtx.lineWidth = 1.5;
+          candleCtx.setLineDash([2, 2]);
+          candleCtx.beginPath();
+          candleCtx.roundRect(x - barWidth - 4, yH - 6, barWidth * 2 + 8, (yL - yH) + 24, 6);
+          candleCtx.fill();
+          candleCtx.stroke();
+
+          // Anchor Badge on bottom
+          candleCtx.setLineDash([]);
+          candleCtx.fillStyle = '#10b981';
+          candleCtx.font = 'bold 9px ui-monospace, monospace';
+          candleCtx.fillText('▲ FLOOR POI', x - 28, yL + 16);
+          candleCtx.restore();
+        }
 
         const bodyColor = isBull ? '#22c55e' : '#ef4444';
         const wickColor = isBull ? '#4ade80' : '#f87171';
@@ -1948,6 +2004,76 @@
         li.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 mt-0.5 text-[10px]"></i> <span>${r}</span>`;
         floorUl.appendChild(li);
       });
+
+      // 3. Render Dedicated Mini-Visualizers for Anchor Candles
+      drawMiniAnchorCandle('poi-roof-mini-canvas', poi.roof.base_candle, '#f43f5e', '#fb7185', 'ROOF SWEEP PEAK');
+      drawMiniAnchorCandle('poi-floor-mini-canvas', poi.floor.base_candle, '#10b981', '#34d399', 'FLOOR DEMAND ABSORPTION');
+    }
+
+    function drawMiniAnchorCandle(canvasId, candle, themeColor, wickColor, tagLabel) {
+      const c = document.getElementById(canvasId);
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const W = c.width;
+      const H = c.height;
+      ctx.clearRect(0, 0, W, H);
+
+      if (!candle || !candle.high) return;
+
+      const pad = 6;
+      const minP = candle.low;
+      const maxP = candle.high;
+      const span = (maxP - minP) || 0.50;
+
+      function getY(p) {
+        return pad + (H - pad * 2) - ((p - minP) / span) * (H - pad * 2);
+      }
+
+      // Draw subtle background guide lines
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad, H / 2);
+      ctx.lineTo(W - pad, H / 2);
+      ctx.stroke();
+
+      // Center X for candle
+      const cx = 35;
+      const yO = getY(candle.open);
+      const yC = getY(candle.close);
+      const yH = getY(candle.high);
+      const yL = getY(candle.low);
+      const isBull = candle.close >= candle.open;
+
+      // Wick
+      ctx.strokeStyle = wickColor;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx, yH);
+      ctx.lineTo(cx, yL);
+      ctx.stroke();
+
+      // Body
+      const barW = 12;
+      const top = Math.min(yO, yC);
+      const bodyH = Math.max(3, Math.abs(yO - yC));
+      ctx.fillStyle = isBull ? '#22c55e' : '#ef4444';
+      ctx.fillRect(cx - barW / 2, top, barW, bodyH);
+      ctx.strokeStyle = isBull ? '#16a34a' : '#dc2626';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - barW / 2, top, barW, bodyH);
+
+      // Label & Metrics on Right side
+      ctx.fillStyle = themeColor;
+      ctx.font = 'bold 9px ui-monospace, monospace';
+      ctx.fillText(tagLabel, 60, 15);
+
+      const wickUpper = candle.high - Math.max(candle.open, candle.close);
+      const wickLower = Math.min(candle.open, candle.close) - candle.low;
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '8px ui-monospace, monospace';
+      ctx.fillText(`Top Wick: +$${wickUpper.toFixed(2)} | Bot Wick: -$${wickLower.toFixed(2)}`, 60, 27);
+      ctx.fillText(`Range: $${(candle.high - candle.low).toFixed(2)} (${candle.time})`, 60, 37);
     }
 
     // ==========================================

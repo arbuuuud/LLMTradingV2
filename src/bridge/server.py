@@ -677,8 +677,11 @@ class LiveMT5BridgeCore:
             roof_anchor = max(lookback_sw, key=lambda x: x["high"]) if lookback_sw else None
             floor_anchor = min(lookback_sw, key=lambda x: x["low"]) if lookback_sw else None
 
-            roof_time_str = datetime.fromtimestamp(roof_anchor["time"], tz=timezone.utc).strftime("%H:%M UTC") if roof_anchor else "Recent"
-            floor_time_str = datetime.fromtimestamp(floor_anchor["time"], tz=timezone.utc).strftime("%H:%M UTC") if floor_anchor else "Recent"
+            roof_time_val = roof_anchor["time"] if roof_anchor else 0
+            floor_time_val = floor_anchor["time"] if floor_anchor else 0
+
+            roof_time_str = datetime.fromtimestamp(roof_time_val, tz=timezone.utc).strftime("%H:%M UTC") if roof_anchor else "Recent"
+            floor_time_str = datetime.fromtimestamp(floor_time_val, tz=timezone.utc).strftime("%H:%M UTC") if floor_anchor else "Recent"
 
             poi_reasoning = {
                 "roof": {
@@ -686,6 +689,7 @@ class LiveMT5BridgeCore:
                     "zone_range": f"${sell_zone_bottom:.2f} - ${sw_high:.2f}",
                     "base_candle": {
                         "time": roof_time_str,
+                        "timestamp": roof_time_val,
                         "open": roof_anchor["open"] if roof_anchor else sw_high,
                         "high": roof_anchor["high"] if roof_anchor else sw_high,
                         "low": roof_anchor["low"] if roof_anchor else sw_high,
@@ -703,6 +707,7 @@ class LiveMT5BridgeCore:
                     "zone_range": f"${sw_low:.2f} - ${buy_zone_top:.2f}",
                     "base_candle": {
                         "time": floor_time_str,
+                        "timestamp": floor_time_val,
                         "open": floor_anchor["open"] if floor_anchor else sw_low,
                         "high": floor_anchor["high"] if floor_anchor else sw_low,
                         "low": floor_anchor["low"] if floor_anchor else sw_low,
