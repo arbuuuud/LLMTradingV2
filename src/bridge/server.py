@@ -1050,11 +1050,12 @@ class LiveMT5BridgeCore:
                     if acc_pnl > acc_sess["peak_pnl"]:
                         acc_sess["peak_pnl"] = acc_pnl
 
-                    # Budget kerugian per-sesi untuk akun ini (-0.50% dari start_equity akun)
-                    acc_loss_budget = acc_sess["start_equity"] * 0.005
+                    # Budget kerugian per-sesi untuk akun ini
+                    # Gunakan risk_pct profil akun atau min $5.00 (agar akun mikro/YOLO tidak ter-halt palsu oleh micro-noise)
+                    acc_loss_budget = max(5.0, acc_sess["start_equity"] * (acc_risk_tot / 100.0))
                     acc_floor_pnl = -acc_loss_budget
-                    acc_target_1pct = acc_sess["start_equity"] * 0.010
-                    acc_step_05pct = acc_sess["start_equity"] * 0.005
+                    acc_target_1pct = max(10.0, acc_sess["start_equity"] * 0.010)
+                    acc_step_05pct = max(5.0, acc_sess["start_equity"] * 0.005)
 
                     # Stepped greed trailing per akun
                     if acc_sess["peak_pnl"] >= acc_target_1pct:
