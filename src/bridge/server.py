@@ -761,10 +761,17 @@ class LiveMT5BridgeCore:
                 logger.info(f"🏁 [SESSION TRANSITION] {self.current_session_name} ended with PnL: ${self.prior_session_pnl:+.2f}")
 
             self.current_session_name = active_sess
+            # Anchor initial session equity accurately based on active account equity from MT5
             self.session_start_equity = max(100.0, self.equity)
             self.session_peak_pnl = 0.0
             self.session_halted = (active_sess == "OFF_HOURS")
             self.session_status_desc = f"{active_sess} Active" if not self.session_halted else "Off-Hours Standby"
+
+        # Jika ekuitas awal sesi belum terkalibrasi dengan ekuitas riil MT5 (masih default), sinkronisasikan
+        if self.session_start_equity == 10000.0 and self.equity > 0 and abs(self.equity - 10000.0) > 500.0:
+            self.session_start_equity = self.equity
+            self.session_peak_pnl = 0.0
+            self.session_halted = False
 
         # 2. Multi-Session Equity Budgeting & Dynamic Greed Trailing
         # Budget loss dasar per-sesi: -0.50% dari ekuitas awal sesi
