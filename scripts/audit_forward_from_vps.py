@@ -88,19 +88,36 @@ def main():
         print("Silakan copy file dari server VPS ke direktori lokal sesuai panduan.")
         return
 
+    from src.core.types import ShadowCloneSpec, TradingStyle, ForceClosePolicy, SessionKillzone
+
+    spec = ShadowCloneSpec(
+        clone_id="STRAT-PAC-M1-001",
+        methodology="PAC",
+        timeframe="M1",
+        trading_style=TradingStyle.SCALPING,
+        limit_layers=3,
+        hard_sl_pct=-15.0,
+        hard_tp_pct=50.0,
+        pac_retest_mode=PACRetestMode.MULTI_RETEST_DEEPER,
+        cancel_remaining_on_tp=True,
+        pac_handover_mode=PACHandoverMode.PARTIAL_EXIT_BEP,
+        force_close_policy=ForceClosePolicy.SASUKE_PARTIAL_TRAILING,
+        session=SessionKillzone.ALL_DAY,
+        risk_per_trade_pct=0.50
+    )
+
     # Baseline Kage Bunshin PAC M1
     baseline = ShadowCloneResult(
         clone_id="STRAT-PAC-M1-001",
-        timeframe="M1",
-        retest_mode=PACRetestMode.MULTI_RETEST_DEEPER,
-        handover_mode=PACHandoverMode.PARTIAL_EXIT_BEP,
-        cancel_remaining_on_tp=True,
+        spec=spec,
         total_trades=50,
         win_rate_pct=79.7,
         profit_factor=140.21,
+        net_pnl=12000.0,
+        roi_pct=120.0,
         max_drawdown_pct=0.28,
-        net_profit_dollar=12000.0,
-        activity_trades_per_month=45
+        avg_trades_per_day=5.0,
+        monthly_green_pct=100.0
     )
 
     gate = IncubationStagingGate(min_trades=min(10, len(trades)))
