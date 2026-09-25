@@ -242,8 +242,8 @@
               <span id="poi-roof-range" class="font-mono text-xs text-white font-bold">$4316.40 - $4319.17</span>
             </div>
 
-            <!-- Base Candle Detail & Interactive Mini-Visualizer -->
-            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-2">
+            <!-- Base Candle Detail -->
+            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-1.5">
               <div class="flex items-center justify-between">
                 <span class="text-slate-400">Structure Pattern:</span>
                 <span id="poi-roof-pattern" class="px-1.5 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">RBD SWEEP LEG</span>
@@ -254,14 +254,6 @@
               </div>
               <div id="poi-roof-candle-ohlc" class="text-slate-300">
                 O: 4316.80 | H: 4319.17 | L: 4316.10 | C: 4318.50
-              </div>
-              <!-- Structural Leg-In / Leg-Out Multi-Candle Visualizer Canvas -->
-              <div class="pt-1.5 space-y-1 border-t border-slate-900">
-                <div class="flex items-center justify-between text-[10px]">
-                  <span class="text-slate-400 font-sans">Multi-Candle Leg Context:</span>
-                  <span class="text-slate-500 font-mono text-[9px]">Leg-In ➔ Anchor ➔ Leg-Out</span>
-                </div>
-                <canvas id="poi-roof-mini-canvas" height="90" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
               </div>
             </div>
 
@@ -283,8 +275,8 @@
               <span id="poi-floor-range" class="font-mono text-xs text-white font-bold">$4308.11 - $4310.87</span>
             </div>
 
-            <!-- Base Candle Detail & Interactive Mini-Visualizer -->
-            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-2">
+            <!-- Base Candle Detail -->
+            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono space-y-1.5">
               <div class="flex items-center justify-between">
                 <span class="text-slate-400">Structure Pattern:</span>
                 <span id="poi-floor-pattern" class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">DBR DEMAND LEG</span>
@@ -295,14 +287,6 @@
               </div>
               <div id="poi-floor-candle-ohlc" class="text-slate-300">
                 O: 4310.20 | H: 4311.50 | L: 4308.11 | C: 4309.80
-              </div>
-              <!-- Structural Leg-In / Leg-Out Multi-Candle Visualizer Canvas -->
-              <div class="pt-1.5 space-y-1 border-t border-slate-900">
-                <div class="flex items-center justify-between text-[10px]">
-                  <span class="text-slate-400 font-sans">Multi-Candle Leg Context:</span>
-                  <span class="text-slate-500 font-mono text-[9px]">Leg-In ➔ Anchor ➔ Leg-Out</span>
-                </div>
-                <canvas id="poi-floor-mini-canvas" height="90" class="w-full rounded bg-slate-900/60 border border-slate-800/80 block"></canvas>
               </div>
             </div>
 
@@ -1322,32 +1306,43 @@
       const stepX = chartW / candles.length;
       const barWidth = Math.max(3, Math.min(10, stepX * 0.7));
 
-      // 1. Draw Institutional Zones (Buy Zone 0-25% & Sell Zone 75-100%)
+      // 1. Draw Institutional Zones & Consolidated Merged POI Blocks
       if (tfInfo) {
         const buyActive = tfInfo.buy_zone && tfInfo.buy_zone.active;
         const sellActive = tfInfo.sell_zone && tfInfo.sell_zone.active;
 
-        // Buy Zone (0% - 25% Discount)
+        // Calculate Merged Boundaries if both POI & Zones overlap
+        // FLOOR / DEMAND POI MERGED BOX: Single unified container
         if (tfInfo.buy_zone && tfInfo.buy_zone.top && tfInfo.buy_zone.bottom) {
-          const yTop = getY(tfInfo.buy_zone.top);
-          const yBot = getY(tfInfo.buy_zone.bottom);
-          const hZone = Math.max(8, yBot - yTop);
+          let floorTop = tfInfo.buy_zone.top;
+          let floorBottom = tfInfo.buy_zone.bottom;
 
-          candleCtx.fillStyle = buyActive ? 'rgba(34, 197, 94, 0.22)' : 'rgba(34, 197, 94, 0.05)';
+          // Merge with Floor POI Base Anchor Candle range if present
+          if (tfInfo.poi_reasoning && tfInfo.poi_reasoning.floor && tfInfo.poi_reasoning.floor.base_candle) {
+            const bc = tfInfo.poi_reasoning.floor.base_candle;
+            if (bc.low) floorBottom = Math.min(floorBottom, bc.low);
+            if (bc.high) floorTop = Math.max(floorTop, Math.min(bc.high, tfInfo.equilibrium || floorTop));
+          }
+
+          const yTop = getY(floorTop);
+          const yBot = getY(floorBottom);
+          const hZone = Math.max(10, yBot - yTop);
+
+          // 1 Single Consolidated Box for Floor/Demand
+          candleCtx.fillStyle = buyActive ? 'rgba(34, 197, 94, 0.22)' : 'rgba(34, 197, 94, 0.08)';
           candleCtx.fillRect(padLeft, yTop, chartW, hZone);
 
-          candleCtx.strokeStyle = buyActive ? '#22c55e' : 'rgba(34, 197, 94, 0.35)';
-          candleCtx.lineWidth = buyActive ? 2.0 : 1.0;
+          candleCtx.strokeStyle = buyActive ? '#22c55e' : 'rgba(34, 197, 94, 0.45)';
+          candleCtx.lineWidth = buyActive ? 2.0 : 1.2;
           candleCtx.strokeRect(padLeft, yTop, chartW, hZone);
 
-          // Sub-Zone: Untouched / Fresh Depth Area (0% - 15% Deep Discount)
+          // Sub-Zone: Untouched / Fresh Depth Area (0% - 12.5% Deep Discount)
           if (tfInfo.buy_zone.untouched_top) {
             const yUntouched = getY(tfInfo.buy_zone.untouched_top);
             const hFresh = Math.max(4, yBot - yUntouched);
-            candleCtx.fillStyle = buyActive ? 'rgba(34, 197, 94, 0.38)' : 'rgba(34, 197, 94, 0.12)';
+            candleCtx.fillStyle = buyActive ? 'rgba(34, 197, 94, 0.35)' : 'rgba(34, 197, 94, 0.14)';
             candleCtx.fillRect(padLeft, yUntouched, chartW, hFresh);
 
-            // Fresh Untouched Line
             candleCtx.save();
             candleCtx.setLineDash([3, 2]);
             candleCtx.strokeStyle = '#86efac';
@@ -1363,33 +1358,43 @@
             candleCtx.fillText(`✨ UNTOUCHED FRESH DEPTH ($${tfInfo.buy_zone.untouched_top.toFixed(2)})`, padLeft + chartW - 190, yUntouched + 10);
           }
 
-          // Zone Tag Label
-          candleCtx.fillStyle = buyActive ? '#4ade80' : 'rgba(74, 222, 128, 0.6)';
-          candleCtx.font = buyActive ? 'bold 10px ui-monospace, monospace' : '9px ui-monospace, monospace';
-          candleCtx.fillText(buyActive ? '● ACTIVE BUY ZONE (0-25% DISCOUNT)' : 'BUY ZONE (0-25% STANDBY)', padLeft + 10, yTop + 14);
+          // Consolidated Zone Tag Label with exact boundary prices
+          candleCtx.fillStyle = buyActive ? '#4ade80' : 'rgba(74, 222, 128, 0.85)';
+          candleCtx.font = 'bold 9.5px ui-monospace, monospace';
+          candleCtx.fillText(`● MERGED FLOOR POI [DEMAND]: $${floorBottom.toFixed(2)} - $${floorTop.toFixed(2)}`, padLeft + 10, yTop + 14);
         }
 
-        // Sell Zone (75% - 100% Premium)
+        // ROOF / SUPPLY POI MERGED BOX: Single unified container
         if (tfInfo.sell_zone && tfInfo.sell_zone.top && tfInfo.sell_zone.bottom) {
-          const yTop = getY(tfInfo.sell_zone.top);
-          const yBot = getY(tfInfo.sell_zone.bottom);
-          const hZone = Math.max(8, yBot - yTop);
+          let roofTop = tfInfo.sell_zone.top;
+          let roofBottom = tfInfo.sell_zone.bottom;
 
-          candleCtx.fillStyle = sellActive ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.05)';
+          // Merge with Roof POI Base Anchor Candle range if present
+          if (tfInfo.poi_reasoning && tfInfo.poi_reasoning.roof && tfInfo.poi_reasoning.roof.base_candle) {
+            const bc = tfInfo.poi_reasoning.roof.base_candle;
+            if (bc.high) roofTop = Math.max(roofTop, bc.high);
+            if (bc.low) roofBottom = Math.min(roofBottom, Math.max(bc.low, tfInfo.equilibrium || roofBottom));
+          }
+
+          const yTop = getY(roofTop);
+          const yBot = getY(roofBottom);
+          const hZone = Math.max(10, yBot - yTop);
+
+          // 1 Single Consolidated Box for Roof/Supply
+          candleCtx.fillStyle = sellActive ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.08)';
           candleCtx.fillRect(padLeft, yTop, chartW, hZone);
 
-          candleCtx.strokeStyle = sellActive ? '#ef4444' : 'rgba(239, 68, 68, 0.35)';
-          candleCtx.lineWidth = sellActive ? 2.0 : 1.0;
+          candleCtx.strokeStyle = sellActive ? '#ef4444' : 'rgba(239, 68, 68, 0.45)';
+          candleCtx.lineWidth = sellActive ? 2.0 : 1.2;
           candleCtx.strokeRect(padLeft, yTop, chartW, hZone);
 
-          // Sub-Zone: Untouched / Fresh Depth Area (85% - 100% Extreme Premium)
+          // Sub-Zone: Untouched / Fresh Depth Area (87.5% - 100% Extreme Premium)
           if (tfInfo.sell_zone.untouched_bottom) {
             const yUntouched = getY(tfInfo.sell_zone.untouched_bottom);
             const hFresh = Math.max(4, yUntouched - yTop);
-            candleCtx.fillStyle = sellActive ? 'rgba(239, 68, 68, 0.38)' : 'rgba(239, 68, 68, 0.12)';
+            candleCtx.fillStyle = sellActive ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.14)';
             candleCtx.fillRect(padLeft, yTop, chartW, hFresh);
 
-            // Fresh Untouched Line
             candleCtx.save();
             candleCtx.setLineDash([3, 2]);
             candleCtx.strokeStyle = '#fca5a5';
@@ -1405,10 +1410,10 @@
             candleCtx.fillText(`✨ UNTOUCHED FRESH DEPTH ($${tfInfo.sell_zone.untouched_bottom.toFixed(2)})`, padLeft + chartW - 190, yUntouched - 4);
           }
 
-          // Zone Tag Label
-          candleCtx.fillStyle = sellActive ? '#f87171' : 'rgba(248, 113, 113, 0.6)';
-          candleCtx.font = sellActive ? 'bold 10px ui-monospace, monospace' : '9px ui-monospace, monospace';
-          candleCtx.fillText(sellActive ? '● ACTIVE SELL ZONE (75-100% PREMIUM)' : 'SELL ZONE (75-100% STANDBY)', padLeft + 10, yTop + 14);
+          // Consolidated Zone Tag Label with exact boundary prices
+          candleCtx.fillStyle = sellActive ? '#f87171' : 'rgba(248, 113, 113, 0.85)';
+          candleCtx.font = 'bold 9.5px ui-monospace, monospace';
+          candleCtx.fillText(`● MERGED ROOF POI [SUPPLY]: $${roofBottom.toFixed(2)} - $${roofTop.toFixed(2)}`, padLeft + 10, yTop + 14);
         }
 
         // 2. Equilibrium 50% Hard TP Line (Gold)
@@ -2137,184 +2142,6 @@
         li.className = 'flex items-start gap-1.5';
         li.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 mt-0.5 text-[10px]"></i> <span>${r}</span>`;
         floorUl.appendChild(li);
-      });
-
-      // 3. Render Dedicated Multi-Candle Leg Context Visualizers
-      // Extract rich multi-candle sequence directly from currentChartData (candles window)
-      let roofLegBars = poi.roof.leg_candles;
-      let floorLegBars = poi.floor.leg_candles;
-
-      if ((!roofLegBars || roofLegBars.length <= 3) && currentChartData && currentChartData.candles) {
-        const allC = currentChartData.candles;
-        // Find roof anchor in all candles
-        let rIdx = -1;
-        if (poi.roof.base_candle && poi.roof.base_candle.timestamp) {
-          rIdx = allC.findIndex(c => c.time === poi.roof.base_candle.timestamp);
-        }
-        if (rIdx === -1 && tfData.swing_high) {
-          rIdx = allC.findIndex(c => Math.abs(c.high - tfData.swing_high) < 0.05);
-        }
-        if (rIdx !== -1) {
-          const startR = Math.max(0, rIdx - 5);
-          const endR = Math.min(allC.length, rIdx + 6);
-          roofLegBars = allC.slice(startR, endR).map((b, idxInSlice) => {
-            const actualIdx = startR + idxInSlice;
-            return {
-              time: b.time,
-              open: b.open,
-              high: b.high,
-              low: b.low,
-              close: b.close,
-              is_anchor: (actualIdx === rIdx),
-              role: actualIdx < rIdx ? 'LEG_IN' : (actualIdx === rIdx ? 'ANCHOR' : 'LEG_OUT')
-            };
-          });
-        }
-      }
-
-      if ((!floorLegBars || floorLegBars.length <= 3) && currentChartData && currentChartData.candles) {
-        const allC = currentChartData.candles;
-        // Find floor anchor in all candles
-        let fIdx = -1;
-        if (poi.floor.base_candle && poi.floor.base_candle.timestamp) {
-          fIdx = allC.findIndex(c => c.time === poi.floor.base_candle.timestamp);
-        }
-        if (fIdx === -1 && tfData.swing_low) {
-          fIdx = allC.findIndex(c => Math.abs(c.low - tfData.swing_low) < 0.05);
-        }
-        if (fIdx !== -1) {
-          const startF = Math.max(0, fIdx - 5);
-          const endF = Math.min(allC.length, fIdx + 6);
-          floorLegBars = allC.slice(startF, endF).map((b, idxInSlice) => {
-            const actualIdx = startF + idxInSlice;
-            return {
-              time: b.time,
-              open: b.open,
-              high: b.high,
-              low: b.low,
-              close: b.close,
-              is_anchor: (actualIdx === fIdx),
-              role: actualIdx < fIdx ? 'LEG_IN' : (actualIdx === fIdx ? 'ANCHOR' : 'LEG_OUT')
-            };
-          });
-        }
-      }
-
-      drawLegCandlesVisualizer('poi-roof-mini-canvas', roofLegBars, poi.roof.base_candle, '#f43f5e', 'ROOF PIVOT');
-      drawLegCandlesVisualizer('poi-floor-mini-canvas', floorLegBars, poi.floor.base_candle, '#10b981', 'FLOOR PIVOT');
-    }
-
-    function drawLegCandlesVisualizer(canvasId, legCandles, fallbackAnchor, themeColor, pivotLabel) {
-      const c = document.getElementById(canvasId);
-      if (!c) return;
-
-      // Adjust internal canvas width to container width
-      if (c.parentElement) {
-        c.width = c.parentElement.clientWidth || 240;
-      }
-      const ctx = c.getContext('2d');
-      const W = c.width;
-      const H = c.height;
-      ctx.clearRect(0, 0, W, H);
-
-      let bars = legCandles && legCandles.length > 0 ? legCandles : [
-        { open: fallbackAnchor.open - 1, high: fallbackAnchor.open, low: fallbackAnchor.open - 2, close: fallbackAnchor.open - 0.5, role: 'LEG_IN' },
-        { ...fallbackAnchor, is_anchor: true, role: 'ANCHOR' },
-        { open: fallbackAnchor.close, high: fallbackAnchor.close + 0.5, low: fallbackAnchor.close - 1.5, close: fallbackAnchor.close - 1, role: 'LEG_OUT' }
-      ];
-
-      let minP = Infinity;
-      let maxP = -Infinity;
-      bars.forEach(b => {
-        if (b.low < minP) minP = b.low;
-        if (b.high > maxP) maxP = b.high;
-      });
-      const padTop = 14;
-      const padBottom = 16;
-      const padSide = 16;
-      const span = (maxP - minP) || 0.50;
-
-      function getY(p) {
-        return padTop + (H - padTop - padBottom) - ((p - minP) / span) * (H - padTop - padBottom);
-      }
-
-      // Draw dashed reference grid
-      ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(padSide, H / 2);
-      ctx.lineTo(W - padSide, H / 2);
-      ctx.stroke();
-
-      const numBars = bars.length;
-      const stepX = (W - padSide * 2) / numBars;
-      const barW = Math.max(5, Math.min(14, stepX * 0.55));
-
-      // Draw Structural ZigZag Peak & Valley Connecting Vectors
-      ctx.save();
-      ctx.strokeStyle = themeColor === '#f43f5e' ? 'rgba(244, 63, 94, 0.45)' : 'rgba(16, 185, 129, 0.45)';
-      ctx.lineWidth = 1.4;
-      ctx.setLineDash([3, 2]);
-      ctx.beginPath();
-      bars.forEach((b, idx) => {
-        const x = padSide + idx * stepX + stepX / 2;
-        const pivotVal = b.is_anchor ? (themeColor === '#f43f5e' ? b.high : b.low) : ((b.high + b.low) / 2);
-        const y = getY(pivotVal);
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      ctx.restore();
-
-      // Render Candlesticks in sequence
-      bars.forEach((b, idx) => {
-        const x = padSide + idx * stepX + stepX / 2;
-        const yO = getY(b.open);
-        const yC = getY(b.close);
-        const yH = getY(b.high);
-        const yL = getY(b.low);
-        const isBull = b.close >= b.open;
-
-        // Halo / Indicator on the Anchor Candle
-        if (b.is_anchor) {
-          ctx.save();
-          ctx.fillStyle = themeColor === '#f43f5e' ? 'rgba(244, 63, 94, 0.25)' : 'rgba(16, 185, 129, 0.25)';
-          ctx.strokeStyle = themeColor;
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.roundRect(x - barW - 3, 4, barW * 2 + 6, H - 8, 4);
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-
-          // Anchor Badge Text
-          ctx.fillStyle = themeColor;
-          ctx.font = 'bold 8px ui-monospace, monospace';
-          ctx.fillText(pivotLabel, x - 22, 10);
-        }
-
-        // Wick
-        ctx.strokeStyle = isBull ? '#4ade80' : '#f87171';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(x, yH);
-        ctx.lineTo(x, yL);
-        ctx.stroke();
-
-        // Body
-        const top = Math.min(yO, yC);
-        const bodyH = Math.max(2, Math.abs(yO - yC));
-        ctx.fillStyle = isBull ? '#22c55e' : '#ef4444';
-        ctx.fillRect(x - barW / 2, top, barW, bodyH);
-        ctx.strokeStyle = isBull ? '#16a34a' : '#dc2626';
-        ctx.lineWidth = 0.8;
-        ctx.strokeRect(x - barW / 2, top, barW, bodyH);
-
-        // Role Label below candle (Leg-In / Anchor / Leg-Out)
-        ctx.fillStyle = b.is_anchor ? '#ffffff' : '#64748b';
-        ctx.font = '7.5px ui-monospace, monospace';
-        const roleShort = b.role === 'LEG_IN' ? 'IN' : (b.role === 'LEG_OUT' ? 'OUT' : '★');
-        ctx.fillText(roleShort, x - (roleShort === '★' ? 3 : 5), H - 4);
       });
     }
 
