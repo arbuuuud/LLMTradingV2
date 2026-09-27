@@ -87,6 +87,7 @@ class LiveMT5BridgeCore:
         self._last_force_close_check = 0.0
 
         # Institutional Broker Adapter for Dynamic Lot Sizing
+        # Institutional Broker Adapters for Standard and Cent accounts
         self.adapter = BrokerAdapter(BrokerSpec(
             broker_name="MetaQuotes",
             broker_symbol="XAUUSD",
@@ -95,6 +96,20 @@ class LiveMT5BridgeCore:
             min_lot=0.01,
             max_lot=100.0,
             lot_step=0.01
+        ))
+
+        self.cent_adapter = BrokerAdapter(BrokerSpec(
+            broker_name="PUPrime_Cent",
+            broker_symbol="XAUUSD.sc",
+            digits=2,
+            point=0.01,
+            contract_size=1.0,
+            min_lot=0.01,
+            max_lot=1000.0,
+            lot_step=0.01,
+            lot_decimals=2,
+            tick_size=0.01,
+            tick_value=0.01
         ))
 
         # Dynamic Multi-Session Equity Budgeting & Greed Trailing Overseer (DEC-028 Champion)
@@ -1014,9 +1029,12 @@ class LiveMT5BridgeCore:
                             # Only trade if account is active AND has an assigned profile (not 'none')
                             if is_active and p_name in profiles_cfg:
                                 r_pct = float(profiles_cfg[p_name].get("risk_per_trade_pct", 0.50))
+                                broker_name_str = str(acc_v.get("broker_name", "")).lower()
                                 target_accounts[acc_k] = {
                                     "account_number": str(acc_v.get("account_number")),
                                     "profile": p_name,
+                                    "broker_name": acc_v.get("broker_name", "MetaQuotes"),
+                                    "is_cent": "cent" in broker_name_str or "pu" in broker_name_str or acc_v.get("account_number") == "33848251",
                                     "equity": float(acc_v.get("equity", self.equity)),
                                     "risk_pct": r_pct
                                 }
@@ -1079,27 +1097,30 @@ class LiveMT5BridgeCore:
                         # Lewati hanya akun yang terkena halt, akun lain yang masih sehat tetap boleh trade!
                         continue
 
+                    # Select broker adapter: Cent adapter if real cent account, else standard
+                    active_adapter = self.cent_adapter if acc_info.get("is_cent") else self.adapter
+
                     for lay_idx, limit_p in enumerate(target_levels):
                         # Terapkan bobot Pyramid per layer
                         layer_weight = pyramid_weights[lay_idx] if lay_idx < len(pyramid_weights) else (1.0 / num_layers)
                         risk_per_layer = acc_risk_tot * layer_weight
 
                         sl_dist = max(1.0, abs(limit_p - sl))
-                        sl_dist_points = sl_dist / self.adapter.spec.point
+                        sl_dist_points = sl_dist / active_adapter.spec.point
 
-                        calc_lot = self.adapter.calculate_lot(
+                        calc_lot = active_adapter.calculate_lot(
                             equity=acc_eq,
                             risk_pct=risk_per_layer,
                             sl_distance_points=sl_dist_points
                         )
-                        layer_lot = self.adapter.normalize_lot(calc_lot)
+                        layer_lot = active_adapter.normalize_lot(calc_lot)
                         if layer_lot <= 0.0:
-                            layer_lot = 0.01
+                            layer_lot = active_adapter.spec.min_lot
 
                         order_cmd = {
                             "action": "ORDER",
                             "account_number": acc_num,
-                            "symbol": "XAUUSD",
+                            "symbol": active_adapter.spec.broker_symbol if acc_info.get("is_cent") else "XAUUSD",
                             "side": side,
                             "lots": layer_lot,
                             "price": limit_p,
