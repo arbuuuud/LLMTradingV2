@@ -125,6 +125,13 @@ class LiveMT5BridgeCore:
         # acc_id -> {"start_equity": float, "peak_pnl": float, "halted": bool, "prior_pnl": float, "status": str}
         self.account_sessions: Dict[str, Dict[str, Any]] = {}
 
+        # Directional Anti-Falling-Knife Cooldown (DEC-031 Champion: CLONE-SESSION-ADAPT-15M)
+        # Timestamps until which BUY or SELL orders are paused after consecutive loss
+        self.buy_cooldown_until: float = 0.0
+        self.sell_cooldown_until: float = 0.0
+        self.consecutive_buy_losses: int = 0
+        self.consecutive_sell_losses: int = 0
+
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
 
@@ -247,6 +254,37 @@ class LiveMT5BridgeCore:
             tmp_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
             os.replace(tmp_path, target_path)
             logger.info(f"💾 [FORWARD STORAGE] Saved Closed Trade #{trade_id} (PnL: ${record['pnl']:.2f}) -> {target_filename} (Total: {len(existing)}) [ATOMIC]")
+
+            # Update Directional Loss Streak & Cooldown (DEC-031 Champion)
+            trade_pnl = float(data.get("pnl", 0.0))
+            trade_dir = str(data.get("direction", "BUY")).upper()
+            now_ts = time.time()
+
+            # Tentukan durasi cooldown berdasarkan sesi saat ini
+            # Asia: 10 menit, London: 15 menit, NY Overlap: 25 menit (Juara CLONE-SESSION-ADAPT-15M)
+            now_h = datetime.now(timezone.utc).hour
+            if 0 <= now_h < 7:
+                cd_seconds = 10 * 60.0
+            elif 7 <= now_h < 13:
+                cd_seconds = 15 * 60.0
+            else:
+                cd_seconds = 25 * 60.0
+
+            if trade_pnl < 0:
+                if trade_dir == "BUY":
+                    self.consecutive_buy_losses += 1
+                    self.buy_cooldown_until = now_ts + cd_seconds
+                    logger.warning(f"🛡️ [ANTI-FALLING-KNIFE] BUY Loss #{self.consecutive_buy_losses} recorded! Cooldown BUY paused for {cd_seconds/60:.0f} mins until {datetime.fromtimestamp(self.buy_cooldown_until, tz=timezone.utc).strftime('%H:%M:%S UTC')}")
+                elif trade_dir == "SELL":
+                    self.consecutive_sell_losses += 1
+                    self.sell_cooldown_until = now_ts + cd_seconds
+                    logger.warning(f"🛡️ [ANTI-FALLING-KNIFE] SELL Loss #{self.consecutive_sell_losses} recorded! Cooldown SELL paused for {cd_seconds/60:.0f} mins until {datetime.fromtimestamp(self.sell_cooldown_until, tz=timezone.utc).strftime('%H:%M:%S UTC')}")
+            else:
+                # Reset loss streak upon profitable exit
+                if trade_dir == "BUY":
+                    self.consecutive_buy_losses = 0
+                elif trade_dir == "SELL":
+                    self.consecutive_sell_losses = 0
         except Exception as e:
             logger.error(f"Failed to save closed trade record: {e}")
 
@@ -972,6 +1010,21 @@ class LiveMT5BridgeCore:
 
             # Cooldown: 1 order event per direction change, no duplicate pending in same zone, and cooldown > 30s
             if not has_matching_pending and not has_active_pos and ((dir_cmd != self._last_order_direction) or (now_time - self._last_order_time > 60.0)):
+                # Directional Anti-Falling-Knife Gate (DEC-031 Champion)
+                if dir_cmd == "BUY" and now_time < self.buy_cooldown_until:
+                    rem_cd = int(self.buy_cooldown_until - now_time)
+                    if not hasattr(self, "_last_knife_warn_buy") or (now_time - getattr(self, "_last_knife_warn_buy", 0) > 120.0):
+                        self._last_knife_warn_buy = now_time
+                        logger.info(f"⏳ [ANTI-FALLING-KNIFE GATE] BUY order skipped! Paused for cooling down after loss ({rem_cd}s remaining).")
+                    return
+
+                if dir_cmd == "SELL" and now_time < self.sell_cooldown_until:
+                    rem_cd = int(self.sell_cooldown_until - now_time)
+                    if not hasattr(self, "_last_knife_warn_sell") or (now_time - getattr(self, "_last_knife_warn_sell", 0) > 120.0):
+                        self._last_knife_warn_sell = now_time
+                        logger.info(f"⏳ [ANTI-FALLING-KNIFE GATE] SELL order skipped! Paused for cooling down after loss ({rem_cd}s remaining).")
+                    return
+
                 self._last_order_direction = dir_cmd
                 self._last_order_time = now_time
 
