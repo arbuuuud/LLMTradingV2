@@ -45,6 +45,14 @@ def test_dashboard_api(tmp_path):
             post_data = json.loads(resp_post.read().decode("utf-8"))
             assert post_data["success"] is True
             assert post_data["note"]["topic"] == "Test Note"
+
+        # 3. Test GET /api/kage-bunshin/history
+        req_kb = urllib.request.Request(f"http://127.0.0.1:{port}/api/kage-bunshin/history")
+        with urllib.request.urlopen(req_kb) as resp_kb:
+            assert resp_kb.status == 200
+            kb_data = json.loads(resp_kb.read().decode("utf-8"))
+            assert "tournaments" in kb_data
+            assert len(kb_data["tournaments"]) >= 1
     finally:
         server.shutdown()
         server.server_close()
