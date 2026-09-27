@@ -2649,57 +2649,99 @@
               </div>
             </div>
 
-            <!-- Full Clone Leaderboard Collapsible Table -->
+            <!-- Top 10 Clones Quick Showcase Table -->
             ${Array.isArray(tn.full_leaderboard) && tn.full_leaderboard.length > 0 ? `
-              <div class="pt-2 border-t border-slate-800/80">
-                <details class="group cursor-pointer">
-                  <summary class="text-xs font-mono font-bold text-indigo-400 hover:text-indigo-300 flex items-center justify-between py-1.5 list-none select-none">
-                    <span class="flex items-center gap-2">
-                      <i class="fa-solid fa-table-list text-purple-400"></i> LIHAT PAPAN KLASEMEN LENGKAP (${tn.full_leaderboard.length} KLON)
-                    </span>
-                    <span class="text-[11px] text-slate-500 group-open:rotate-180 transition-transform">▼</span>
-                  </summary>
-                  <div class="mt-3 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
-                    <table class="w-full text-left text-[11px] font-mono">
-                      <thead class="bg-slate-900/90 text-slate-400 border-b border-slate-800">
-                        <tr>
-                          <th class="p-2.5 text-center">Rank</th>
-                          <th class="p-2.5">Clone ID</th>
-                          <th class="p-2.5">Variasi / Deskripsi</th>
-                          <th class="p-2.5 text-right">Net Return</th>
-                          <th class="p-2.5 text-right">Max DD</th>
-                          <th class="p-2.5 text-right">Win Rate</th>
-                          <th class="p-2.5 text-center">Max Streak</th>
-                          <th class="p-2.5 text-right">Trades</th>
-                          <th class="p-2.5 text-center">Status Keputusan</th>
-                        </tr>
-                      </thead>
-                      <tbody class="divide-y divide-slate-900/60 text-slate-300">
-                        ${tn.full_leaderboard.map(cl => {
-                          const isChamp = cl.rank === 1;
-                          const isRej = (cl.status || '').includes('REJECTED');
-                          const rowBg = isChamp ? 'bg-indigo-500/10' : (isRej ? 'opacity-70 hover:opacity-100' : 'hover:bg-slate-900/40');
-                          const badgeCol = isChamp ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : (isRej ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-slate-800 text-slate-400 border-slate-700');
-                          return `
-                            <tr class="${rowBg} transition">
-                              <td class="p-2 text-center font-bold ${isChamp ? 'text-amber-400' : 'text-slate-500'}">${cl.rank}</td>
-                              <td class="p-2 font-bold text-white whitespace-nowrap">${cl.clone_id}</td>
-                              <td class="p-2 text-slate-300 min-w-[200px] font-sans">${cl.description}</td>
-                              <td class="p-2 text-right font-bold text-emerald-400 whitespace-nowrap">${cl.net_pnl}</td>
-                              <td class="p-2 text-right text-rose-400 whitespace-nowrap">${cl.max_dd}</td>
-                              <td class="p-2 text-right text-blue-400 whitespace-nowrap">${cl.win_rate}</td>
-                              <td class="p-2 text-center text-slate-400">${cl.max_streak || '-'}</td>
-                              <td class="p-2 text-right text-slate-400 whitespace-nowrap">${typeof cl.trades === 'number' ? cl.trades.toLocaleString() : cl.trades}</td>
-                              <td class="p-2 text-center whitespace-nowrap">
-                                <span class="px-2 py-0.5 rounded text-[9.5px] font-bold border ${badgeCol}">${cl.status}</span>
-                              </td>
-                            </tr>
-                          `;
-                        }).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
+              <div class="space-y-2 pt-2 border-t border-slate-800/80">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-ranking-star text-amber-400"></i> TOP 10 CLONES PERINGKAT UTAMA:
+                  </span>
+                  <span class="text-[10px] font-mono text-slate-500">
+                    Menampilkan 10 dari total ${tn.full_leaderboard.length} klon
+                  </span>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80 shadow-inner">
+                  <table class="w-full text-left text-[11px] font-mono">
+                    <thead class="bg-slate-900/90 text-slate-400 border-b border-slate-800">
+                      <tr>
+                        <th class="p-2 text-center w-12">Rank</th>
+                        <th class="p-2">Clone ID</th>
+                        <th class="p-2">Variasi / Deskripsi Arsitektur</th>
+                        <th class="p-2 text-right">Net Return</th>
+                        <th class="p-2 text-right">Max DD</th>
+                        <th class="p-2 text-right">Win Rate</th>
+                        <th class="p-2 text-center">Max Streak</th>
+                        <th class="p-2 text-right">Trades</th>
+                        <th class="p-2 text-center">Keputusan</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-900/60 text-slate-300">
+                      ${tn.full_leaderboard.slice(0, 10).map(cl => {
+                        const isChamp = cl.rank === 1;
+                        const isTop3 = cl.rank <= 3;
+                        const isRej = (cl.status || '').includes('REJECTED');
+                        const rowBg = isChamp ? 'bg-indigo-500/10 font-medium' : (isRej ? 'opacity-70 hover:opacity-100' : 'hover:bg-slate-900/40');
+                        const badgeCol = isChamp 
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-bold' 
+                          : (isTop3 ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : (isRej ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'));
+                        const medal = cl.rank === 1 ? '🥇' : (cl.rank === 2 ? '🥈' : (cl.rank === 3 ? '🥉' : cl.rank));
+                        return `
+                          <tr class="${rowBg} transition">
+                            <td class="p-2 text-center font-bold ${isChamp ? 'text-amber-400' : (isTop3 ? 'text-slate-300' : 'text-slate-500')}">${medal}</td>
+                            <td class="p-2 font-bold text-white whitespace-nowrap">${cl.clone_id}</td>
+                            <td class="p-2 text-slate-300 min-w-[220px] font-sans">${cl.description}</td>
+                            <td class="p-2 text-right font-bold text-emerald-400 whitespace-nowrap">${cl.net_pnl}</td>
+                            <td class="p-2 text-right text-rose-400 whitespace-nowrap">${cl.max_dd}</td>
+                            <td class="p-2 text-right text-blue-400 whitespace-nowrap">${cl.win_rate}</td>
+                            <td class="p-2 text-center text-slate-400">${cl.max_streak || '-'}</td>
+                            <td class="p-2 text-right text-slate-400 whitespace-nowrap">${typeof cl.trades === 'number' ? cl.trades.toLocaleString() : cl.trades}</td>
+                            <td class="p-2 text-center whitespace-nowrap">
+                              <span class="px-2 py-0.5 rounded text-[9.5px] border ${badgeCol}">${cl.status}</span>
+                            </td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- If more than 10 clones, show collapsible toggle for the rest -->
+                ${tn.full_leaderboard.length > 10 ? `
+                  <details class="group cursor-pointer pt-1">
+                    <summary class="text-[11px] font-mono font-bold text-indigo-400 hover:text-indigo-300 flex items-center justify-between py-1.5 list-none select-none">
+                      <span class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-ol text-purple-400"></i> Buka Sisa Peringkat #${11} s/d #${tn.full_leaderboard.length} (+${tn.full_leaderboard.length - 10} Klon Lainnya)
+                      </span>
+                      <span class="text-[10px] text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-2 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
+                      <table class="w-full text-left text-[11px] font-mono">
+                        <tbody class="divide-y divide-slate-900/60 text-slate-300">
+                          ${tn.full_leaderboard.slice(10).map(cl => {
+                            const isRej = (cl.status || '').includes('REJECTED');
+                            const badgeCol = isRej ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-slate-800 text-slate-400 border-slate-700';
+                            return `
+                              <tr class="hover:bg-slate-900/40 transition">
+                                <td class="p-2 text-center font-bold text-slate-500 w-12">${cl.rank}</td>
+                                <td class="p-2 font-bold text-slate-200 whitespace-nowrap">${cl.clone_id}</td>
+                                <td class="p-2 text-slate-400 min-w-[220px] font-sans">${cl.description}</td>
+                                <td class="p-2 text-right font-bold text-emerald-400/90 whitespace-nowrap">${cl.net_pnl}</td>
+                                <td class="p-2 text-right text-rose-400/90 whitespace-nowrap">${cl.max_dd}</td>
+                                <td class="p-2 text-right text-blue-400/90 whitespace-nowrap">${cl.win_rate}</td>
+                                <td class="p-2 text-center text-slate-400">${cl.max_streak || '-'}</td>
+                                <td class="p-2 text-right text-slate-400 whitespace-nowrap">${typeof cl.trades === 'number' ? cl.trades.toLocaleString() : cl.trades}</td>
+                                <td class="p-2 text-center whitespace-nowrap">
+                                  <span class="px-2 py-0.5 rounded text-[9.5px] border ${badgeCol}">${cl.status}</span>
+                                </td>
+                              </tr>
+                            `;
+                          }).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                ` : ''}
               </div>
             ` : ''}
 
