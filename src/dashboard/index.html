@@ -344,8 +344,13 @@
           </span>
           <button onclick="switchSpecEngine('pac_scalper')" id="btn-spec-engine-pac" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 border border-indigo-400/30 flex items-center gap-2 transition">
             <i class="fa-solid fa-chart-simple"></i>
-            <span>PAC Scalper (v2.1.0)</span>
+            <span>PAC Scalper (v2.2.0)</span>
             <span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">CHAMPION</span>
+          </button>
+          <button onclick="switchSpecEngine('kage_bunshin_history')" id="btn-spec-engine-kb" class="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center gap-2 transition">
+            <i class="fa-solid fa-clone text-indigo-400"></i>
+            <span>Historical Kage Bunshin</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-mono">TOURNAMENTS</span>
           </button>
           <button onclick="switchSpecEngine('engine_2_slot')" id="btn-spec-engine-eng2" class="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center gap-2 transition">
             <i class="fa-solid fa-cubes-stacked"></i>
@@ -568,6 +573,51 @@
         </div>
       </div>
       </div> <!-- /spec-pac-view -->
+
+      <!-- Spec View Container for Historical Kage Bunshin Tournaments -->
+      <div id="spec-kb-view" class="hidden space-y-6">
+        <!-- Header Card -->
+        <div class="glass-card rounded-2xl p-6 border border-indigo-500/40 bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-950/90 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 uppercase tracking-wider">
+                EMPIRICAL RESEARCH DATABANK
+              </span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                MANDAT: DEC-019 (ZERO MUTATION WITHOUT TOURNAMENT)
+              </span>
+            </div>
+            <h2 class="text-2xl font-bold text-white mt-1.5 flex items-center gap-2">
+              <i class="fa-solid fa-clone text-indigo-400"></i> Historical Kage Bunshin Tournaments Registry
+            </h2>
+            <p class="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
+              Kompilasi lengkap seluruh turnamen paralel eksplorasi kuantitatif Naruto Shadow Clone. Setiap perubahan logika, formula risiko, dan filter indikator diuji tanding secara head-to-head di 300,440 bar data lake sebelum disahkan ke live production.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="text-center px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800">
+              <span class="text-[10px] text-slate-400 font-mono block">TOTAL TOURNAMENTS</span>
+              <span id="kb-total-tournaments" class="text-sm font-bold text-white font-mono">5 Selesai</span>
+            </div>
+            <div class="text-center px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800">
+              <span class="text-[10px] text-slate-400 font-mono block">GROUND TRUTH</span>
+              <span class="text-sm font-bold text-indigo-400 font-mono">300,440 M1</span>
+            </div>
+            <div class="text-center px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <span class="text-[10px] text-emerald-400 font-mono block">PHILOSOPHY</span>
+              <span class="text-sm font-bold text-emerald-400 font-mono">100% EMPIRICAL</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tournaments List Accordion / Cards Container -->
+        <div id="kb-tournaments-list" class="space-y-4">
+          <!-- Dynamically populated from /api/kage-bunshin/history -->
+          <div class="p-8 text-center text-slate-500 font-mono">
+            <i class="fa-solid fa-spinner fa-spin text-indigo-400 mr-2"></i> Memuat riwayat turnamen Kage Bunshin...
+          </div>
+        </div>
+      </div> <!-- /spec-kb-view -->
 
       <!-- Spec View Container for Plug-in Engine #2 (Slot) -->
       <div id="spec-eng2-view" class="hidden space-y-6">
@@ -1120,19 +1170,31 @@
     function switchSpecEngine(engineId) {
       activeSpecEngine = engineId;
       const btnPac = document.getElementById('btn-spec-engine-pac');
+      const btnKb = document.getElementById('btn-spec-engine-kb');
       const btnEng2 = document.getElementById('btn-spec-engine-eng2');
       const pacView = document.getElementById('spec-pac-view');
+      const kbView = document.getElementById('spec-kb-view');
       const eng2View = document.getElementById('spec-eng2-view');
+
+      // Reset all buttons to inactive style
+      if (btnPac) btnPac.className = 'px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center gap-2 transition';
+      if (btnKb) btnKb.className = 'px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center gap-2 transition';
+      if (btnEng2) btnEng2.className = 'px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center gap-2 transition';
+
+      // Hide all views
+      if (pacView) pacView.classList.add('hidden');
+      if (kbView) kbView.classList.add('hidden');
+      if (eng2View) eng2View.classList.add('hidden');
 
       if (engineId === 'pac_scalper') {
         if (btnPac) btnPac.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 border border-indigo-400/30 flex items-center gap-2 transition';
-        if (btnEng2) btnEng2.className = 'px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center gap-2 transition';
         if (pacView) pacView.classList.remove('hidden');
-        if (eng2View) eng2View.classList.add('hidden');
+      } else if (engineId === 'kage_bunshin_history') {
+        if (btnKb) btnKb.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-purple-600 text-white shadow-lg shadow-purple-500/20 border border-purple-400/30 flex items-center gap-2 transition';
+        if (kbView) kbView.classList.remove('hidden');
+        fetchKageBunshinHistory();
       } else {
-        if (btnPac) btnPac.className = 'px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center gap-2 transition';
         if (btnEng2) btnEng2.className = 'px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-600 text-white shadow-lg shadow-amber-500/20 border border-amber-400/30 flex items-center gap-2 transition';
-        if (pacView) pacView.classList.add('hidden');
         if (eng2View) eng2View.classList.remove('hidden');
       }
     }
@@ -2483,6 +2545,107 @@
         });
       } catch (err) {
         console.error("Failed to load roadmap:", err);
+      }
+    }
+
+    // ==========================================
+    // HISTORICAL KAGE BUNSHIN TOURNAMENTS
+    // ==========================================
+    async function fetchKageBunshinHistory() {
+      const container = document.getElementById('kb-tournaments-list');
+      if (!container) return;
+
+      try {
+        const res = await fetch('/api/kage-bunshin/history');
+        const data = await res.json();
+        const tournaments = data.tournaments || [];
+
+        const totalBadge = document.getElementById('kb-total-tournaments');
+        if (totalBadge) totalBadge.innerText = `${tournaments.length} Selesai`;
+
+        if (tournaments.length === 0) {
+          container.innerHTML = `
+            <div class="glass-card p-8 rounded-2xl border border-slate-800 text-center text-slate-500 font-mono">
+              <i class="fa-solid fa-clone text-amber-500 mr-2"></i> Belum ada rekaman turnamen Kage Bunshin di sistem.
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = '';
+        tournaments.forEach((tn, idx) => {
+          const card = document.createElement('div');
+          card.className = 'glass-card p-6 rounded-2xl border border-slate-800/80 hover:border-indigo-500/40 transition space-y-4';
+
+          const metrics = tn.champion_metrics || {};
+          const metricPills = Object.entries(metrics).map(([k, v]) => `
+            <div class="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-center">
+              <span class="text-[9px] text-slate-400 font-mono uppercase block">${k.replace(/_/g, ' ')}</span>
+              <strong class="text-xs font-mono font-bold text-emerald-400">${v}</strong>
+            </div>
+          `).join('');
+
+          const findingsHtml = (tn.key_findings || []).map(f => `
+            <li class="flex items-start gap-2 text-xs text-slate-300">
+              <i class="fa-solid fa-circle-check text-indigo-400 mt-1 text-[11px] flex-shrink-0"></i>
+              <span>${f}</span>
+            </li>
+          `).join('');
+
+          card.innerHTML = `
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                    ${tn.decision_ref || 'DEC-REF'}
+                  </span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                    ${tn.clones_count} KLON DIADU
+                  </span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">
+                    ${tn.dataset_bars || '300,440 M1'}
+                  </span>
+                </div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-trophy text-amber-400"></i> ${tn.title}
+                </h3>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                ${metricPills}
+              </div>
+            </div>
+
+            <!-- Objective & What Was Sought -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
+                <span class="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fa-solid fa-magnifying-glass"></i> APA YANG LAGI DICARI (OBJECTIVE):
+                </span>
+                <p class="text-xs text-slate-300 leading-relaxed">${tn.objective}</p>
+              </div>
+
+              <div class="p-4 rounded-xl bg-emerald-950/10 border border-emerald-500/30 space-y-1.5">
+                <span class="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fa-solid fa-crown"></i> HASIL & JUARA MUTLAK (RESULT):
+                </span>
+                <div class="text-xs font-bold text-white font-mono">${tn.champion_id}: <span class="text-emerald-300 font-normal font-sans">${tn.champion_desc}</span></div>
+              </div>
+            </div>
+
+            <!-- Key Findings & Decisions Codified -->
+            <div class="space-y-2 pt-1">
+              <span class="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
+                KESIMPULAN METODOLOGI & REGULASI KAGE BUNSHIN:
+              </span>
+              <ul class="space-y-1.5">
+                ${findingsHtml}
+              </ul>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error("Failed to load Kage Bunshin history:", err);
       }
     }
 

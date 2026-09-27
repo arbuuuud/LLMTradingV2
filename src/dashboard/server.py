@@ -647,6 +647,23 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(spec_data, indent=2).encode("utf-8"))
             return
 
+        elif path == "/api/kage-bunshin/history":
+            hist_file = REPORTS_DIR / "all_kage_bunshin_tournaments_history.json"
+            history_data = []
+            if hist_file.exists():
+                try:
+                    history_data = json.loads(hist_file.read_text(encoding="utf-8"))
+                except Exception:
+                    history_data = []
+            self._set_json_headers(200)
+            self.wfile.write(json.dumps({
+                "tournaments": history_data,
+                "total_tournaments": len(history_data),
+                "dataset_standard": "300,440 M1 XAUUSD Bars",
+                "mandate": "DEC-019 Empirical Kage Bunshin Mandate"
+            }, indent=2).encode("utf-8"))
+            return
+
         elif path == "/api/snapshot":
             if CACHE_FILE.exists():
                 self._set_json_headers(200)

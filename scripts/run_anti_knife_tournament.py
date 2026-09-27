@@ -441,3 +441,11 @@ with open(report_path, "w") as f:
 
 print(f"\n✅ Laporan lengkap tersimpan di: {report_path}")
 
+# Otomatis update history registry untuk dashboard (/api/kage-bunshin/history)
+try:
+    from src.workflows.kage_bunshin import update_tournament_history_registry
+    update_tournament_history_registry()
+    print("✨ Dashboard Historical Kage Bunshin registry otomatis diperbarui!")
+except Exception as e:
+    pass
+
