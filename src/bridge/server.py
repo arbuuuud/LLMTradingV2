@@ -103,13 +103,13 @@ class LiveMT5BridgeCore:
             broker_symbol="XAUUSD.sc",
             digits=2,
             point=0.01,
-            contract_size=1.0,
+            contract_size=100.0,
             min_lot=0.01,
-            max_lot=1000.0,
+            max_lot=100.0,
             lot_step=0.01,
             lot_decimals=2,
             tick_size=0.01,
-            tick_value=0.01
+            tick_value=1.0  # 1 point move (0.01) on 1.0 lot = 1.00 USC in cent account currency
         ))
 
         # Dynamic Multi-Session Equity Budgeting & Greed Trailing Overseer (DEC-028 Champion)
