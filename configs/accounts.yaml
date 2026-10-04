@@ -1,20 +1,116 @@
 accounts:
-  ACC-10012841012:
-    account_number: '10012841012'
+  ACC-113137266:
+    account_number: '113137266'
+    broker_name: MetaQuotes Ltd.
+    server: MetaQuotes-Demo
+    account_type: DEMO
+    risk_profile: prop_firm
+    active: true
+    status: CONNECTED
+    balance: 97010.04
+    equity: 97010.04
+    assigned_timeframes:
+    - M1
+    - M2
+    - M3
+    - M5
+    updated_at: '2026-10-04T12:00:00'
+  ACC-113137116:
+    account_number: '113137116'
     broker_name: MetaQuotes Ltd.
     server: MetaQuotes-Demo
     account_type: DEMO
     risk_profile: sweet_spot
     active: true
     status: CONNECTED
-    balance: 9790.36
-    equity: 9790.36
+    balance: 9643.09
+    equity: 9643.09
     assigned_timeframes:
     - M1
     - M2
     - M3
     - M5
-    updated_at: '2026-09-26T20:52:48.086581'
+    updated_at: '2026-10-04T12:00:00'
+  ACC-5056446504:
+    account_number: '5056446504'
+    broker_name: MetaQuotes Ltd.
+    server: MetaQuotes-Demo
+    account_type: DEMO
+    risk_profile: aggressive
+    active: true
+    status: CONNECTED
+    balance: 2737.64
+    equity: 2737.64
+    assigned_timeframes:
+    - M1
+    - M2
+    - M3
+    - M5
+    updated_at: '2026-10-04T12:00:00'
+  ACC-5056446633:
+    account_number: '5056446633'
+    broker_name: MetaQuotes Ltd.
+    server: MetaQuotes-Demo
+    account_type: DEMO
+    risk_profile: yolo
+    active: true
+    status: CONNECTED
+    balance: 420.66
+    equity: 420.66
+    assigned_timeframes:
+    - M1
+    - M2
+    - M3
+    - M5
+    updated_at: '2026-10-04T12:00:00'
+  ACC-33848251:
+    account_number: '33848251'
+    broker_name: PU Prime Ltd
+    server: MetaQuotes-Demo
+    account_type: DEMO
+    risk_profile: sweet_spot
+    active: true
+    status: CONNECTED
+    balance: 1000.29
+    equity: 1000.29
+    assigned_timeframes:
+    - M1
+    - M2
+    - M3
+    - M5
+    updated_at: '2026-10-04T12:00:00'
+  ACC-36070354:
+    account_number: '36070354'
+    broker_name: PU Prime Ltd
+    server: MetaQuotes-Demo
+    account_type: DEMO
+    risk_profile: sweet_spot
+    active: true
+    status: CONNECTED
+    balance: 1000.0
+    equity: 1000.0
+    assigned_timeframes:
+    - M1
+    - M2
+    - M3
+    - M5
+    updated_at: '2026-10-04T12:00:00'
+  ACC-33848220:
+    account_number: '33848220'
+    broker_name: PU Prime Ltd
+    server: MetaQuotes-Demo
+    account_type: DEMO
+    risk_profile: sweet_spot
+    active: true
+    status: CONNECTED
+    balance: 1000.0
+    equity: 1000.0
+    assigned_timeframes:
+    - M1
+    - M2
+    - M3
+    - M5
+    updated_at: '2026-10-04T12:00:00'
 auth:
   admin_email: trader@institution.local
   password_hash: 240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9
