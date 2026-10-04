@@ -22,6 +22,8 @@ from src.data.adapter import BrokerAdapter, BrokerSpec
 from src.engine.force_close import ForceCloseGuardianEngine, ForceCloseAction
 from src.agents.sasuke import SasukeSharinganAgent, SharinganPerceptionLevel, SasukeAction
 from src.features.structure import detect_swing_points, evaluate_market_structure
+from src.features.smc import detect_fvgs, detect_order_blocks, detect_fvg_confluences
+from src.features.poi_prioritizer import POIPrioritizer
 
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -728,6 +730,36 @@ class LiveMT5BridgeCore:
 
             tf_candles[tf] = tf_bar_list
 
+            # 4. Institutional POI Databank & Prioritizer Integration (DEC-032: RBR/DBD Prioritization)
+            # Detect all active FVGs, Confluences, and OrderBlocks (RBR, DBD, DBR, RBD)
+            c_highs = np.array([x["high"] for x in aggregated], dtype=float)
+            c_lows = np.array([x["low"] for x in aggregated], dtype=float)
+            c_closes = np.array([x["close"] for x in aggregated], dtype=float)
+            c_opens = np.array([x["open"] for x in aggregated], dtype=float)
+            c_times = [datetime.fromtimestamp(x["time"], tz=timezone.utc) for x in aggregated]
+
+            active_fvgs = detect_fvgs(c_highs, c_lows, c_times)
+            active_obs = detect_order_blocks(c_opens, c_highs, c_lows, c_closes, c_times, active_fvgs)
+            active_confluences = detect_fvg_confluences(active_fvgs, [])
+
+            prioritizer = POIPrioritizer(proximity_threshold_points=12.0)
+            selected_roof = prioritizer.rank_and_select_roof(mid, active_obs, active_fvgs, active_confluences, sw_high)
+            selected_floor = prioritizer.rank_and_select_floor(mid, active_obs, active_fvgs, active_confluences, sw_low)
+
+            # If prioritizer selected a fresh RBR or DBD, prioritize its anchor and boundaries over generic swing!
+            roof_is_dbd = (selected_roof.poi_type == "DBD")
+            floor_is_rbr = (selected_floor.poi_type == "RBR")
+
+            if roof_is_dbd:
+                sw_high = selected_roof.top
+                sell_zone_bottom = selected_roof.bottom
+                sell_zone_top = selected_roof.top
+
+            if floor_is_rbr:
+                sw_low = selected_floor.bottom
+                buy_zone_top = selected_floor.top
+                buy_zone_bottom = selected_floor.bottom
+
             # Find specific anchor/base candles for Roof (Swing High) and Floor (Swing Low)
             roof_idx = max(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["high"]) if lookback_sw else None
             floor_idx = min(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["low"]) if lookback_sw else None
@@ -774,7 +806,7 @@ class LiveMT5BridgeCore:
                 "roof": {
                     "price_high": sw_high,
                     "zone_range": f"${sell_zone_bottom:.2f} - ${sw_high:.2f}",
-                    "structure_context": "Rally-Base-Drop (RBD) Sweep Leg" if roof_leg_bars else "Swing High Pivot",
+                    "structure_context": selected_roof.merged_description if roof_is_dbd else ("Rally-Base-Drop (RBD) Sweep Leg" if roof_leg_bars else "Swing High Pivot"),
                     "base_candle": {
                         "time": roof_time_str,
                         "timestamp": roof_time_val,
@@ -785,8 +817,8 @@ class LiveMT5BridgeCore:
                     },
                     "leg_candles": roof_leg_bars,
                     "reasons": [
-                        f"Liquidity Sweep Peak at ${sw_high:.2f} ({roof_time_str})",
-                        f"Premium 75-100% Imbalance Zone (${sell_zone_bottom:.2f} - ${sw_high:.2f})",
+                        f"{'★ PRIORITIZED DBD SUPPLY BASE' if roof_is_dbd else 'Liquidity Sweep Peak'} at ${sw_high:.2f} ({roof_time_str})",
+                        f"Consolidated Zone: ${sell_zone_bottom:.2f} - ${sw_high:.2f}",
                         f"3-Layer Sell Grid: L1=${sell_grid_levels[0]:.2f}, L2=${sell_grid_levels[1]:.2f}, L3=${sell_grid_levels[2]:.2f}",
                         f"Virgin Depth >50% Untouched above ${untouched_sell_bottom:.2f}"
                     ]
@@ -794,7 +826,7 @@ class LiveMT5BridgeCore:
                 "floor": {
                     "price_low": sw_low,
                     "zone_range": f"${sw_low:.2f} - ${buy_zone_top:.2f}",
-                    "structure_context": "Drop-Base-Rally (DBR) Demand Leg" if floor_leg_bars else "Swing Low Pivot",
+                    "structure_context": selected_floor.merged_description if floor_is_rbr else ("Drop-Base-Rally (DBR) Demand Leg" if floor_leg_bars else "Swing Low Pivot"),
                     "base_candle": {
                         "time": floor_time_str,
                         "timestamp": floor_time_val,
@@ -805,8 +837,8 @@ class LiveMT5BridgeCore:
                     },
                     "leg_candles": floor_leg_bars,
                     "reasons": [
-                        f"Demand Absorption Low at ${sw_low:.2f} ({floor_time_str})",
-                        f"Discount 0-25% Valuation Base (${sw_low:.2f} - ${buy_zone_top:.2f})",
+                        f"{'★ PRIORITIZED RBR DEMAND BASE' if floor_is_rbr else 'Demand Absorption Low'} at ${sw_low:.2f} ({floor_time_str})",
+                        f"Consolidated Zone: ${sw_low:.2f} - ${buy_zone_top:.2f}",
                         f"3-Layer Buy Grid: L1=${buy_grid_levels[0]:.2f}, L2=${buy_grid_levels[1]:.2f}, L3=${buy_grid_levels[2]:.2f}",
                         f"Virgin Depth >50% Untouched below ${untouched_buy_top:.2f}"
                     ]
