@@ -127,6 +127,10 @@ class LiveMT5BridgeCore:
         # acc_id -> {"start_equity": float, "peak_pnl": float, "halted": bool, "prior_pnl": float, "status": str}
         self.account_sessions: Dict[str, Dict[str, Any]] = {}
 
+        # Per-Account Daily Profit Target & Max Loss Tracking (DEC-034 Master Daily Risk Guard)
+        # acc_id -> {"daily_start_equity": float, "peak_daily_pnl": float, "daily_halted": bool, "status_desc": str}
+        self.account_daily_guard: Dict[str, Dict[str, Any]] = {}
+
         # Directional Anti-Falling-Knife Cooldown (DEC-031 Champion: CLONE-SESSION-ADAPT-15M)
         # Timestamps until which BUY or SELL orders are paused after consecutive loss
         self.buy_cooldown_until: float = 0.0
@@ -1003,6 +1007,9 @@ class LiveMT5BridgeCore:
         if today_str != self.current_session_day:
             self.current_session_day = today_str
             self.prior_session_pnl = 0.0
+            # Reset Daily Account Guard at 00:00 UTC day boundary
+            self.account_daily_guard.clear()
+            logger.info(f"🌅 [DAILY DAY BOUNDARY] New trading day {today_str} initialized. Daily profit/loss guards reset!")
 
         if active_sess != self.current_session_name:
             if self.current_session_name != "" and self.current_session_name != "OFF_HOURS":
@@ -1185,7 +1192,51 @@ class LiveMT5BridgeCore:
                     acc_eq = max(100.0, acc_info["equity"])
                     acc_risk_tot = acc_info["risk_pct"]
 
-                    # Per-Account Dynamic Session Risk & Greed Trailing Evaluation (DEC-030)
+                    # 1. PER-ACCOUNT DAILY TARGET & MAX LOSS GUARD (DEC-034 Master Daily Circuit Breaker)
+                    acc_daily = self.account_daily_guard.setdefault(acc_num, {
+                        "daily_start_equity": acc_eq,
+                        "peak_daily_pnl": 0.0,
+                        "daily_halted": False,
+                        "reason": ""
+                    })
+
+                    daily_pnl = acc_eq - acc_daily["daily_start_equity"]
+                    if daily_pnl > acc_daily["peak_daily_pnl"]:
+                        acc_daily["peak_daily_pnl"] = daily_pnl
+
+                    # Ambil setting batas harian dari accounts.yaml
+                    p_cfg = profiles_cfg.get(acc_prof, {})
+                    daily_target_pct = float(p_cfg.get("daily_target_pct", 2.5))
+                    max_daily_loss_pct = float(p_cfg.get("max_daily_loss_pct", 2.0))
+                    pullback_lock_pct = float(p_cfg.get("daily_lock_pullback_pct", 0.5))
+
+                    max_loss_dollar = max(5.0, acc_daily["daily_start_equity"] * (max_daily_loss_pct / 100.0))
+                    daily_target_dollar = max(10.0, acc_daily["daily_start_equity"] * (daily_target_pct / 100.0))
+
+                    # A. Cek Hard Daily Max Loss Cut-off
+                    if daily_pnl <= -max_loss_dollar:
+                        if not acc_daily["daily_halted"]:
+                            acc_daily["daily_halted"] = True
+                            acc_daily["reason"] = f"Daily Max Loss Hit: ${daily_pnl:+.2f} (Batas -{max_daily_loss_pct}%)"
+                            logger.error(f"🛑 [DAILY HARD LOCKOUT] Account #{acc_num} ({acc_prof}) hit Daily Max Loss limit (-${max_loss_dollar:.2f}). Halted until 00:00 UTC!")
+                            asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "account_number": acc_num, "magic": 1001}))
+
+                    # B. Cek Daily Profit Target & Pullback Lock
+                    if acc_daily["peak_daily_pnl"] >= daily_target_dollar:
+                        pullback_dollar = acc_daily["daily_start_equity"] * (pullback_lock_pct / 100.0)
+                        daily_floor_lock = daily_target_dollar * 0.60 # amankan 60% dari target
+                        if daily_pnl <= (acc_daily["peak_daily_pnl"] - pullback_dollar) or daily_pnl <= daily_floor_lock:
+                            if not acc_daily["daily_halted"]:
+                                acc_daily["daily_halted"] = True
+                                acc_daily["reason"] = f"Daily Profit Locked: PnL ${daily_pnl:+.2f} (Target +{daily_target_pct}% secured)"
+                                logger.info(f"🏆 [DAILY TARGET SECURED] Account #{acc_num} ({acc_prof}) secured daily profit (+${daily_pnl:.2f}). Trading finished for today!")
+                                asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "account_number": acc_num, "magic": 1001}))
+
+                    if acc_daily["daily_halted"]:
+                        # Lewati akun yang sudah selesai atau kena batas rugi harian
+                        continue
+
+                    # 2. Per-Account Dynamic Session Risk & Greed Trailing Evaluation (DEC-030)
                     acc_sess = self.account_sessions.setdefault(acc_num, {
                         "start_equity": acc_eq,
                         "peak_pnl": 0.0,
