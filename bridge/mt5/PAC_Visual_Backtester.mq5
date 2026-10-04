@@ -47,9 +47,11 @@ input bool                  InpEnableNaruto2     = true;               // Enable
 input double                InpNaruto2TriggerPts = 2.00;               // Naruto 2 Trigger Distance above Summary BEP ($)
 input double                InpNaruto2TrailDist  = 2.00;               // Naruto 2 Trailing Step Distance ($)
 
-input group "=== Safeguard Protections ==="
+input group "=== Safeguard & Replanning Protections ==="
 input bool                  InpEnableAntiKnife   = true;               // Anti-Falling-Knife Directional Cooldown (DEC-031)
 input int                   InpCooldownMinutes   = 15;                 // Cooldown Duration after Stop Loss (Minutes)
+input int                   InpPendingExpireBars = 15;                 // Stale Pending Orders Expiry & Replan (Bars)
+input bool                  InpCancelStaleOnEq   = true;               // Cancel Stale Limits when Price reaches 50% Equilibrium TP
 
 input group "=== Visual Chart Graphics (Strategy Tester Visual Mode) ==="
 input bool                  InpDrawZones         = true;               // Draw Buy & Sell Institutional Zones
@@ -342,10 +344,76 @@ void OnTick()
    if(InpShowOnChartHUD)
       DrawHUD(direction, mid, sw_high, sw_low, eq, roof_desc, floor_desc);
 
-   // 4. Execution Logic: 3-Layer Grid Limit Order Placement
+   // 4. Stale Pending Orders Purge & Intelligent Replanning (Zero Stale Waiting)
    int total_positions = GetOurPositionsCount();
    int total_pending   = GetOurOrdersCount();
 
+   // Clean up orphan pending orders when all positions have just closed
+   static int prev_positions = 0;
+   if(prev_positions > 0 && total_positions == 0 && total_pending > 0)
+   {
+      CancelOurPendingOrders("Positions Closed -> Cancel Unfilled Remaining Pending Limits");
+      total_pending = GetOurOrdersCount();
+   }
+   prev_positions = total_positions;
+
+   // Purge stale pending orders if price left the zone, target was reached, or direction flipped
+   if(total_pending > 0 && total_positions == 0)
+   {
+      bool cancel_stale = false;
+      string cancel_reason = "";
+
+      // A. Direction Flipped
+      if(m_last_direction == "BUY" && direction == "SELL")
+      {
+         cancel_stale = true;
+         cancel_reason = "Direction Flipped to SELL";
+      }
+      else if(m_last_direction == "SELL" && direction == "BUY")
+      {
+         cancel_stale = true;
+         cancel_reason = "Direction Flipped to BUY";
+      }
+      // B. Price Left Zone & Target Already Reached (Equilibrium Hit without filling us)
+      else if(InpCancelStaleOnEq && m_last_direction == "BUY" && mid >= eq)
+      {
+         cancel_stale = true;
+         cancel_reason = "Setup Expired: Price Reached 50% Equilibrium TP without Fill";
+      }
+      else if(InpCancelStaleOnEq && m_last_direction == "SELL" && mid <= eq)
+      {
+         cancel_stale = true;
+         cancel_reason = "Setup Expired: Price Reached 50% Equilibrium TP without Fill";
+      }
+      // C. Invalidation Breakout Beyond SL
+      else if(m_last_direction == "BUY" && mid < buy_sl)
+      {
+         cancel_stale = true;
+         cancel_reason = "Floor Invalidation Breakout Below SL";
+      }
+      else if(m_last_direction == "SELL" && mid > sell_sl)
+      {
+         cancel_stale = true;
+         cancel_reason = "Roof Invalidation Breakout Above SL";
+      }
+      // D. Time Expiration: order standing for > N bars and price is outside discount/premium
+      else if(TimeCurrent() - m_last_order_time > (InpPendingExpireBars * 60))
+      {
+         if((m_last_direction == "BUY" && !in_discount) || (m_last_direction == "SELL" && !in_premium))
+         {
+            cancel_stale = true;
+            cancel_reason = StringFormat("Time Expired (> %d bars) and Price Left Zone -> Replan New Zone", InpPendingExpireBars);
+         }
+      }
+
+      if(cancel_stale)
+      {
+         CancelOurPendingOrders(cancel_reason);
+         total_pending = GetOurOrdersCount();
+      }
+   }
+
+   // 5. Execution Logic: 3-Layer Grid Limit Order Placement on Fresh Active Zones
    if(total_positions == 0 && total_pending == 0)
    {
       datetime now_time = TimeCurrent();
@@ -397,6 +465,62 @@ void OnTick()
          }
       }
    }
+}
+
+//+------------------------------------------------------------------+
+//| Trade Transaction Handler (Instant SL Detection & Cooldown)      |
+//+------------------------------------------------------------------+
+void OnTradeTransaction(const MqlTradeTransaction &trans,
+                        const MqlTradeRequest &request,
+                        const MqlTradeResult &result)
+{
+   if(trans.type == TRADE_TRANSACTION_DEAL_ADD)
+   {
+      ulong deal = trans.deal;
+      if(deal > 0 && HistoryDealSelect(deal))
+      {
+         long entry_type = HistoryDealGetInteger(deal, DEAL_ENTRY);
+         long magic = HistoryDealGetInteger(deal, DEAL_MAGIC);
+         if(magic == InpMagicNumber && (entry_type == DEAL_ENTRY_OUT || entry_type == DEAL_ENTRY_INOUT))
+         {
+            double pnl = HistoryDealGetDouble(deal, DEAL_PROFIT);
+            long deal_type = HistoryDealGetInteger(deal, DEAL_TYPE);
+            // If pnl < 0 (Stop Loss hit), trigger Anti-Falling-Knife cooldown
+            if(pnl < 0 && InpEnableAntiKnife)
+            {
+               datetime now = TimeCurrent();
+               if(deal_type == DEAL_TYPE_BUY) // closed a short position
+                  m_sell_cooldown_until = now + (InpCooldownMinutes * 60);
+               else if(deal_type == DEAL_TYPE_SELL) // closed a long position
+                  m_buy_cooldown_until = now + (InpCooldownMinutes * 60);
+
+               PrintFormat("[PAC Visual Tester] 🛡️ Anti-Falling-Knife Cooldown triggered for %d mins (PnL: $%.2f)", InpCooldownMinutes, pnl);
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Cancel Pending Orders Function                                   |
+//+------------------------------------------------------------------+
+void CancelOurPendingOrders(string reason="STALE")
+{
+   int deleted = 0;
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = OrderGetTicket(i);
+      if(ticket > 0)
+      {
+         if(OrderGetInteger(ORDER_MAGIC) == InpMagicNumber && OrderGetString(ORDER_SYMBOL) == _Symbol)
+         {
+            if(m_trade.OrderDelete(ticket))
+               deleted++;
+         }
+      }
+   }
+   if(deleted > 0)
+      PrintFormat("[PAC Visual Tester] 🧹 Cleaned %d pending orders (%s)", deleted, reason);
 }
 
 //+------------------------------------------------------------------+
