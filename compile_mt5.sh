@@ -43,6 +43,9 @@ compile_file() {
 # Main Bridge EA
 compile_file "MQL5/Experts/LLMTradingV2/LLMTradingBridge.mq5"
 
+# Standalone Visual Backtester EA for Strategy Tester
+compile_file "MQL5/Experts/LLMTradingV2/PAC_Visual_Backtester.mq5"
+
 # Inspectors
 compile_file "MQL5/Experts/LLMTradingV2/inspectors/Structure_Inspector.mq5"
 compile_file "MQL5/Experts/LLMTradingV2/inspectors/FVG_Inspector.mq5"
