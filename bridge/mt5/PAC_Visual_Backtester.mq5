@@ -53,6 +53,11 @@ input int                   InpCooldownMinutes   = 15;                 // Cooldo
 input int                   InpPendingExpireBars = 15;                 // Stale Pending Orders Expiry & Replan (Bars)
 input bool                  InpCancelStaleOnEq   = true;               // Cancel Stale Limits when Price reaches 50% Equilibrium TP
 
+input group "=== Sasuke Force-Close Guardian (Python Brain Sync) ==="
+input bool                  InpEnableSasukeForceClose = true;          // Enable Sasuke Reversal Force TP (Evening/Morning Star)
+input double                InpMinProfitRForReversal  = 0.50;          // Min Floating R to activate Reversal Force TP (Default: +0.5R)
+input bool                  InpEnableStructuralCut    = true;          // Enable Emergency Cut on Structural Invalidation (DEC-026)
+
 input group "=== Visual Chart Graphics (Strategy Tester Visual Mode) ==="
 input bool                  InpDrawZones         = true;               // Draw Buy & Sell Institutional Zones
 input bool                  InpDrawPACLines      = true;               // Draw Upper, Midpoint, Lower Channel Lines
@@ -344,7 +349,10 @@ void OnTick()
    if(InpShowOnChartHUD)
       DrawHUD(direction, mid, sw_high, sw_low, eq, roof_desc, floor_desc);
 
-   // 4. Stale Pending Orders Purge & Intelligent Replanning (Zero Stale Waiting)
+   // 4. Sasuke Force-Close Guardian (Reversal Cognition & Structural Invalidation - Python Brain Sync)
+   EvaluateSasukeForceClose(rates, copied, sw_high, sw_low, mid);
+
+   // 5. Stale Pending Orders Purge & Intelligent Replanning (Zero Stale Waiting)
    int total_positions = GetOurPositionsCount();
    int total_pending   = GetOurOrdersCount();
 
@@ -495,6 +503,108 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                   m_buy_cooldown_until = now + (InpCooldownMinutes * 60);
 
                PrintFormat("[PAC Visual Tester] 🛡️ Anti-Falling-Knife Cooldown triggered for %d mins (PnL: $%.2f)", InpCooldownMinutes, pnl);
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Sasuke Force-Close Guardian: Reversal Cognition & Invalidation   |
+//+------------------------------------------------------------------+
+void EvaluateSasukeForceClose(const MqlRates &rates[], int total_rates, double sw_high, double sw_low, double current_price)
+{
+   if(!InpEnableSasukeForceClose && !InpEnableStructuralCut)
+      return;
+
+   if(total_rates < 4)
+      return;
+
+   // Last 3 completed bars: c1 = rates[total_rates-3], c2 = rates[total_rates-2], c3 = rates[total_rates-1]
+   MqlRates c1 = rates[total_rates-3];
+   MqlRates c2 = rates[total_rates-2];
+   MqlRates c3 = rates[total_rates-1];
+   double rng3 = MathMax(c3.high - c3.low, 0.01);
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      if(m_position.SelectByIndex(i))
+      {
+         if(m_position.Magic() == InpMagicNumber && m_position.Symbol() == _Symbol)
+         {
+            ulong ticket = m_position.Ticket();
+            ENUM_POSITION_TYPE p_type = m_position.PositionType();
+            double open_p = m_position.PriceOpen();
+            double sl_p   = m_position.StopLoss();
+            double sl_dist = (sl_p > 0) ? MathAbs(open_p - sl_p) : 3.50;
+            if(sl_dist < 0.50) sl_dist = 0.50;
+
+            bool do_force_close = false;
+            string fc_reason = "";
+
+            if(p_type == POSITION_TYPE_BUY)
+            {
+               double running_pts = current_price - open_p;
+               double r_multiple  = running_pts / sl_dist;
+
+               // A. Structural Invalidation: Price closed below recent floor
+               if(InpEnableStructuralCut && c3.close < sw_low)
+               {
+                  do_force_close = true;
+                  fc_reason = StringFormat("Structural Cut: M1 closed below Floor ($%.2f < $%.2f)", c3.close, sw_low);
+               }
+               // B. Reversal Cognition: Evening Star or Bearish Marubozu when running >= +0.5R
+               else if(InpEnableSasukeForceClose && r_multiple >= InpMinProfitRForReversal)
+               {
+                  // 1. Evening Star (Bullish candle -> Small Star -> Bearish Drop below 50% of c1)
+                  if(c1.close > c1.open && MathAbs(c2.close - c2.open) <= (rng3 * 0.35) && c3.close < ((c1.open + c1.close) / 2.0))
+                  {
+                     do_force_close = true;
+                     fc_reason = StringFormat("Sasuke Reversal: Evening Star at +%.2fR (Peak $%.2f)", r_multiple, MathMax(c1.high, MathMax(c2.high, c3.high)));
+                  }
+                  // 2. Bearish Momentum Marubozu (Large solid red body breaking c2 low)
+                  else if((c3.open - c3.close) > 0 && ((c3.open - c3.close) / rng3) >= 0.70 && c3.close < c2.low)
+                  {
+                     do_force_close = true;
+                     fc_reason = StringFormat("Sasuke Reversal: Bearish Marubozu at +%.2fR", r_multiple);
+                  }
+               }
+            }
+            else if(p_type == POSITION_TYPE_SELL)
+            {
+               double running_pts = open_p - current_price;
+               double r_multiple  = running_pts / sl_dist;
+
+               // A. Structural Invalidation: Price closed above recent roof
+               if(InpEnableStructuralCut && c3.close > sw_high)
+               {
+                  do_force_close = true;
+                  fc_reason = StringFormat("Structural Cut: M1 closed above Roof ($%.2f > $%.2f)", c3.close, sw_high);
+               }
+               // B. Reversal Cognition: Morning Star or Bullish Marubozu when running >= +0.5R
+               else if(InpEnableSasukeForceClose && r_multiple >= InpMinProfitRForReversal)
+               {
+                  // 1. Morning Star (Bearish candle -> Small Star -> Bullish Rise above 50% of c1)
+                  if(c1.close < c1.open && MathAbs(c2.close - c2.open) <= (rng3 * 0.35) && c3.close > ((c1.open + c1.close) / 2.0))
+                  {
+                     do_force_close = true;
+                     fc_reason = StringFormat("Sasuke Reversal: Morning Star at +%.2fR (Base $%.2f)", r_multiple, MathMin(c1.low, MathMin(c2.low, c3.low)));
+                  }
+                  // 2. Bullish Momentum Marubozu (Large solid green body breaking c2 high)
+                  else if((c3.close - c3.open) > 0 && ((c3.close - c3.open) / rng3) >= 0.70 && c3.close > c2.high)
+                  {
+                     do_force_close = true;
+                     fc_reason = StringFormat("Sasuke Reversal: Bullish Marubozu at +%.2fR", r_multiple);
+                  }
+               }
+            }
+
+            if(do_force_close)
+            {
+               if(m_trade.PositionClose(ticket))
+               {
+                  PrintFormat("[PAC Visual Tester] 👁️ FORCE CLOSE EXECUTED on #%I64u: %s", ticket, fc_reason);
+               }
             }
          }
       }
