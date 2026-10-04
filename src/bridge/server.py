@@ -435,6 +435,50 @@ class LiveMT5BridgeCore:
                         if len(self.pending_notifications) > 10:
                             self.pending_notifications.pop(0)
 
+        # 3. Naruto 2: Multi-Layer Summary BEP + $2.00 Trailing Engine (DEC-033 Champion)
+        # Evaluates positions grouped by account when multiple grid layers are filled
+        from collections import defaultdict
+        pos_by_account = defaultdict(list)
+        for p in self.live_open_positions:
+            acc_key = str(p.get("account_number", self.active_account_id))
+            pos_by_account[acc_key].append(p)
+
+        for acc_k, p_list in pos_by_account.items():
+            if len(p_list) >= 2: # 2 or 3 layers filled together
+                side = p_list[0].get("type")
+                tot_lots = sum(float(x.get("lots", 0.01)) for x in p_list)
+                if tot_lots > 0:
+                    weighted_entry = sum(float(x.get("entry_price", current_price)) * float(x.get("lots", 0.01)) for x in p_list) / tot_lots
+                    summary_bep = round(weighted_entry, 2)
+
+                    should_trail = False
+                    trail_target_sl = None
+
+                    if side == "BUY":
+                        # If price reaches +$2.00 above summary BEP
+                        if current_price >= summary_bep + 2.0:
+                            should_trail = True
+                            trail_target_sl = max(summary_bep, round(current_price - 2.0, 2))
+                    elif side == "SELL":
+                        # If price reaches -$2.00 below summary BEP
+                        if current_price <= summary_bep - 2.0:
+                            should_trail = True
+                            trail_target_sl = min(summary_bep, round(current_price + 2.0, 2))
+
+                    if should_trail and trail_target_sl is not None:
+                        for p in p_list:
+                            t_num = p.get("ticket")
+                            cur_p_sl = float(p.get("sl", 0.0))
+                            update_needed = (cur_p_sl == 0.0) or (side == "BUY" and trail_target_sl > cur_p_sl) or (side == "SELL" and trail_target_sl < cur_p_sl)
+                            if update_needed:
+                                logger.info(f"🥋 [NARUTO 2 SUMMARY TRAILING] Account #{acc_k} {side} #{t_num} SL trailed to ${trail_target_sl:.2f} (Summary BEP: ${summary_bep:.2f} | Price: ${current_price:.2f})")
+                                asyncio.create_task(self.broadcast({
+                                    "action": "MODIFY_POSITION",
+                                    "ticket": t_num,
+                                    "sl": trail_target_sl,
+                                    "tp": p.get("tp", 0.0)
+                                }))
+
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         client_addr = writer.get_extra_info("peername")
         logger.info(f"🟢 MT5 EA Client connected from {client_addr}")
@@ -1132,8 +1176,8 @@ class LiveMT5BridgeCore:
                     return
 
                 dispatched_orders_summary = []
-                # Alokasi Bobot Pyramid 20% - 30% - 50% (Juara Empiris Turnamen Kage Bunshin)
-                pyramid_weights = [0.20, 0.30, 0.50]
+                # Alokasi Bobot Grid Terkalibrasi (L1: 25%, L2: 35%, L3: 40%) - Juara Naruto 2
+                pyramid_weights = [0.25, 0.35, 0.40]
 
                 for acc_k, acc_info in target_accounts.items():
                     acc_num = acc_info["account_number"]

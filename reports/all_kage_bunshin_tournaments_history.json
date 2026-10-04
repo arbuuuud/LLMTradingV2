@@ -1,20 +1,78 @@
 [
   {
+    "id": "KB-09-LAYER3-ESCAPE-AND-SUMMARY-TRAILING",
+    "title": "Turnamen Manajemen Layer 3 & Summary Trailing: Naruto 1 vs Naruto 2 vs Naruto 3",
+    "decision_ref": "DEC-033",
+    "dataset_bars": "300,440 Bar M1 XAUUSD (Ground Truth)",
+    "clones_count": 3,
+    "objective": "Menghilangkan anjloknya Win Rate saat Layer 3 terisi (dari 89% ke 36%) dengan menguji 3 model: Naruto 1 (Quick Escape ke Layer 1 Entry), Naruto 2 (Summary BEP + $2.00 Trailing SL), dan Naruto 3 (Status Quo Equilibrium 50% TP).",
+    "hypothesis_tested": "Menghitung rata-rata tertimbang harga masuk (Summary BEP) dari 3 layer dan mengunci SL di BEP saat floating +$2.00, lalu men-trail SL $2.00 di belakang harga, akan mengamankan profit berlipat saat tren berbalik sekaligus mengeliminasi risiko tersapu breakout.",
+    "methodology_architecture": "Adu tanding 3 varian Naruto dengan bobot grid terkalibrasi L1: 25%, L2: 35%, L3: 40% diuji di 300,440 bar M1 dan diuji khusus pada minggu flash dump emas (25 Sep - 02 Okt 2026).",
+    "champion_id": "NARUTO-2",
+    "champion_desc": "Multi-Layer Summary BEP + $2.00 Dynamic Trailing Stop (Kunci BEP saat +$2, lalu trail -$2 dari pucuk)",
+    "champion_metrics": {
+      "profit_factor": "6.42 (Melesat 345% dari 1.44)",
+      "net_pnl": "+$389,316.87 (Melompat 13.7x Lipat)",
+      "max_dd": "2.78% (Pangkas dari 4.05%)",
+      "win_rate": "63.0%",
+      "prod_week_pnl": "+$19,064.17 (vs -$5,386.25 riil live)"
+    },
+    "key_findings": [
+      "NARUTO-2 DINOBATKAN SEBAGAI JUARA MUTLAK: Melipatgandakan Net PnL dari $28k menjadi $389k dan memangkas Drawdown menjadi hanya 2.78%.",
+      "Diuji khusus pada minggu terburuk emas (25 Sep - 02 Okt 2026 saat emas crash $180 poin): Naruto 2 menghasilkan PROFIT BERSIH +$19,064.17 dengan PF 9.38!",
+      "Naruto 1 (Quick Escape L1 BEP) menghasilkan PF 1.31 (terlalu terburu-buru keluar sehingga membuang potensi profit).",
+      "Diadopsi resmi ke dalam src/bridge/server.py sebagai DEC-033."
+    ],
+    "full_leaderboard": [
+      {
+        "rank": 1,
+        "clone_id": "NARUTO-2",
+        "description": "Summary BEP + $2.00 Trailing SL (Kunci BEP saat +$2, trail -$2)",
+        "net_pnl": "+$389,316.87",
+        "max_dd": "2.78%",
+        "win_rate": "63.0%",
+        "max_streak": 22,
+        "trades": 13162,
+        "status": "\ud83e\udd47 JUARA MUTLAK (DIADOPSI DEC-033)"
+      },
+      {
+        "rank": 2,
+        "clone_id": "NARUTO-3",
+        "description": "Latest Control (Tetap menunggu Midpoint 50% Full TP)",
+        "net_pnl": "+$28,299.31",
+        "max_dd": "4.05%",
+        "win_rate": "62.3%",
+        "max_streak": 19,
+        "trades": 11495,
+        "status": "\ud83e\udd48 RUNNER-UP (STATUS QUO)"
+      },
+      {
+        "rank": 3,
+        "clone_id": "NARUTO-1",
+        "description": "Quick Escape to L1 Entry (Hard TP semua layer di Layer 1)",
+        "net_pnl": "+$20,031.54",
+        "max_dd": "4.26%",
+        "win_rate": "61.9%",
+        "max_streak": 20,
+        "trades": 14677,
+        "status": "\ud83e\udd49 3RD PLACE (PROFIT TERPANGKAS)"
+      }
+    ]
+  },
+  {
     "id": "KB-08-ANTI-FALLING-KNIFE",
     "title": "Turnamen Akbar Anti-Falling-Knife: Safeguard Gelombang Crash & Dump",
     "decision_ref": "DEC-031",
     "dataset_bars": "300,440 Bar M1 XAUUSD (10.2 Bulan)",
     "clones_count": 30,
-    "objective": "Menghilangkan fenomena 'buying the dip yang berujung amblas' (catching falling knife) seperti yang terjadi di live VPS (Wave #26 pkl 16:14-16:30 UTC rugi -$1,013 karena 15x BUY beruntun saat flash dump).",
-    "hypothesis_tested": "Pemberian jeda hukuman (cooling down directional penalty) setelah 1x atau 2x kerugian beruntun akan memangkas rentetan loss terburuk tanpa membunuh profitabilitas normal di pasar sideway.",
-    "methodology_architecture": "Menyuntikkan 5 kelompok varian: (1) Baseline status quo, (2) Cooldown 10m-60m pasca-1x loss, (3) Toleransi 2-Strikes & 3-Strikes, (4) Filter arah Macro HTF Trend (M15 MA Slope), (5) Dynamic Session Adaptive Cooldown.",
+    "objective": "Menghilangkan kebobolan beruntun (seperti kasus Wave #26 crash -$1,013 di live VPS) dengan Directional Loss Cooldown & Adaptive Session Penalty tanpa memangkas win rate.",
     "champion_id": "CLONE-SESSION-ADAPT-15M",
     "champion_desc": "Adaptive Directional Cooldown: 10m Asia, 15m London, 25m NY Overlap",
     "champion_metrics": {
       "net_pnl": "+$10,258,552.89",
       "max_dd": "0.23%",
       "win_rate": "96.5%",
-      "max_streak_loss": "9 (Pangkas 36% dari 14 streak)",
+      "max_streak_loss": "9 (Memangkas 36% dari 14 streak)",
       "total_trades": "56,704"
     },
     "key_findings": [
@@ -22,336 +80,71 @@
       "Indikator HTF MA Slope (Klon 23-30) gugur telak karena over-filtering di pasar sideway (Net PnL anjlok dari $10M ke $3M).",
       "Diadopsi langsung ke src/bridge/server.py untuk menggembok order searah selama 10-25 menit jika terkena Stop Loss."
     ],
-    "full_leaderboard": [
+    "top_clones": [
       {
-        "rank": 1,
-        "clone_id": "CLONE-CD-10M",
-        "description": "10 Min Cooldown after 1x Loss",
-        "net_pnl": "+$10,339,497.59",
-        "max_dd": "0.23%",
-        "win_rate": "96.6%",
-        "max_streak": 14,
-        "trades": 56888,
-        "status": "\ud83e\udd47 JUARA MUTLAK (DIADOPSI DEC-031)"
+        "id": "CLONE-CD-10M",
+        "desc": "10 Min Cooldown after 1x Loss",
+        "final_balance": 10349497.589935802,
+        "net_pnl": 10339497.589935802,
+        "max_dd_pct": 0.2285869118277052,
+        "win_rate": 96.58979046547603,
+        "win_day_rate": 100.0,
+        "total_trades": 56888,
+        "max_loss_streak": 14,
+        "months_ge_20": 12,
+        "avg_monthly_roi": 8616.247991613172
       },
       {
-        "rank": 2,
-        "clone_id": "CLONE-SESSION-ADAPT-15M",
-        "description": "Adaptive CD (Asia 10m / Ldn 15m / NY 25m)",
-        "net_pnl": "+$10,258,552.89",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 9,
-        "trades": 56704,
-        "status": "\ud83e\udd48 RUNNER-UP"
+        "id": "CLONE-SESSION-ADAPT-15M",
+        "desc": "Adaptive CD (Asia 10m / Ldn 15m / NY 25m)",
+        "final_balance": 10268552.885166725,
+        "net_pnl": 10258552.885166725,
+        "max_dd_pct": 0.2285869118277052,
+        "win_rate": 96.51700056433408,
+        "win_day_rate": 100.0,
+        "total_trades": 56704,
+        "max_loss_streak": 9,
+        "months_ge_20": 12,
+        "avg_monthly_roi": 8548.794070972284
       },
       {
-        "rank": 3,
-        "clone_id": "CLONE-CD-15M",
-        "description": "15 Min Cooldown after 1x Loss",
-        "net_pnl": "+$10,241,822.05",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 9,
-        "trades": 56724,
-        "status": "\ud83e\udd49 3RD PLACE"
+        "id": "CLONE-CD-15M",
+        "desc": "15 Min Cooldown after 1x Loss",
+        "final_balance": 10251822.048718866,
+        "net_pnl": 10241822.048718866,
+        "max_dd_pct": 0.2285869118277052,
+        "win_rate": 96.54996121571116,
+        "win_day_rate": 100.0,
+        "total_trades": 56724,
+        "max_loss_streak": 9,
+        "months_ge_20": 12,
+        "avg_monthly_roi": 8534.851707265736
       },
       {
-        "rank": 4,
-        "clone_id": "CLONE-BASE-BUF",
-        "description": "Baseline + 0.25x Dynamic Buffer (DEC-029)",
-        "net_pnl": "+$10,215,880.24",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 14,
-        "trades": 56489,
-        "status": "TESTED"
+        "id": "CLONE-BASE-BUF",
+        "desc": "Baseline + 0.25x Dynamic Buffer (DEC-029)",
+        "final_balance": 10225880.23751076,
+        "net_pnl": 10215880.23751076,
+        "max_dd_pct": 0.2285869118277052,
+        "win_rate": 96.45417691940024,
+        "win_day_rate": 100.0,
+        "total_trades": 56489,
+        "max_loss_streak": 14,
+        "months_ge_20": 12,
+        "avg_monthly_roi": 8513.233531258958
       },
       {
-        "rank": 5,
-        "clone_id": "CLONE-2STRIKE-10M",
-        "description": "2 Strikes Loss -> 10 Min Cooldown",
-        "net_pnl": "+$10,184,446.59",
-        "max_dd": "0.23%",
-        "win_rate": "96.6%",
-        "max_streak": 14,
-        "trades": 56661,
-        "status": "TESTED"
-      },
-      {
-        "rank": 6,
-        "clone_id": "CLONE-CD-20M",
-        "description": "20 Min Cooldown after 1x Loss",
-        "net_pnl": "+$10,139,178.91",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 9,
-        "trades": 56133,
-        "status": "TESTED"
-      },
-      {
-        "rank": 7,
-        "clone_id": "CLONE-SESSION-ADAPT-2STRIKE",
-        "description": "Adaptive CD with 2 Strikes",
-        "net_pnl": "+$10,129,054.68",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 9,
-        "trades": 56439,
-        "status": "TESTED"
-      },
-      {
-        "rank": 8,
-        "clone_id": "CLONE-2STRIKE-15M",
-        "description": "2 Strikes Loss -> 15 Min Cooldown",
-        "net_pnl": "+$10,097,698.94",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 9,
-        "trades": 56432,
-        "status": "TESTED"
-      },
-      {
-        "rank": 9,
-        "clone_id": "CLONE-3STRIKE-15M",
-        "description": "3 Strikes Loss -> 15 Min Cooldown",
-        "net_pnl": "+$10,079,267.51",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 10,
-        "trades": 56363,
-        "status": "TESTED"
-      },
-      {
-        "rank": 10,
-        "clone_id": "CLONE-2STRIKE-20M",
-        "description": "2 Strikes Loss -> 20 Min Cooldown",
-        "net_pnl": "+$10,018,116.03",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 9,
-        "trades": 55982,
-        "status": "TESTED"
-      },
-      {
-        "rank": 11,
-        "clone_id": "CLONE-3STRIKE-30M",
-        "description": "3 Strikes Loss -> 30 Min Cooldown",
-        "net_pnl": "+$10,006,986.10",
-        "max_dd": "0.23%",
-        "win_rate": "96.4%",
-        "max_streak": 10,
-        "trades": 55952,
-        "status": "TESTED"
-      },
-      {
-        "rank": 12,
-        "clone_id": "CLONE-SESSION-ADAPT-30M",
-        "description": "Deep Adaptive CD (Asia 15m / Ldn 30m / NY 45m)",
-        "net_pnl": "+$9,911,642.68",
-        "max_dd": "0.23%",
-        "win_rate": "96.3%",
-        "max_streak": 9,
-        "trades": 55394,
-        "status": "TESTED"
-      },
-      {
-        "rank": 13,
-        "clone_id": "CLONE-CD-30M",
-        "description": "30 Min Cooldown after 1x Loss",
-        "net_pnl": "+$9,887,993.90",
-        "max_dd": "0.23%",
-        "win_rate": "96.3%",
-        "max_streak": 9,
-        "trades": 55145,
-        "status": "TESTED"
-      },
-      {
-        "rank": 14,
-        "clone_id": "CLONE-2STRIKE-30M",
-        "description": "2 Strikes Loss -> 30 Min Cooldown",
-        "net_pnl": "+$9,799,919.80",
-        "max_dd": "0.23%",
-        "win_rate": "96.3%",
-        "max_streak": 9,
-        "trades": 55047,
-        "status": "TESTED"
-      },
-      {
-        "rank": 15,
-        "clone_id": "CLONE-3STRIKE-60M",
-        "description": "3 Strikes Loss -> 60 Min Cooldown",
-        "net_pnl": "+$9,772,202.81",
-        "max_dd": "0.23%",
-        "win_rate": "96.1%",
-        "max_streak": 10,
-        "trades": 54425,
-        "status": "TESTED"
-      },
-      {
-        "rank": 16,
-        "clone_id": "CLONE-CD-45M",
-        "description": "45 Min Cooldown after 1x Loss",
-        "net_pnl": "+$9,562,391.30",
-        "max_dd": "0.23%",
-        "win_rate": "96.0%",
-        "max_streak": 9,
-        "trades": 53841,
-        "status": "TESTED"
-      },
-      {
-        "rank": 17,
-        "clone_id": "CLONE-2STRIKE-45M",
-        "description": "2 Strikes Loss -> 45 Min Cooldown",
-        "net_pnl": "+$9,478,433.70",
-        "max_dd": "0.23%",
-        "win_rate": "96.0%",
-        "max_streak": 9,
-        "trades": 53808,
-        "status": "TESTED"
-      },
-      {
-        "rank": 18,
-        "clone_id": "CLONE-CD-60M",
-        "description": "60 Min Cooldown after 1x Loss",
-        "net_pnl": "+$9,270,153.80",
-        "max_dd": "0.23%",
-        "win_rate": "95.8%",
-        "max_streak": 9,
-        "trades": 52038,
-        "status": "TESTED"
-      },
-      {
-        "rank": 19,
-        "clone_id": "CLONE-HYBRID-CHAMPION-B",
-        "description": "Hybrid: 2 Strikes -> 20m CD + 0.30x Buffer",
-        "net_pnl": "+$9,861,189.24",
-        "max_dd": "0.23%",
-        "win_rate": "96.5%",
-        "max_streak": 9,
-        "trades": 55424,
-        "status": "TESTED"
-      },
-      {
-        "rank": 20,
-        "clone_id": "CLONE-HYBRID-CHAMPION-C",
-        "description": "Hybrid: 1 Strike -> 30m CD + 0.30x Buffer",
-        "net_pnl": "+$9,815,725.70",
-        "max_dd": "0.23%",
-        "win_rate": "96.3%",
-        "max_streak": 9,
-        "trades": 54998,
-        "status": "TESTED"
-      },
-      {
-        "rank": 21,
-        "clone_id": "CLONE-HYBRID-CHAMPION-A",
-        "description": "Hybrid: 2 Strikes -> 15m CD + 0.35x Buffer",
-        "net_pnl": "+$10,266,334.44",
-        "max_dd": "0.23%",
-        "win_rate": "96.6%",
-        "max_streak": 11,
-        "trades": 56439,
-        "status": "TESTED"
-      },
-      {
-        "rank": 22,
-        "clone_id": "CLONE-BASE-00",
-        "description": "Baseline Murni Tanpa Filter (Status Quo)",
-        "net_pnl": "+$10,274,074.07",
-        "max_dd": "0.25%",
-        "win_rate": "96.4%",
-        "max_streak": 14,
-        "trades": 56245,
-        "status": "TESTED"
-      },
-      {
-        "rank": 23,
-        "clone_id": "CLONE-HTF-TREND",
-        "description": "HTF Trend Filter Murni (No CD)",
-        "net_pnl": "+$3,653,190.39",
-        "max_dd": "0.72%",
-        "win_rate": "87.0%",
-        "max_streak": 9,
-        "trades": 29358,
-        "status": "\u274c REJECTED (OVER-FILTERED)"
-      },
-      {
-        "rank": 24,
-        "clone_id": "CLONE-HTF-2STRIKE-15M",
-        "description": "HTF Trend + 2 Strikes -> 15 Min CD",
-        "net_pnl": "+$3,138,849.30",
-        "max_dd": "0.72%",
-        "win_rate": "86.7%",
-        "max_streak": 12,
-        "trades": 27268,
-        "status": "\u274c REJECTED (OVER-FILTERED)"
-      },
-      {
-        "rank": 25,
-        "clone_id": "CLONE-HTF-CD-10M",
-        "description": "HTF Trend + 10 Min Cooldown after 1x Loss",
-        "net_pnl": "+$3,132,167.32",
-        "max_dd": "0.72%",
-        "win_rate": "86.7%",
-        "max_streak": 11,
-        "trades": 27513,
-        "status": "\u274c REJECTED (OVER-FILTERED)"
-      },
-      {
-        "rank": 26,
-        "clone_id": "CLONE-HTF-CD-15M",
-        "description": "HTF Trend + 15 Min Cooldown after 1x Loss",
-        "net_pnl": "+$3,118,718.46",
-        "max_dd": "0.72%",
-        "win_rate": "86.6%",
-        "max_streak": 12,
-        "trades": 27404,
-        "status": "\u274c REJECTED (OVER-FILTERED)"
-      },
-      {
-        "rank": 27,
-        "clone_id": "CLONE-HTF-CD-20M",
-        "description": "HTF Trend + 20 Min Cooldown after 1x Loss",
-        "net_pnl": "+$3,071,742.37",
-        "max_dd": "0.72%",
-        "win_rate": "86.6%",
-        "max_streak": 12,
-        "trades": 27138,
-        "status": "\u274c REJECTED (OVER-FILTERED)"
-      },
-      {
-        "rank": 28,
-        "clone_id": "CLONE-HTF-CD-30M",
-        "description": "HTF Trend + 30 Min Cooldown after 1x Loss",
-        "net_pnl": "+$2,958,266.38",
-        "max_dd": "0.72%",
-        "win_rate": "86.4%",
-        "max_streak": 12,
-        "trades": 26193,
-        "status": "\u274c REJECTED (OVER-FILTERED)"
-      },
-      {
-        "rank": 29,
-        "clone_id": "CLONE-HTF-2STRIKE-30M",
-        "description": "HTF Trend + 2 Strikes -> 30 Min CD",
-        "net_pnl": "+$2,943,151.00",
-        "max_dd": "0.72%",
-        "win_rate": "86.4%",
-        "max_streak": 12,
-        "trades": 26263,
-        "status": "\u274c REJECTED (OVER-FILTERED)"
-      },
-      {
-        "rank": 30,
-        "clone_id": "CLONE-HYBRID-CHAMPION-D",
-        "description": "Hybrid: HTF + 1 Strike -> 20m CD + 0.30x Buffer",
-        "net_pnl": "+$3,073,629.72",
-        "max_dd": "0.72%",
-        "win_rate": "86.7%",
-        "max_streak": 12,
-        "trades": 26978,
-        "status": "TESTED"
+        "id": "CLONE-2STRIKE-10M",
+        "desc": "2 Strikes Loss -> 10 Min Cooldown",
+        "final_balance": 10194446.590145385,
+        "net_pnl": 10184446.590145385,
+        "max_dd_pct": 0.2285869118277052,
+        "win_rate": 96.56200914209067,
+        "win_day_rate": 100.0,
+        "total_trades": 56661,
+        "max_loss_streak": 14,
+        "months_ge_20": 12,
+        "avg_monthly_roi": 8487.038825121144
       }
     ]
   },
@@ -361,353 +154,70 @@
     "decision_ref": "DEC-029",
     "dataset_bars": "300,440 Bar M1 XAUUSD (10.2 Bulan)",
     "clones_count": 30,
-    "objective": "Menguji apakah penambahan pilar indikator kuantitatif modern (ADX > 25, Daily Anchored VWAP, RVOL > 1.5) mampu menyaring noise dan mencegah kasus sumbu licik ($4295 wick-hunt incident), ataukah Dynamic ATR Buffer 0.25x lebih unggul.",
-    "hypothesis_tested": "Indikator lagging memicu bias delay yang fatal pada scalping M1. Menambah bantalan matematis dinamis 0.25x ATR di luar level swing jauh lebih superior menjaga posisi dari sapuan sumbu sebelum berbalik arah ke target TP.",
-    "methodology_architecture": "30 Klon Bayangan mengadu kombinasi 4 pilar kuantitatif: VWAP, ADX, RVOL, dan Multiplier Buffer (0.10x s/d 0.50x) di seluruh 300.440 bar ground truth.",
+    "objective": "Mengeksplorasi apakah pilar indikator kuantitatif (VWAP, ADX, RVOL) mampu menyaring noise pasar ataukah Dynamic ATR Buffer 0.25x lebih unggul mencegah wick-hunt ($4295 incident).",
     "champion_id": "CLONE-HTF-BUFFER-0.25x",
     "champion_desc": "Dynamic ATR SL Buffer 0.25x range tanpa lagging indicator",
     "champion_metrics": {
       "profit_factor": "136.17",
       "max_dd": "2.10% (Pangkas dari 2.70%)",
       "win_rate": "94.4%",
-      "net_r": "+2,488.5 R",
-      "total_trades": "28,732"
+      "net_r": "+2,488.5 R"
     },
     "key_findings": [
-      "Pilar VWAP, ADX, dan RVOL resmi DITOLAK karena mendegradasi performa engine secara drastis melalui over-filtering (mematikan 60% trade potensial).",
+      "Indikator VWAP, ADX, dan RVOL resmi DITOLAK karena mendegradasi performa engine secara drastis melalui over-filtering.",
       "Dynamic ATR Buffer 0.25x dinobatkan sebagai Juara Mutlak, berhasil memangkas Max Drawdown dari 2.70% ke 2.10% dan melipatgandakan Profit Factor.",
-      "Diadopsi resmi ke dalam PAC Scalper v2.2.0 di live production."
+      "Diadopsi resmi ke dalam PAC Scalper v2.2.0."
     ],
-    "full_leaderboard": [
+    "top_clones": [
       {
-        "rank": 1,
         "clone_id": "CLONE-00-BASELINE-CHAMPION",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "94.3%",
-        "max_streak": "N/A",
-        "trades": 85266,
-        "status": "\ud83e\udd47 JUARA MUTLAK (DIADOPSI DEC-029)"
+        "total_trades": 85266,
+        "win_rate_pct": 94.3,
+        "profit_factor": 133.33,
+        "net_pnl": 10020342.18,
+        "roi_pct": 100203.4,
+        "max_drawdown_pct": 2.7,
+        "disqualified": false
       },
       {
-        "rank": 2,
         "clone_id": "CLONE-ADX-MAX-50",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "94.2%",
-        "max_streak": "N/A",
-        "trades": 84257,
-        "status": "TESTED"
+        "total_trades": 84257,
+        "win_rate_pct": 94.2,
+        "profit_factor": 126.46,
+        "net_pnl": 9608486.64,
+        "roi_pct": 96084.9,
+        "max_drawdown_pct": 2.7,
+        "disqualified": false
       },
       {
-        "rank": 3,
         "clone_id": "CLONE-RVOL-MIN-0.75",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.30%",
-        "win_rate": "93.8%",
-        "max_streak": "N/A",
-        "trades": 82603,
-        "status": "TESTED"
+        "total_trades": 82603,
+        "win_rate_pct": 93.8,
+        "profit_factor": 118.34,
+        "net_pnl": 9572904.96,
+        "roi_pct": 95729.0,
+        "max_drawdown_pct": 2.3,
+        "disqualified": false
       },
       {
-        "rank": 4,
         "clone_id": "CLONE-ADX-MAX-45",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "94.1%",
-        "max_streak": "N/A",
-        "trades": 83121,
-        "status": "TESTED"
+        "total_trades": 83121,
+        "win_rate_pct": 94.1,
+        "profit_factor": 121.08,
+        "net_pnl": 9342979.01,
+        "roi_pct": 93429.8,
+        "max_drawdown_pct": 2.7,
+        "disqualified": false
       },
       {
-        "rank": 5,
         "clone_id": "CLONE-HTF-BUFFER-0.25x",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.10%",
-        "win_rate": "94.4%",
-        "max_streak": "N/A",
-        "trades": 84097,
-        "status": "TESTED"
-      },
-      {
-        "rank": 6,
-        "clone_id": "CLONE-ADX-MAX-40",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "93.8%",
-        "max_streak": "N/A",
-        "trades": 80936,
-        "status": "TESTED"
-      },
-      {
-        "rank": 7,
-        "clone_id": "CLONE-HTF-BUFFER-0.5x",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.90%",
-        "win_rate": "94.3%",
-        "max_streak": "N/A",
-        "trades": 83301,
-        "status": "TESTED"
-      },
-      {
-        "rank": 8,
-        "clone_id": "CLONE-VWAP-DISCOUNT-ONLY",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "88.1%",
-        "max_streak": "N/A",
-        "trades": 76747,
-        "status": "TESTED"
-      },
-      {
-        "rank": 9,
-        "clone_id": "CLONE-ADX-MAX-35",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.60%",
-        "win_rate": "93.2%",
-        "max_streak": "N/A",
-        "trades": 76859,
-        "status": "TESTED"
-      },
-      {
-        "rank": 10,
-        "clone_id": "CLONE-SYNERGY-BUF0.5-ADX45",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.90%",
-        "win_rate": "94.0%",
-        "max_streak": "N/A",
-        "trades": 81211,
-        "status": "TESTED"
-      },
-      {
-        "rank": 11,
-        "clone_id": "CLONE-HTF-BUFFER-0.75x",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.80%",
-        "win_rate": "94.2%",
-        "max_streak": "N/A",
-        "trades": 82703,
-        "status": "TESTED"
-      },
-      {
-        "rank": 12,
-        "clone_id": "CLONE-HTF-BUFFER-1.0x",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.70%",
-        "win_rate": "94.0%",
-        "max_streak": "N/A",
-        "trades": 82140,
-        "status": "TESTED"
-      },
-      {
-        "rank": 13,
-        "clone_id": "CLONE-RVOL-MIN-1.0",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.10%",
-        "win_rate": "90.4%",
-        "max_streak": "N/A",
-        "trades": 68017,
-        "status": "TESTED"
-      },
-      {
-        "rank": 14,
-        "clone_id": "CLONE-SYNERGY-BUF0.5-VWAP",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.30%",
-        "win_rate": "88.2%",
-        "max_streak": "N/A",
-        "trades": 74455,
-        "status": "TESTED"
-      },
-      {
-        "rank": 15,
-        "clone_id": "CLONE-ADX-MAX-30",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "92.4%",
-        "max_streak": "N/A",
-        "trades": 69975,
-        "status": "TESTED"
-      },
-      {
-        "rank": 16,
-        "clone_id": "CLONE-SYNERGY-BUF1.0-ADX45",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.70%",
-        "win_rate": "93.8%",
-        "max_streak": "N/A",
-        "trades": 80096,
-        "status": "TESTED"
-      },
-      {
-        "rank": 17,
-        "clone_id": "CLONE-HTF-BUFFER-1.25x",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.50%",
-        "win_rate": "93.9%",
-        "max_streak": "N/A",
-        "trades": 81705,
-        "status": "TESTED"
-      },
-      {
-        "rank": 18,
-        "clone_id": "CLONE-SYNERGY-BUF0.5-ADX35",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.90%",
-        "win_rate": "93.2%",
-        "max_streak": "N/A",
-        "trades": 75113,
-        "status": "TESTED"
-      },
-      {
-        "rank": 19,
-        "clone_id": "CLONE-SYNERGY-BUF1.0-VWAP",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.20%",
-        "win_rate": "87.9%",
-        "max_streak": "N/A",
-        "trades": 73155,
-        "status": "TESTED"
-      },
-      {
-        "rank": 20,
-        "clone_id": "CLONE-SYNERGY-BUF0.5-ADX40-VWAP",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "87.4%",
-        "max_streak": "N/A",
-        "trades": 70328,
-        "status": "TESTED"
-      },
-      {
-        "rank": 21,
-        "clone_id": "CLONE-HTF-BUFFER-1.5x",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.40%",
-        "win_rate": "93.8%",
-        "max_streak": "N/A",
-        "trades": 81340,
-        "status": "TESTED"
-      },
-      {
-        "rank": 22,
-        "clone_id": "CLONE-SYNERGY-BUF1.0-ADX35",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.90%",
-        "win_rate": "93.0%",
-        "max_streak": "N/A",
-        "trades": 74094,
-        "status": "TESTED"
-      },
-      {
-        "rank": 23,
-        "clone_id": "CLONE-ADX-MAX-25",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.50%",
-        "win_rate": "90.9%",
-        "max_streak": "N/A",
-        "trades": 59018,
-        "status": "TESTED"
-      },
-      {
-        "rank": 24,
-        "clone_id": "CLONE-SYNERGY-BUF1.0-ADX40-VWAP",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.70%",
-        "win_rate": "87.1%",
-        "max_streak": "N/A",
-        "trades": 69106,
-        "status": "TESTED"
-      },
-      {
-        "rank": 25,
-        "clone_id": "CLONE-ADX-MAX-20",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.90%",
-        "win_rate": "89.1%",
-        "max_streak": "N/A",
-        "trades": 41554,
-        "status": "TESTED"
-      },
-      {
-        "rank": 26,
-        "clone_id": "CLONE-HTF-BUFFER-2.0x",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.40%",
-        "win_rate": "93.6%",
-        "max_streak": "N/A",
-        "trades": 80844,
-        "status": "TESTED"
-      },
-      {
-        "rank": 27,
-        "clone_id": "CLONE-RVOL-MIN-1.25",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.00%",
-        "win_rate": "86.2%",
-        "max_streak": "N/A",
-        "trades": 24778,
-        "status": "TESTED"
-      },
-      {
-        "rank": 28,
-        "clone_id": "CLONE-RVOL-MIN-1.5",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "2.00%",
-        "win_rate": "85.4%",
-        "max_streak": "N/A",
-        "trades": 10722,
-        "status": "TESTED"
-      },
-      {
-        "rank": 29,
-        "clone_id": "CLONE-RVOL-MIN-1.75",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.70%",
-        "win_rate": "84.9%",
-        "max_streak": "N/A",
-        "trades": 5749,
-        "status": "TESTED"
-      },
-      {
-        "rank": 30,
-        "clone_id": "CLONE-RVOL-MIN-2.0",
-        "description": "Pillars: N/A | Buffer: 0.0x",
-        "net_pnl": "+0.0 R",
-        "max_dd": "1.50%",
-        "win_rate": "85.1%",
-        "max_streak": "N/A",
-        "trades": 3324,
-        "status": "TESTED"
+        "total_trades": 84097,
+        "win_rate_pct": 94.4,
+        "profit_factor": 136.17,
+        "net_pnl": 9217919.99,
+        "roi_pct": 92179.2,
+        "max_drawdown_pct": 2.1,
+        "disqualified": false
       }
     ]
   },
@@ -717,221 +227,85 @@
     "decision_ref": "DEC-028",
     "dataset_bars": "300,440 Bar M1 XAUUSD (10.2 Bulan)",
     "clones_count": 18,
-    "objective": "Membuktikan kelemahan fatal limit harian kaku (-1.0% cut-off 24 jam) dan menguji partisi risiko 3 sesi mandiri (Asia, London, NY) dengan trailing lock berundak +0.5% dan carryover House Money.",
-    "hypothesis_tested": "Membatasi risiko per-hari membuat akun mati di sesi pagi dan melewatkan tren emas raksasa di London/NY. Membagi budget per-sesi memungkinkan akun bangkit dan melipatgandakan return.",
-    "methodology_architecture": "18 Klon mengadu partisi waktu (Daily, 3 Sessions, 2 Prime Mega Sessions, Asian-Lite, 4 Micro Sessions) dengan variasi stepping greed lock (+0.25%, +0.35%, +0.50%) dan carryover mode.",
+    "objective": "Menguji hipotesis pemecahan risiko harian kaku (-1%) menjadi 3 sesi mandiri (Asia, London, NY) serta mekanisme trailing lock berundak +0.5% dan carryover House Money.",
     "champion_id": "CLONE-08",
     "champion_desc": "3-Sesi House Money (+25% profit sesi sebelumnya dibawa ke sesi berikutnya)",
     "champion_metrics": {
       "net_pnl": "+$11,275,781.79",
       "max_dd": "0.17%",
       "win_day_rate": "100.0% (221/221 Hari Hijau)",
-      "months_ge_20": "12 / 12 Bulan (100%)",
-      "avg_monthly_roi": "+1,127.5%"
+      "months_ge_20": "12 / 12 Bulan (100%)"
     },
     "key_findings": [
       "Limit harian kaku (CLONE-01 & 02) terbukti cacat fatal karena mematikan potensi profit besar sesi London/NY saat pagi terkena noise.",
       "3 Sesi Mandiri melipatgandakan profit dan menjaga Win Day Rate di 100% sempurna dengan Max DD hanya 0.17%.",
       "Mekanisme House Money mengizinkan sesi New York mengambil risiko lebih agresif menggunakan uang kemenangan sesi London."
     ],
-    "full_leaderboard": [
+    "top_clones": [
       {
-        "rank": 1,
-        "clone_id": "CLONE-08",
-        "description": "3-Sesi House Money (Carry Win)",
-        "net_pnl": "+$11,275,781.79",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "\ud83e\udd47 JUARA MUTLAK (DIADOPSI DEC-028)"
+        "id": "CLONE-08",
+        "name": "3-Sesi House Money (Carry Win)",
+        "final_balance": 11285781.789614333,
+        "net_pnl": 11275781.789614333,
+        "max_dd_pct": 0.1705134671288771,
+        "win_day_rate": 100.0,
+        "total_days": 221,
+        "total_months": 12,
+        "months_ge_20": 12,
+        "pct_months_ge_20": 100.0,
+        "avg_monthly_roi": 9396.484824678564
       },
       {
-        "rank": 2,
-        "clone_id": "CLONE-06",
-        "description": "3-Sesi Dynamic Loss (25/50/75)",
-        "net_pnl": "+$10,970,765.73",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "\ud83c\udf1f SANGAT DIREKOMENDASIKAN"
+        "id": "CLONE-06",
+        "name": "3-Sesi Dynamic Loss (25/50/75)",
+        "final_balance": 10980765.727279708,
+        "net_pnl": 10970765.727279708,
+        "max_dd_pct": 0.1705134671288771,
+        "win_day_rate": 100.0,
+        "total_days": 221,
+        "total_months": 12,
+        "months_ge_20": 12,
+        "pct_months_ge_20": 100.0,
+        "avg_monthly_roi": 9142.30477273319
       },
       {
-        "rank": 3,
-        "clone_id": "CLONE-04",
-        "description": "3-Sesi Loss -0.50% Step 0.5% (Ide Anda)",
-        "net_pnl": "+$10,970,297.65",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "\ud83c\udf1f SANGAT DIREKOMENDASIKAN"
+        "id": "CLONE-04",
+        "name": "3-Sesi Loss -0.50% Step 0.5% (Ide Anda)",
+        "final_balance": 10980297.648091367,
+        "net_pnl": 10970297.648091367,
+        "max_dd_pct": 0.1705134671288771,
+        "win_day_rate": 100.0,
+        "total_days": 221,
+        "total_months": 12,
+        "months_ge_20": 12,
+        "pct_months_ge_20": 100.0,
+        "avg_monthly_roi": 9141.914706742913
       },
       {
-        "rank": 4,
-        "clone_id": "CLONE-09",
-        "description": "3-Sesi Recovery Guard Lock",
-        "net_pnl": "+$10,965,531.92",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
+        "id": "CLONE-09",
+        "name": "3-Sesi Recovery Guard Lock",
+        "final_balance": 10975531.916726593,
+        "net_pnl": 10965531.916726593,
+        "max_dd_pct": 0.1705134671288771,
+        "win_day_rate": 100.0,
+        "total_days": 221,
+        "total_months": 12,
+        "months_ge_20": 12,
+        "pct_months_ge_20": 100.0,
+        "avg_monthly_roi": 9137.943263938936
       },
       {
-        "rank": 5,
-        "clone_id": "CLONE-03",
-        "description": "3-Sesi Loss -0.33% Step 0.5%",
-        "net_pnl": "+$10,868,097.53",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 6,
-        "clone_id": "CLONE-07",
-        "description": "3-Sesi Adaptive Step (Asia 0.25/Ldn 0.5)",
-        "net_pnl": "+$10,119,863.79",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 7,
-        "clone_id": "CLONE-16",
-        "description": "Asian-Lite House Money",
-        "net_pnl": "+$10,031,521.09",
-        "max_dd": "0.14%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 8,
-        "clone_id": "CLONE-14",
-        "description": "Asian-Lite Loss -0.50% Step 0.50%",
-        "net_pnl": "+$9,891,621.92",
-        "max_dd": "0.14%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 9,
-        "clone_id": "CLONE-15",
-        "description": "Asian-Lite Adaptive Step (0.25/0.50)",
-        "net_pnl": "+$9,553,721.36",
-        "max_dd": "0.15%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 10,
-        "clone_id": "CLONE-18",
-        "description": "4-Micro Sesi House Money",
-        "net_pnl": "+$9,378,472.02",
-        "max_dd": "0.18%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 11,
-        "clone_id": "CLONE-17",
-        "description": "4-Micro Sesi Loss -0.35% Step 0.35%",
-        "net_pnl": "+$8,822,701.22",
-        "max_dd": "0.18%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 12,
-        "clone_id": "CLONE-05",
-        "description": "3-Sesi Loss -0.50% Step 0.25% (Tight)",
-        "net_pnl": "+$8,427,952.09",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 13,
-        "clone_id": "CLONE-12",
-        "description": "2-Prime Loss -0.75% Step 0.50%",
-        "net_pnl": "+$7,423,388.57",
-        "max_dd": "0.16%",
-        "win_rate": "99.5% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 14,
-        "clone_id": "CLONE-13",
-        "description": "2-Prime House Money (Carry Ldn Win)",
-        "net_pnl": "+$7,252,846.97",
-        "max_dd": "0.16%",
-        "win_rate": "99.1% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 15,
-        "clone_id": "CLONE-10",
-        "description": "2-Prime Loss -0.50% Step 0.50%",
-        "net_pnl": "+$6,901,666.74",
-        "max_dd": "0.16%",
-        "win_rate": "99.5% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 16,
-        "clone_id": "CLONE-11",
-        "description": "2-Prime Loss -0.50% Step 0.25% (Tight)",
-        "net_pnl": "+$5,297,037.40",
-        "max_dd": "0.16%",
-        "win_rate": "99.5% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 17,
-        "clone_id": "CLONE-01",
-        "description": "Baseline Harian Greed 0.5%",
-        "net_pnl": "+$19,604.67",
-        "max_dd": "0.17%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
-      },
-      {
-        "rank": 18,
-        "clone_id": "CLONE-02",
-        "description": "Baseline Harian Flat 1%",
-        "net_pnl": "+$117.95",
-        "max_dd": "0.00%",
-        "win_rate": "100.0% (Hari)",
-        "max_streak": "N/A",
-        "trades": "56,000+",
-        "status": "TESTED"
+        "id": "CLONE-03",
+        "name": "3-Sesi Loss -0.33% Step 0.5%",
+        "final_balance": 10878097.534712065,
+        "net_pnl": 10868097.534712065,
+        "max_dd_pct": 0.1705134671288771,
+        "win_day_rate": 100.0,
+        "total_days": 221,
+        "total_months": 12,
+        "months_ge_20": 12,
+        "pct_months_ge_20": 100.0,
+        "avg_monthly_roi": 9056.747945593546
       }
     ]
   },
@@ -941,68 +315,19 @@
     "decision_ref": "DEC-028 (Subtask 5-3D)",
     "dataset_bars": "300,440 Bar M1 XAUUSD (Periode Penuh)",
     "clones_count": 8,
-    "objective": "Menentukan struktur peletakan order: apakah memasang 1 single order di bibir kuadran 25% lebih aman dibanding menebar grid simultan 3, 5, atau 10 layer ke dalam dasar lantai diskon.",
-    "hypothesis_tested": "Penebaran simultan multi-layer dengan alokasi bobot piramida (20% bibir, 30% tengah, 50% dasar) memberikan harga rata-rata masuk yang jauh lebih dalam ke area diskon murni dan memperkecil jarak SL.",
-    "methodology_architecture": "Pengujian 4 kubu variasi layer (1, 3, 5, 10 Limit Orders) dengan pembagian risiko tetap 0.50% equity dan shared single target TP di Midpoint 50%.",
+    "objective": "Menguji apakah penebaran beberapa limit order serentak ke dalam zona diskon (Pyramid 20-30-50) lebih unggul dibanding 1 order tunggal di bibir zona.",
     "champion_id": "KUBU-GRID-3-LAYER",
     "champion_desc": "Grid simultan 3 layer: L1 20% (Bibir), L2 30% (Mid), L3 50% (Dasar)",
     "champion_metrics": {
       "profit_factor": "269.66",
       "win_rate": "96.3%",
       "net_pnl": "+$12,582,897.98",
-      "max_dd": "1.50%",
-      "total_trades": "83,668"
+      "max_dd": "1.50%"
     },
     "key_findings": [
       "Single order 1-layer di bibir zona hanya mencetak PF 20.58 dan rawan tersapu wick tipuan.",
       "Grid 3-Layer mendominasi mutlak dengan PF 269.66 karena memaksimalkan harga rata-rata masuk di kedalaman diskon murni.",
       "Ditetapkan sebagai standar wajib eksekusi order pada seluruh akun fleet live."
-    ],
-    "full_leaderboard": [
-      {
-        "rank": 1,
-        "clone_id": "KUBU-GRID-3-LAYER",
-        "description": "3 Simultaneous Layers (Pyramid 20-30-50)",
-        "net_pnl": "+$12,582,897.98",
-        "max_dd": "1.50%",
-        "win_rate": "96.3%",
-        "max_streak": 8,
-        "trades": 83668,
-        "status": "\ud83e\udd47 JUARA MUTLAK (DIADOPSI)"
-      },
-      {
-        "rank": 2,
-        "clone_id": "KUBU-GRID-5-LAYER",
-        "description": "5 Simultaneous Layers (Equal 20% weights)",
-        "net_pnl": "+$11,967,501.35",
-        "max_dd": "1.50%",
-        "win_rate": "96.2%",
-        "max_streak": 9,
-        "trades": 137942,
-        "status": "\ud83e\udd48 RUNNER-UP"
-      },
-      {
-        "rank": 3,
-        "clone_id": "KUBU-GRID-10-LAYER",
-        "description": "10 Simultaneous Layers (Equal 10% weights)",
-        "net_pnl": "+$11,177,191.49",
-        "max_dd": "1.50%",
-        "win_rate": "96.0%",
-        "max_streak": 11,
-        "trades": 242643,
-        "status": "\ud83e\udd49 3RD PLACE (OVER-TRADING)"
-      },
-      {
-        "rank": 4,
-        "clone_id": "KUBU-GRID-1-LAYER",
-        "description": "1 Single Limit Order at Zone Boundary (25%)",
-        "net_pnl": "+$1,249,540.49",
-        "max_dd": "2.00%",
-        "win_rate": "95.0%",
-        "max_streak": 14,
-        "trades": 27572,
-        "status": "\u274c REJECTED (BURUK)"
-      }
     ]
   },
   {
@@ -1011,68 +336,19 @@
     "decision_ref": "DEC-018 / Subtask 5-3C",
     "dataset_bars": "300,440 Bar M1 XAUUSD (Data Lake Penuh)",
     "clones_count": 6,
-    "objective": "Meneliti perbedaan efektivitas antara retest dangkal (<50% kedalaman zona) vs penetrasi likuiditas murni (>50% virgin depth), serta adaptasi target TP geser ke bibir pada retest kedua.",
-    "hypothesis_tested": "Zona yang sudah terserap lebih dari 50% rentan mengalami pantulan palsu. Memerlukan filter penetrasi kedalaman murni dan pemindahan TP lebih awal (Quick-Escape) pada sentuhan retest kedua.",
-    "methodology_architecture": "Adu tanding 4 kubu variasi retest mode: Naive Retest, Virgin Depth Standard TP, Adaptive Quick Escape TP, dan Sesi Tertarget London-NY.",
+    "objective": "Meneliti efektivitas penetrasi kedalaman likuiditas murni (>50% virgin depth) dan adaptasi target TP geser ke bibir pada retest kedua untuk menghindari reversal.",
     "champion_id": "KUBU-B2-ADAPTIVE-QUICK-ESCAPE-TP",
     "champion_desc": "Retest Mode Adaptive Quick Escape TP pada sentuhan kedua",
     "champion_metrics": {
       "profit_factor": "176.31",
       "win_rate": "95.2%",
       "net_pnl": "+$10,754,009.30",
-      "max_dd": "1.50%",
-      "total_trades": "28,582"
+      "max_dd": "1.50%"
     },
     "key_findings": [
       "Retest dangkal (<50% depth) terpapar risiko pantulan palsu (weak bounce) pada zona yang sudah terabsorpsi.",
       "Adaptive Quick-Escape TP berhasil menyelamatkan profit saat harga gagal menembus equilibrium pada retest lanjutan.",
       "Ditetapkan sebagai parameter default pada config PAC Scalper."
-    ],
-    "full_leaderboard": [
-      {
-        "rank": 1,
-        "clone_id": "KUBU-B2-ADAPTIVE-QUICK-ESCAPE-TP",
-        "description": "Virgin Depth >50% + Quick-Escape TP",
-        "net_pnl": "+$10,754,009.30",
-        "max_dd": "1.50%",
-        "win_rate": "95.2%",
-        "max_streak": 7,
-        "trades": 28582,
-        "status": "\ud83e\udd47 JUARA MUTLAK (DIADOPSI)"
-      },
-      {
-        "rank": 2,
-        "clone_id": "KUBU-B2-ADAPTIVE-LONDON-NY",
-        "description": "Quick-Escape TP khusus London & NY",
-        "net_pnl": "+$2,541,372.29",
-        "max_dd": "1.40%",
-        "win_rate": "95.1%",
-        "max_streak": 6,
-        "trades": 6448,
-        "status": "\ud83e\udd48 RUNNER-UP"
-      },
-      {
-        "rank": 3,
-        "clone_id": "KUBU-B1-VIRGIN-DEPTH-STANDARD-TP",
-        "description": "Virgin Depth murni + Standard Midpoint TP",
-        "net_pnl": "+$10,754,595.95",
-        "max_dd": "1.50%",
-        "win_rate": "95.1%",
-        "max_streak": 7,
-        "trades": 28577,
-        "status": "\ud83e\udd49 3RD PLACE"
-      },
-      {
-        "rank": 4,
-        "clone_id": "KUBU-A-NAIVE-DEPTH-RETEST",
-        "description": "Naive Retest (Sentuhan dangkal 0-100%)",
-        "net_pnl": "+$10,703,003.22",
-        "max_dd": "1.90%",
-        "win_rate": "95.1%",
-        "max_streak": 9,
-        "trades": 28732,
-        "status": "\u274c REJECTED (RISIKO TINGGI)"
-      }
     ]
   },
   {
@@ -1082,78 +358,18 @@
     "dataset_bars": "300,440 Bar M1 XAUUSD (Periode Penuh)",
     "clones_count": 12,
     "objective": "Menghapus aturan kolot BEP +1.0 poin yang mematikan 60.5% trade di angka +$0.20, digantikan oleh kognisi pola candlestick pembalikan (Evening Star, Marubozu).",
-    "hypothesis_tested": "Posisi butuh ruang napas fluktuasi normal XAUUSD minimal hingga +1.0R. Menutup posisi secara dini (Force TP Reversal) hanya dilakukan jika terdeteksi formasi pembalikan institusional.",
-    "methodology_architecture": "6 Kubu mengadu kebijakan exit: Legacy Flat BEP, Sasuke Cold Force 100%, Sasuke Partial Trailing, dan Passive Hold.",
     "champion_id": "KUBU-3B-SASUKE-TRAIL-LONDON-NY",
     "champion_desc": "Sasuke Sharingan Stepped Trailing Profit + Force TP Reversal di atas +1.0R",
     "champion_metrics": {
       "profit_factor": "172.47",
       "win_rate": "95.0%",
       "max_dd": "1.40% (DD Terendah)",
-      "payoff_ratio": "1.85 (Naik dari 0.29)",
-      "total_trades": "6,495"
+      "payoff_ratio": "1.85 (Naik dari 0.29)"
     },
     "key_findings": [
       "BEP flat +1.0 poin terbukti membunuh trade pemenang sebelum sempat berkembang menjadi gelombang besar.",
       "Pengawasan kognitif Sasuke Sharingan membiarkan posisi bernapas minimal hingga +1.0R sebelum mengaktifkan trailing lock.",
       "Menyelamatkan 78% trade dari premature stop out di micro-noise."
-    ],
-    "full_leaderboard": [
-      {
-        "rank": 1,
-        "clone_id": "KUBU-3B-SASUKE-TRAIL-LONDON-NY",
-        "description": "Sasuke Stepped Trailing (London + NY)",
-        "net_pnl": "+$2,511,818.95",
-        "max_dd": "1.40%",
-        "win_rate": "95.0%",
-        "max_streak": 6,
-        "trades": 6495,
-        "status": "\ud83e\udd47 JUARA KEAMANAN (DIADOPSI)"
-      },
-      {
-        "rank": 2,
-        "clone_id": "KUBU-3-SASUKE-TRAILING",
-        "description": "Sasuke Stepped Trailing (24 Jam)",
-        "net_pnl": "+$10,703,003.22",
-        "max_dd": "1.90%",
-        "win_rate": "95.1%",
-        "max_streak": 7,
-        "trades": 28732,
-        "status": "\ud83e\udd48 JUARA VELOCITY"
-      },
-      {
-        "rank": 3,
-        "clone_id": "KUBU-1-LEGACY-FLAT-BEP",
-        "description": "Legacy BEP +1.0 Point Flat Lock",
-        "net_pnl": "+$19,981,405.87",
-        "max_dd": "2.00%",
-        "win_rate": "82.5%",
-        "max_streak": 12,
-        "trades": 31166,
-        "status": "\u26a0\ufe0f TERCEKIK BEP 60%"
-      },
-      {
-        "rank": 4,
-        "clone_id": "KUBU-4-PASSIVE-HOLD",
-        "description": "Passive Hold sampai Full TP atau SL",
-        "net_pnl": "+$1,620,711.40",
-        "max_dd": "2.00%",
-        "win_rate": "95.1%",
-        "max_streak": 9,
-        "trades": 27568,
-        "status": "\u274c REJECTED (PF RENDAH)"
-      },
-      {
-        "rank": 5,
-        "clone_id": "KUBU-2-SASUKE-COLD-100",
-        "description": "Instant 100% Force Close saat Invalidation",
-        "net_pnl": "+$1,621,594.10",
-        "max_dd": "2.00%",
-        "win_rate": "95.0%",
-        "max_streak": 9,
-        "trades": 27806,
-        "status": "\u274c REJECTED"
-      }
     ]
   },
   {
@@ -1162,9 +378,7 @@
     "decision_ref": "DEC-021 / Subtask 5-2",
     "dataset_bars": "20,000 Candle M1 Setara per Timeframe (M1 s/d M5)",
     "clones_count": 64,
-    "objective": "Menguji apakah trading di satu timeframe murni lebih unggul ataukah penggabungan beberapa timeframe dalam satu keranjang (Ensemble Basket) mampu meredam drawdown secara dramatis.",
-    "hypothesis_tested": "Prinsip Uncorrelated Phase Smoothing: Saat timeframe M1 sedang mengalami retrace atau stopout, timeframe M3/M5 berada di fase ekspansi yang menambal kurva ekuitas secara instan.",
-    "methodology_architecture": "64 Klon menguji eksekusi Solo M1 s/d M5, Basket Trio (M1+M2+M3), dan Basket Kuartet (M1+M2+M3+M5) dengan pembagian alokasi risiko portofolio terdistribusi.",
+    "objective": "Menguji apakah trading di satu timeframe murni lebih unggul ataukah penggabungan beberapa timeframe dalam satu keranjang (Ensemble Basket) mampu meredam drawdown.",
     "champion_id": "ENSEMBLE-KUARTET-M1-M2-M3-M5",
     "champion_desc": "Keranjang Kuartet Multi-Timeframe dengan Alokasi Risiko Seimbang",
     "champion_metrics": {
@@ -1177,85 +391,6 @@
       "Solo M1 memiliki drawdown tertinggi (4.9%) akibat noise wick.",
       "Prinsip Uncorrelated Phase Smoothing terbukti: saat satu timeframe retrace, timeframe lain ekspansi, saling menambal kurva ekuitas.",
       "Menjadi basis penetapan keranjang Quartet pada profil Prop Firm & Sweet Spot."
-    ],
-    "full_leaderboard": [
-      {
-        "rank": 1,
-        "clone_id": "ENSEMBLE-KUARTET-M1-M2-M3-M5",
-        "description": "Basket Kuartet M1 + M2 + M3 + M5",
-        "net_pnl": "+777.6% ROI",
-        "max_dd": "0.10%",
-        "win_rate": "76.3%",
-        "max_streak": 4,
-        "trades": 1842,
-        "status": "\ud83e\udd47 JUARA MUTLAK (PROP FIRM PRESET)"
-      },
-      {
-        "rank": 2,
-        "clone_id": "ENSEMBLE-TRIO-M1-M2-M3",
-        "description": "Basket Trio M1 + M2 + M3",
-        "net_pnl": "+657.2% ROI",
-        "max_dd": "0.30%",
-        "win_rate": "76.1%",
-        "max_streak": 5,
-        "trades": 1642,
-        "status": "\ud83e\udd48 RUNNER-UP (AGGRESSIVE PRESET)"
-      },
-      {
-        "rank": 3,
-        "clone_id": "SOLO-M5-STANDALONE",
-        "description": "Standalone M5 Timeframe",
-        "net_pnl": "+347.5 PF",
-        "max_dd": "0.60%",
-        "win_rate": "89.9%",
-        "max_streak": 4,
-        "trades": 404,
-        "status": "\ud83e\udd49 REKOR SOLO DD TERENDAH"
-      },
-      {
-        "rank": 4,
-        "clone_id": "SOLO-M4-STANDALONE",
-        "description": "Standalone M4 Timeframe",
-        "net_pnl": "+350.0 PF",
-        "max_dd": "1.10%",
-        "win_rate": "90.7%",
-        "max_streak": 5,
-        "trades": 504,
-        "status": "TESTED"
-      },
-      {
-        "rank": 5,
-        "clone_id": "SOLO-M2-STANDALONE",
-        "description": "Standalone M2 Timeframe",
-        "net_pnl": "+416.4 PF",
-        "max_dd": "1.40%",
-        "win_rate": "78.0%",
-        "max_streak": 6,
-        "trades": 359,
-        "status": "TESTED"
-      },
-      {
-        "rank": 6,
-        "clone_id": "SOLO-M3-STANDALONE",
-        "description": "Standalone M3 Timeframe",
-        "net_pnl": "+345.6 PF",
-        "max_dd": "2.80%",
-        "win_rate": "90.9%",
-        "max_streak": 6,
-        "trades": 685,
-        "status": "TESTED"
-      },
-      {
-        "rank": 7,
-        "clone_id": "SOLO-M1-STANDALONE",
-        "description": "Standalone M1 Timeframe",
-        "net_pnl": "+362.1 PF",
-        "max_dd": "4.90%",
-        "win_rate": "92.2%",
-        "max_streak": 8,
-        "trades": 632,
-        "status": "\u26a0\ufe0f TERKENA NOISE TINGGI"
-      }
     ]
   },
   {
@@ -1265,8 +400,6 @@
     "dataset_bars": "100,000 Bar M1 XAUUSD",
     "clones_count": 128,
     "objective": "Mengeksplorasi pembagian kuadran geometris harga (0-25% Diskon, 25-50% Transition, 50% Eq, 50-75% Transition, 75-100% Premium) dan memvalidasi ketiadaan halusinasi matematis LLM.",
-    "hypothesis_tested": "Kalkulasi matematis 100% deterministik (Polars/NumPy) mengeliminasi latensi dan halusinasi AI, melahirkan eksekusi instan tingkat mikrodetik yang tahan uji di forward test.",
-    "methodology_architecture": "128 Klon menguji rentang kuadran dinamis (15%, 20%, 25%, 30%), variasi moving averages (PAC Channel), dan target stop loss.",
     "champion_id": "CLONE-PAC-M1-CHAMPION",
     "champion_desc": "Kuadran Diskon 0-25% Buy & Premium 75-100% Sell dengan TP Equilibrium 50%",
     "champion_metrics": {
@@ -1279,41 +412,6 @@
       "Mandat DEC-019 dideklarasikan: Zero Logic Mutation Without Tournament.",
       "Filosofi 'Never ask an LLM to calculate math' disahkan: 100% kalkulasi kuadran dan order level dieksekusi secara deterministik menggunakan Polars/NumPy.",
       "Strategi resmi diluncurkan ke tahap inkubasi forward test."
-    ],
-    "full_leaderboard": [
-      {
-        "rank": 1,
-        "clone_id": "CLONE-PAC-M1-CHAMPION",
-        "description": "PAC Quadrant 0-25% / 75-100% + Eq TP",
-        "net_pnl": "+140.21 PF",
-        "max_dd": "1.40%",
-        "win_rate": "79.7%",
-        "max_streak": 6,
-        "trades": 793,
-        "status": "\ud83e\udd47 JUARA PERTAMA (FONDASI PAC)"
-      },
-      {
-        "rank": 2,
-        "clone_id": "CLONE-PAC-M1-NARROW-20",
-        "description": "PAC Quadrant Narrow 20% / 80%",
-        "net_pnl": "+128.45 PF",
-        "max_dd": "1.60%",
-        "win_rate": "78.2%",
-        "max_streak": 7,
-        "trades": 612,
-        "status": "\ud83e\udd48 RUNNER-UP"
-      },
-      {
-        "rank": 3,
-        "clone_id": "CLONE-PAC-M1-WIDE-30",
-        "description": "PAC Quadrant Wide 30% / 70%",
-        "net_pnl": "+94.12 PF",
-        "max_dd": "2.80%",
-        "win_rate": "71.4%",
-        "max_streak": 9,
-        "trades": 1042,
-        "status": "\u274c REJECTED (TERLALU LEBAR)"
-      }
     ]
   }
 ]
