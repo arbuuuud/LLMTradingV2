@@ -97,6 +97,14 @@ bool           m_n2_trailing_active = false;
 double         m_n2_trail_sl        = 0.0;
 double         m_n2_summary_bep     = 0.0;
 
+// Zone Completion & Invalidation State (DEC-035: Single Harvest per Structural Zone)
+bool           m_zone_completed      = false;
+double         m_completed_floor     = 0.0;
+double         m_completed_roof      = 0.0;
+string         m_completed_direction = "NEUTRAL";
+double         m_current_sw_low      = 0.0;
+double         m_current_sw_high     = 0.0;
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -342,6 +350,20 @@ void OnTick()
    if(in_discount) direction = "BUY";
    else if(in_premium) direction = "SELL";
 
+   m_current_sw_low  = sw_low;
+   m_current_sw_high = sw_high;
+
+   // Check if new structure formed to reset previously completed zone (DEC-035)
+   if(m_zone_completed)
+   {
+      if(MathAbs(sw_high - m_completed_roof) >= 1.0 || MathAbs(sw_low - m_completed_floor) >= 1.0)
+      {
+         m_zone_completed = false;
+         PrintFormat("[PAC Visual Tester] 🔄 NEW STRUCTURE DETECTED! Completed zone ($%.2f - $%.2f) reset. New Zone: $%.2f - $%.2f",
+                     m_completed_floor, m_completed_roof, sw_low, sw_high);
+      }
+   }
+
    // 3. Draw Chart Visuals (Zones, Lines, HUD)
    if(InpDrawZones)
       DrawVisualZones(buy_zone_bottom, buy_zone_top, sell_zone_bottom, sell_zone_top, eq, buy_sl, sell_sl);
@@ -432,6 +454,10 @@ void OnTick()
       if(direction == "SELL" && InpEnableAntiKnife && now_time < m_sell_cooldown_until)
          return;
 
+      // Check Zone Completion & Invalidation (DEC-035: Single Harvest per Structural Zone)
+      if(m_zone_completed && direction == m_completed_direction)
+         return; // Zone was already harvested at TP! Block re-entry until new structure forms!
+
       if(direction != "NEUTRAL")
       {
          m_last_direction = direction;
@@ -503,6 +529,17 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                   m_buy_cooldown_until = now + (InpCooldownMinutes * 60);
 
                PrintFormat("[PAC Visual Tester] 🛡️ Anti-Falling-Knife Cooldown triggered for %d mins (PnL: $%.2f)", InpCooldownMinutes, pnl);
+            }
+            // If pnl > 0 (Take Profit or profitable exit achieved), mark zone as COMPLETED / SPENT! (DEC-035)
+            else if(pnl > 0)
+            {
+               m_zone_completed = true;
+               m_completed_floor = m_current_sw_low;
+               m_completed_roof  = m_current_sw_high;
+               m_completed_direction = (deal_type == DEAL_TYPE_SELL) ? "BUY" : "SELL";
+               PrintFormat("[PAC Visual Tester] 🏆 TAKE PROFIT ACHIEVED! Zone ($%.2f - $%.2f) marked as COMPLETED. Re-entry blocked until new structure forms!",
+                           m_completed_floor, m_completed_roof);
+               CancelOurPendingOrders("Zone Completed on TP -> Cancel Remaining Pending Limits");
             }
          }
       }

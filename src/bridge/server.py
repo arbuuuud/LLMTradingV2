@@ -131,6 +131,14 @@ class LiveMT5BridgeCore:
         # acc_id -> {"daily_start_equity": float, "peak_daily_pnl": float, "daily_halted": bool, "status_desc": str}
         self.account_daily_guard: Dict[str, Dict[str, Any]] = {}
 
+        # Zone Completion & Invalidation State (DEC-035: Single Harvest per Structural Zone)
+        self.zone_completed: bool = False
+        self.completed_floor: float = 0.0
+        self.completed_roof: float = 0.0
+        self.completed_direction: str = "NEUTRAL"
+        self._current_sw_low: float = 0.0
+        self._current_sw_high: float = 0.0
+
         # Directional Anti-Falling-Knife Cooldown (DEC-031 Champion: CLONE-SESSION-ADAPT-15M)
         # Timestamps until which BUY or SELL orders are paused after consecutive loss
         self.buy_cooldown_until: float = 0.0
@@ -291,6 +299,14 @@ class LiveMT5BridgeCore:
                     self.consecutive_buy_losses = 0
                 elif trade_dir == "SELL":
                     self.consecutive_sell_losses = 0
+
+                # Mark active structural zone as COMPLETED / SPENT upon Take Profit (DEC-035)
+                self.zone_completed = True
+                self.completed_direction = trade_dir
+                self.completed_floor = self._current_sw_low
+                self.completed_roof = self._current_sw_high
+                logger.info(f"🏆 [ZONE COMPLETED] Take profit achieved for {trade_dir}! Zone (${self.completed_floor:.2f} - ${self.completed_roof:.2f}) marked as COMPLETED. Re-entry blocked until new structure forms.")
+                asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "magic": 1001}))
         except Exception as e:
             logger.error(f"Failed to save closed trade record: {e}")
 
@@ -1057,6 +1073,21 @@ class LiveMT5BridgeCore:
         m1_setup = tf_dict.get("M1", {})
         if m1_setup.get("active_setup") and self.active_writers:
             dir_cmd = m1_setup["direction"]
+            sw_low = m1_setup["swing_low"]
+            sw_high = m1_setup["swing_high"]
+
+            self._current_sw_low = sw_low
+            self._current_sw_high = sw_high
+
+            # Check if new structure formed to reset previously completed zone (DEC-035)
+            if self.zone_completed:
+                if abs(sw_high - self.completed_roof) >= 1.0 or abs(sw_low - self.completed_floor) >= 1.0:
+                    self.zone_completed = False
+                    logger.info(f"🔄 [NEW STRUCTURE] Reset completed zone! New Zone: ${sw_low:.2f} - ${sw_high:.2f}")
+
+            # Gate: Do not re-enter a spent zone in the same direction!
+            if self.zone_completed and dir_cmd == self.completed_direction:
+                return
 
             # Note: Global self.session_halted acts as fallback, but evaluation is prioritized per-account below
             if self.session_halted and not self.account_sessions:
