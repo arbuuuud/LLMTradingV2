@@ -448,12 +448,34 @@ void ProcessCommand(string cmdJson)
       {
          double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
          double execPrice = (price > 0.0) ? price : (ask - 2.0);
+         // Fail-safe sanity check for Stop Loss & Take Profit logic
+         if(sl >= execPrice)
+         {
+            PrintFormat("[LLM Bridge] ⚠️ INVALID STOPS REPAIRED: BUY_LIMIT SL (%.2f) >= Price (%.2f). Adjusting SL below price.", sl, execPrice);
+            sl = execPrice - 3.50;
+         }
+         if(tp > 0 && tp <= execPrice)
+         {
+            PrintFormat("[LLM Bridge] ⚠️ INVALID STOPS REPAIRED: BUY_LIMIT TP (%.2f) <= Price (%.2f). Adjusting TP above price.", tp, execPrice);
+            tp = execPrice + 3.50;
+         }
          success = m_trade.BuyLimit(lots, execPrice, symbol, sl, tp, orderTime, orderExpiration, comment);
       }
       else if(side == "SELL_LIMIT")
       {
          double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
          double execPrice = (price > 0.0) ? price : (bid + 2.0);
+         // Fail-safe sanity check for Stop Loss & Take Profit logic
+         if(sl > 0 && sl <= execPrice)
+         {
+            PrintFormat("[LLM Bridge] ⚠️ INVALID STOPS REPAIRED: SELL_LIMIT SL (%.2f) <= Price (%.2f). Adjusting SL above price.", sl, execPrice);
+            sl = execPrice + 3.50;
+         }
+         if(tp > 0 && tp >= execPrice)
+         {
+            PrintFormat("[LLM Bridge] ⚠️ INVALID STOPS REPAIRED: SELL_LIMIT TP (%.2f) >= Price (%.2f). Adjusting TP below price.", tp, execPrice);
+            tp = execPrice - 3.50;
+         }
          success = m_trade.SellLimit(lots, execPrice, symbol, sl, tp, orderTime, orderExpiration, comment);
       }
 

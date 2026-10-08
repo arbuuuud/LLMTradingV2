@@ -824,6 +824,28 @@ class LiveMT5BridgeCore:
                 buy_zone_top = selected_floor.top
                 buy_zone_bottom = selected_floor.bottom
 
+            # Re-calculate SL boundaries & Grid levels if RBR/DBD modified sw_high or sw_low (DEC-032 / DEC-036)
+            if roof_is_dbd or floor_is_rbr:
+                total_range = max(1.0, sw_high - sw_low)
+                equilibrium = round((sw_high + sw_low) / 2.0, 2)
+                sl_buffer = max(0.50, round(total_range * 0.0375, 2))
+                if in_discount or dir_label == "BUY":
+                    hard_sl = round(sw_low - 2.5 - sl_buffer, 2)
+                    soft_sl = round(sw_low - 0.5, 2)
+                elif in_premium or dir_label == "SELL":
+                    hard_sl = round(sw_high + 2.5 + sl_buffer, 2)
+                    soft_sl = round(sw_high + 0.5, 2)
+                buy_grid_levels = [
+                    round(buy_zone_top, 2),
+                    round(sw_low + (total_range * 0.125), 2),
+                    round(sw_low, 2)
+                ]
+                sell_grid_levels = [
+                    round(sell_zone_bottom, 2),
+                    round(sw_low + (total_range * 0.875), 2),
+                    round(sw_high, 2)
+                ]
+
             # Find specific anchor/base candles for Roof (Swing High) and Floor (Swing Low)
             roof_idx = max(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["high"]) if lookback_sw else None
             floor_idx = min(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["low"]) if lookback_sw else None
