@@ -774,12 +774,241 @@
       </div>
 
       <!-- Risk Profiles Master Cards -->
-      <div>
-        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2 font-mono">
-          <i class="fa-solid fa-sliders text-indigo-400"></i> MASTER RISK PROFILES (PROVEN ENSEMBLE BASKET)
-        </h3>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2 font-mono">
+            <i class="fa-solid fa-sliders text-indigo-400"></i> MASTER RISK PROFILES (PROVEN ENSEMBLE BASKET)
+          </h3>
+          <span class="text-xs text-slate-400 font-mono">
+            Independen per login MT5 (DEC-030 / DEC-034)
+          </span>
+        </div>
         <div id="risk-profiles-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Rendered by JS -->
+          <!-- Rendered dynamically by JS -->
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- COMPREHENSIVE PLAYBOOK: 4 PROFIL RISIKO & GREED TRAILING ENGINE -->
+      <!-- ========================================================================= -->
+      <div class="glass-card rounded-2xl p-6 border border-indigo-500/30 bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-slate-950/90 shadow-2xl space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 uppercase tracking-wider">
+                <i class="fa-solid fa-book-open mr-1"></i> MASTER TRADING PLAYBOOK
+              </span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                DEC-034 RISK GOVERNOR
+              </span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-1.5 flex items-center gap-2">
+              📖 Panduan 4 Profil Risiko & Greed Trailing Engine
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Filosofi operasional armada: Kapan bot mengunci mati profit 1% (Lockout) vs kapan bot lanjut tancap gas berburu target lebih tinggi (Greedy Mode).
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300">
+              <i class="fa-solid fa-bullseye text-emerald-400 mr-1.5"></i> Target Harian: <strong class="text-emerald-400">+1.0% s/d +8.0%</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Matrix Comparison Table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950/80 text-slate-400 font-mono border-b border-slate-800">
+              <tr>
+                <th class="p-3">PROFIL RISIKO</th>
+                <th class="p-3">MODE OPERASIONAL</th>
+                <th class="p-3 text-center">TARGET HARIAN</th>
+                <th class="p-3 text-center">MAX LOSS HARIAN</th>
+                <th class="p-3">PERILAKU SAAT TEMBUS +1.0%</th>
+                <th class="p-3">PERAN & REKOMENDASI AKUN</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 font-sans">
+              <tr class="hover:bg-slate-800/20 transition">
+                <td class="p-3">
+                  <div class="font-bold text-blue-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-shield-halved"></i> PROP FIRM
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono">Quartet M1+M2+M3+M5</div>
+                </td>
+                <td class="p-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    <i class="fa-solid fa-lock mr-1"></i> HARD LOCK 1%
+                  </span>
+                </td>
+                <td class="p-3 text-center font-mono font-bold text-emerald-400">+1.0% / hari</td>
+                <td class="p-3 text-center font-mono font-bold text-rose-400">-1.0% / hari</td>
+                <td class="p-3 text-slate-300">
+                  <strong class="text-emerald-400">STOP TOTAL & GEMBOK MATI</strong>: Pending orders ditarik dicabut. Bot libur tidur nyenyak sampai jam 00:00 UTC. Cuan 1% aman 100%!
+                </td>
+                <td class="p-3 text-slate-400 text-[11px]">
+                  Akun modal raksasa ($94K+) / Tantangan FTMO. Zero-violation drawdown.
+                </td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/20 transition">
+                <td class="p-3">
+                  <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-leaf"></i> SWEET SPOT
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono">Quartet M1+M2+M3+M5</div>
+                </td>
+                <td class="p-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <i class="fa-solid fa-stairs mr-1"></i> STEPPED GREED
+                  </span>
+                </td>
+                <td class="p-3 text-center font-mono font-bold text-emerald-400">+2.5% / hari</td>
+                <td class="p-3 text-center font-mono font-bold text-rose-400">-2.0% / hari</td>
+                <td class="p-3 text-slate-300">
+                  <strong class="text-amber-400">KUNCI DASAR & LANJUT GAS</strong>: Tembus +1% kunci pengaman di +0.5% (hari dipastikan hijau). Lanjut cari tambahan sampai target +2.5%!
+                </td>
+                <td class="p-3 text-slate-400 text-[11px]">
+                  Akun standar ($9.3K Demo & Akun Cent PU Prime). Seimbang aman & cuan.
+                </td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/20 transition">
+                <td class="p-3">
+                  <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt-lightning"></i> AGGRESSIVE
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono">Trio M1+M2+M3</div>
+                </td>
+                <td class="p-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                    <i class="fa-solid fa-chart-line-up mr-1"></i> COMPOUNDING GREED
+                  </span>
+                </td>
+                <td class="p-3 text-center font-mono font-bold text-emerald-400">+4.0% / hari</td>
+                <td class="p-3 text-center font-mono font-bold text-rose-400">-3.5% / hari</td>
+                <td class="p-3 text-slate-300">
+                  <strong class="text-purple-400">HOUSE MONEY ACCELERATION</strong>: Menggunakan profit pagi untuk melipatgandakan lot di sesi New York, mengejar target +4.0%.
+                </td>
+                <td class="p-3 text-slate-400 text-[11px]">
+                  Akun menengah ($2.5K - $5K). Akselerasi pertumbuhan modal cepat.
+                </td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/20 transition">
+                <td class="p-3">
+                  <div class="font-bold text-rose-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-fire"></i> YOLO
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono">Trio M1+M2+M3</div>
+                </td>
+                <td class="p-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                    <i class="fa-solid fa-rocket mr-1"></i> APEX MAX GREED
+                  </span>
+                </td>
+                <td class="p-3 text-center font-mono font-bold text-emerald-400">+8.0% / hari</td>
+                <td class="p-3 text-center font-mono font-bold text-rose-400">-5.0% / hari</td>
+                <td class="p-3 text-slate-300">
+                  <strong class="text-rose-400">TANPA REM DINI</strong>: Posisi dibiarkan mengejar estafet target HTF M15 hingga puncak gelombang (+8.0% per hari).
+                </td>
+                <td class="p-3 text-slate-400 text-[11px]">
+                  Akun mikro ($350 - $500). Mode lipat ganda uang dingin agresif.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 4 Detailed Explanatory Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <!-- Card 1: Prop Firm -->
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-blue-400 flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved"></i> 1. PROP FIRM (Mengunci Mati 1%)
+              </span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                ZERO OVERTRADING
+              </span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              <strong>Kenapa 1% Langsung Stop?</strong> Karena pada akun modal $100,000, profit 1% bernilai <strong>+$1,000 bersih per hari</strong> (atau ~$20,000/bulan). Mengincar lebih dari itu membuka risiko drawdown tak perlu yang melanggar aturan evaluasi FTMO/MFF.
+            </p>
+            <div class="text-[11px] font-mono text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+              <div class="text-emerald-400"><i class="fa-solid fa-check mr-1"></i> Risiko: 0.25% ($235) | Target TP: $4.00 (2x win = +1% goal)</div>
+              <div class="text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Saat Cuan +1%: Stop total, gembok pintu, libur sampai besok!</div>
+            </div>
+          </div>
+
+          <!-- Card 2: Sweet Spot -->
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+                <i class="fa-solid fa-leaf"></i> 2. SWEET SPOT (Greed Bertingkat / Tangga Cuan)
+              </span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                BALANCED RUNNER
+              </span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              <strong>Bagaimana Cara Kerjanya?</strong> Akun ini tidak berhenti di 1%, tetapi tidak serakah buta. Begitu profit mencapai 1%, sistem <em>mengunci lantai keamanan di +0.5%</em>. Jika tren berlanjut naik ke 2%, lantai dinaikkan ke +1.5%. Hari Anda dijamin berakhir hijau!
+            </p>
+            <div class="text-[11px] font-mono text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+              <div class="text-emerald-400"><i class="fa-solid fa-check mr-1"></i> Target Harian: +2.5% | Max Loss: -2.0%</div>
+              <div class="text-amber-400"><i class="fa-solid fa-stairs mr-1"></i> Kunci Tangga: Tembus 1% -> Kunci 0.5% | Tembus 2% -> Kunci 1.5%</div>
+            </div>
+          </div>
+
+          <!-- Card 3: Aggressive -->
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-400 flex items-center gap-2">
+                <i class="fa-solid fa-bolt-lightning"></i> 3. AGGRESSIVE (House Money Compounding)
+              </span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                VELOCITY ACCELERATION
+              </span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              <strong>Filosofi House Money:</strong> Menggunakan profit yang sudah dipanen dari pasar (uang bandar) untuk mempercepat pelipatan modal. Risiko per trade 1.0% memungkinkan akun $2,500 mencapai target $100 per hari hanya dalam 2-3 transaksi bersih.
+            </p>
+            <div class="text-[11px] font-mono text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+              <div class="text-purple-400"><i class="fa-solid fa-check mr-1"></i> Target: +4.0% / hari | Timeframe: M1 + M2 + M3 Trio</div>
+              <div class="text-rose-400"><i class="fa-solid fa-hand mr-1"></i> Cut-off Harian: -3.5% (Tolak revenge trading jika pasar jelek)</div>
+            </div>
+          </div>
+
+          <!-- Card 4: YOLO -->
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-rose-400 flex items-center gap-2">
+                <i class="fa-solid fa-fire"></i> 4. YOLO (Apex Scalper / Max Compounding)
+              </span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                JACKPOT HUNTER
+              </span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              <strong>Kapan Menggunakan YOLO?</strong> Khusus untuk akun modal kecil ($350 - $500). Posisi tidak pernah dicekik di target pendek, melainkan dibiarkan berlari penuh mengincar estafet gelombang M15 hingga menyentuh target profit harian +8.0%.
+            </p>
+            <div class="text-[11px] font-mono text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+              <div class="text-rose-400"><i class="fa-solid fa-rocket mr-1"></i> Target: +8.0% / hari | Risiko: 2.0% per setup</div>
+              <div class="text-slate-400"><i class="fa-solid fa-arrows-spin mr-1"></i> Handover M15: Kunci trailing stop saat ekspansi tren besar</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Summary Box -->
+        <div class="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/30 flex items-start gap-3">
+          <i class="fa-solid fa-lightbulb text-amber-400 text-base mt-0.5"></i>
+          <div class="text-xs text-slate-300 leading-relaxed">
+            <strong class="text-white">Kesimpulan Praktis:</strong> 
+            Jika Anda ingin mengamankan modal besar tanpa risiko, ikat akun ke <strong class="text-blue-400">PROP FIRM (Hard Lock 1%)</strong>. 
+            Jika Anda ingin akun terus mencari peluang saat pasar sedang sangat ramah dan menghasilkan tren bagus, gunakan <strong class="text-emerald-400">SWEET SPOT</strong> atau <strong class="text-amber-400">AGGRESSIVE (Greedy Mode)</strong>. 
+            Semuanya berjalan independen dan otomatis diatur oleh server Python tanpa perlu Anda pantau manual!
+          </div>
         </div>
       </div>
     </section>
@@ -2257,20 +2486,52 @@
 
     function renderRiskProfiles(profiles) {
       const grid = document.getElementById('risk-profiles-grid');
+      if (!grid) return;
       grid.innerHTML = '';
 
       Object.entries(profiles).forEach(([key, prof]) => {
+        const isLock1 = (prof.mode_type === 'HARD_LOCK_1PCT' || key === 'prop_firm');
+        const badgeColor = isLock1 
+          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+          : (key === 'yolo' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : (key === 'aggressive' ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'));
+        const badgeText = prof.mode_badge || (isLock1 ? 'LOCK 1% (ULTRA SAFE)' : 'GREEDY RUNNER');
+
         const card = document.createElement('div');
-        card.className = 'glass-card p-4 rounded-xl border border-slate-800 space-y-2';
+        card.className = 'glass-card p-4 rounded-xl border border-slate-800 space-y-3 hover:border-slate-700 transition flex flex-col justify-between';
         card.innerHTML = `
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-white">${prof.label}</span>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${prof.basket_mode}</span>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between gap-1">
+              <span class="text-xs font-bold text-white">${prof.label.split('(')[0].trim()}</span>
+              <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${badgeColor}">${badgeText}</span>
+            </div>
+            <div class="text-[10px] text-slate-400 font-mono">${prof.basket_mode || 'QUARTET'} &bull; ${(prof.timeframes || []).join('+')}</div>
           </div>
-          <div class="text-xs space-y-1 text-slate-400">
-            <div>Timeframes: <span class="text-slate-200 font-mono">${(prof.timeframes || []).join(' + ')}</span></div>
-            <div>Max Daily DD: <span class="text-amber-400 font-mono">${prof.max_daily_dd_pct}%</span></div>
-            <div>Risk per Trade: <span class="text-emerald-400 font-mono">${prof.risk_per_trade_pct}%</span></div>
+
+          <div class="grid grid-cols-2 gap-1.5 py-1 text-center bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+            <div>
+              <div class="text-[9px] text-slate-500 font-mono">TARGET HARIAN</div>
+              <div class="text-xs font-bold text-emerald-400 font-mono">+${prof.daily_target_pct || 1.0}%</div>
+            </div>
+            <div>
+              <div class="text-[9px] text-slate-500 font-mono">MAX LOSS HARIAN</div>
+              <div class="text-xs font-bold text-rose-400 font-mono">-${prof.max_daily_loss_pct || 1.0}%</div>
+            </div>
+          </div>
+
+          <div class="text-[11px] space-y-1 text-slate-400">
+            <div class="flex justify-between">
+              <span>Risiko/Trade:</span>
+              <span class="text-emerald-400 font-mono font-semibold">${prof.risk_per_trade_pct}%</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Max Daily DD:</span>
+              <span class="text-amber-400 font-mono font-semibold">${prof.max_daily_dd_pct}%</span>
+            </div>
+          </div>
+
+          <div class="text-[10px] text-slate-400 bg-slate-900/60 p-2 rounded border border-slate-800/50 leading-tight">
+            <span class="text-slate-300 font-semibold">${isLock1 ? '🔒 Saat +1.0%:' : '🏃 Saat +1.0%:'}</span> 
+            ${prof.behavior_at_1pct ? prof.behavior_at_1pct.split(':')[0] : (isLock1 ? 'Stop & Gembok mati' : 'Kunci pengaman & lanjut gas')}
           </div>
         `;
         grid.appendChild(card);

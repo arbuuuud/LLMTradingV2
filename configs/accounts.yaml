@@ -117,23 +117,11 @@ auth:
   secret_key: institutional_secret_jwt_key_llmtradingv2
 default_profile: prop_firm
 risk_profiles:
-  aggressive:
-    basket_mode: TRIO_M1_M2_M3
-    label: Aggressive (High Velocity Compounding)
-    risk_per_trade_pct: 1.0
-    daily_target_pct: 4.0
-    max_daily_loss_pct: 3.5
-    daily_lock_pullback_pct: 1.0
-    max_daily_dd_pct: 6.0
-    status: ACTIVE
-    target_rr: 3.0
-    timeframes:
-    - M1
-    - M2
-    - M3
   prop_firm:
     basket_mode: QUARTET_M1_M2_M3_M5
     label: Prop Firm (FTMO/MFF Ultra Safe)
+    mode_type: HARD_LOCK_1PCT
+    mode_badge: "LOCK 1% (ULTRA SAFE)"
     risk_per_trade_pct: 0.25
     daily_target_pct: 1.0
     max_daily_loss_pct: 1.0
@@ -146,9 +134,14 @@ risk_profiles:
     - M2
     - M3
     - M5
+    behavior_at_1pct: "STOP TOTAL & GEMBOK MATI: Begitu net profit mencapai +1.0%, bot langsung mencabut semua pending order dan berhenti trading hari itu sampai 00:00 UTC."
+    philosophy_desc: "Prioritas mutlak adalah keselamatan modal institusi besar ($94K+). Menghindari overtrading dan menjamin zero-violation pada batas drawdown FTMO/MFF."
+    recommended_for: "Akun modal raksasa ($50K - $100K+) & Evaluasi Prop Firm."
   sweet_spot:
     basket_mode: QUARTET_M1_M2_M3_M5
     label: Sweet Spot (Balanced Growth)
+    mode_type: GREEDY_TRAILING
+    mode_badge: "GREEDY RUNNER (STEPPED)"
     risk_per_trade_pct: 0.5
     daily_target_pct: 2.5
     max_daily_loss_pct: 2.0
@@ -161,9 +154,33 @@ risk_profiles:
     - M2
     - M3
     - M5
+    behavior_at_1pct: "KUNCI PENGAMAN & LANJUT GAS: Saat tembus +1.0%, bot mengunci lantai aman di +0.5% (hari dipastikan hijau), lalu trading lanjut berburu cuan hingga target +2.5%."
+    philosophy_desc: "Keseimbangan sempurna antara pertumbuhan modal dan proteksi. Memberi ruang napas bagi tren sehat untuk menghasilkan profit berlipat tanpa membuang hasil awal."
+    recommended_for: "Akun $1,000 - $10,000 & Akun Cent PU Prime."
+  aggressive:
+    basket_mode: TRIO_M1_M2_M3
+    label: Aggressive (High Velocity Compounding)
+    mode_type: GREEDY_TRAILING
+    mode_badge: "GREEDY COMPOUNDING"
+    risk_per_trade_pct: 1.0
+    daily_target_pct: 4.0
+    max_daily_loss_pct: 3.5
+    daily_lock_pullback_pct: 1.0
+    max_daily_dd_pct: 6.0
+    status: ACTIVE
+    target_rr: 3.0
+    timeframes:
+    - M1
+    - M2
+    - M3
+    behavior_at_1pct: "HOUSE MONEY ACCELERATION: Menggunakan profit sesi pagi untuk melipatgandakan ukuran lot di sesi New York. Mengejar target profit harian +4.0%."
+    philosophy_desc: "Akselerasi cepat untuk menumbuhkan modal menengah menjadi modal besar dalam waktu singkat."
+    recommended_for: "Akun menengah ($2,000 - $5,000)."
   yolo:
     basket_mode: TRIO_M1_M2_M3
     label: YOLO (Apex Scalper / Max Compounding)
+    mode_type: GREEDY_TRAILING
+    mode_badge: "APEX MAX GREED"
     risk_per_trade_pct: 2.0
     daily_target_pct: 8.0
     max_daily_loss_pct: 5.0
@@ -175,3 +192,6 @@ risk_profiles:
     - M1
     - M2
     - M3
+    behavior_at_1pct: "UNLEASHED APEX GREED: Tidak ada rem di 1%. Posisi dibiarkan mengejar estafet target HTF M15 hingga mencapai puncak gelombang (+8.0% per hari)."
+    philosophy_desc: "Eksploitasi momentum ekstrem untuk akun 'uang dingin' yang siap dilipatgandakan secara masif."
+    recommended_for: "Akun mikro ($300 - $500)."
