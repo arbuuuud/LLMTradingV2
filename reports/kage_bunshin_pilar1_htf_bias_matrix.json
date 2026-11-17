@@ -1,0 +1,263 @@
+{
+  "tournament_id": "KB-PILAR-1-HTF-BIAS-MATRIX",
+  "title": "Turnamen 1 Kage Bunshin: Matrix HTF Trend Bias Gate",
+  "timestamp": "2026-11-17T13:59:53.308767",
+  "total_bars": 300440,
+  "total_clones": 23,
+  "execution_time_sec": 13.73,
+  "leaderboard": [
+    {
+      "clone_id": "CLONE-21_M15+H1",
+      "exec_tf": "M15",
+      "htf_bias": "H1",
+      "trades": 1550,
+      "win_rate": 34.8,
+      "profit_factor": 2.04,
+      "max_drawdown_pct": 16.18,
+      "net_pnl": 18965.01,
+      "final_balance": 28965.01
+    },
+    {
+      "clone_id": "CLONE-22_M15+H4",
+      "exec_tf": "M15",
+      "htf_bias": "H4",
+      "trades": 1700,
+      "win_rate": 35.2,
+      "profit_factor": 2.0,
+      "max_drawdown_pct": 16.99,
+      "net_pnl": 19801.02,
+      "final_balance": 29801.02
+    },
+    {
+      "clone_id": "CLONE-12_M3+D1",
+      "exec_tf": "M3",
+      "htf_bias": "D1",
+      "trades": 4359,
+      "win_rate": 44.1,
+      "profit_factor": 1.99,
+      "max_drawdown_pct": 19.72,
+      "net_pnl": 44555.55,
+      "final_balance": 54555.55
+    },
+    {
+      "clone_id": "CLONE-20_M15+M30",
+      "exec_tf": "M15",
+      "htf_bias": "M30",
+      "trades": 1356,
+      "win_rate": 33.5,
+      "profit_factor": 1.96,
+      "max_drawdown_pct": 20.79,
+      "net_pnl": 15611.64,
+      "final_balance": 25611.64
+    },
+    {
+      "clone_id": "CLONE-19_M15+NO_BIAS",
+      "exec_tf": "M15",
+      "htf_bias": "NONE",
+      "trades": 3563,
+      "win_rate": 32.4,
+      "profit_factor": 1.68,
+      "max_drawdown_pct": 19.12,
+      "net_pnl": 29726.62,
+      "final_balance": 39726.62
+    },
+    {
+      "clone_id": "CLONE-07_M3+NO_BIAS",
+      "exec_tf": "M3",
+      "htf_bias": "NONE",
+      "trades": 6870,
+      "win_rate": 42.8,
+      "profit_factor": 1.65,
+      "max_drawdown_pct": 27.22,
+      "net_pnl": 47549.94,
+      "final_balance": 57549.94
+    },
+    {
+      "clone_id": "CLONE-11_M3+H4",
+      "exec_tf": "M3",
+      "htf_bias": "H4",
+      "trades": 4346,
+      "win_rate": 44.2,
+      "profit_factor": 1.59,
+      "max_drawdown_pct": 18.85,
+      "net_pnl": 26537.17,
+      "final_balance": 36537.17
+    },
+    {
+      "clone_id": "CLONE-23_M15+D1",
+      "exec_tf": "M15",
+      "htf_bias": "D1",
+      "trades": 1733,
+      "win_rate": 35.3,
+      "profit_factor": 1.58,
+      "max_drawdown_pct": 10.82,
+      "net_pnl": 11729.21,
+      "final_balance": 21729.21
+    },
+    {
+      "clone_id": "CLONE-13_M5+NO_BIAS",
+      "exec_tf": "M5",
+      "htf_bias": "NONE",
+      "trades": 5748,
+      "win_rate": 39.1,
+      "profit_factor": 1.4,
+      "max_drawdown_pct": 18.12,
+      "net_pnl": 25427.51,
+      "final_balance": 35427.51
+    },
+    {
+      "clone_id": "CLONE-09_M3+M30",
+      "exec_tf": "M3",
+      "htf_bias": "M30",
+      "trades": 4280,
+      "win_rate": 44.2,
+      "profit_factor": 1.4,
+      "max_drawdown_pct": 17.69,
+      "net_pnl": 17948.48,
+      "final_balance": 27948.48
+    },
+    {
+      "clone_id": "CLONE-18_M5+D1",
+      "exec_tf": "M5",
+      "htf_bias": "D1",
+      "trades": 3378,
+      "win_rate": 40.6,
+      "profit_factor": 1.36,
+      "max_drawdown_pct": 13.35,
+      "net_pnl": 13297.72,
+      "final_balance": 23297.72
+    },
+    {
+      "clone_id": "CLONE-10_M3+H1",
+      "exec_tf": "M3",
+      "htf_bias": "H1",
+      "trades": 4418,
+      "win_rate": 43.9,
+      "profit_factor": 1.34,
+      "max_drawdown_pct": 25.25,
+      "net_pnl": 15640.01,
+      "final_balance": 25640.01
+    },
+    {
+      "clone_id": "CLONE-06_M1+D1",
+      "exec_tf": "M1",
+      "htf_bias": "D1",
+      "trades": 8218,
+      "win_rate": 55.3,
+      "profit_factor": 1.32,
+      "max_drawdown_pct": 5.82,
+      "net_pnl": 22805.3,
+      "final_balance": 32805.3
+    },
+    {
+      "clone_id": "CLONE-17_M5+H4",
+      "exec_tf": "M5",
+      "htf_bias": "H4",
+      "trades": 3428,
+      "win_rate": 40.4,
+      "profit_factor": 1.32,
+      "max_drawdown_pct": 13.21,
+      "net_pnl": 11926.18,
+      "final_balance": 21926.18
+    },
+    {
+      "clone_id": "CLONE-01_M1+NO_BIAS",
+      "exec_tf": "M1",
+      "htf_bias": "NONE",
+      "trades": 12194,
+      "win_rate": 52.7,
+      "profit_factor": 1.27,
+      "max_drawdown_pct": 6.12,
+      "net_pnl": 30341.73,
+      "final_balance": 40341.73
+    },
+    {
+      "clone_id": "CLONE-04_M1+H1",
+      "exec_tf": "M1",
+      "htf_bias": "H1",
+      "trades": 8000,
+      "win_rate": 53.8,
+      "profit_factor": 1.27,
+      "max_drawdown_pct": 8.59,
+      "net_pnl": 19406.36,
+      "final_balance": 29406.36
+    },
+    {
+      "clone_id": "CLONE-05_M1+H4",
+      "exec_tf": "M1",
+      "htf_bias": "H4",
+      "trades": 8153,
+      "win_rate": 55.1,
+      "profit_factor": 1.27,
+      "max_drawdown_pct": 7.33,
+      "net_pnl": 19147.23,
+      "final_balance": 29147.23
+    },
+    {
+      "clone_id": "CLONE-02_M1+M15",
+      "exec_tf": "M1",
+      "htf_bias": "M15",
+      "trades": 8075,
+      "win_rate": 54.0,
+      "profit_factor": 1.26,
+      "max_drawdown_pct": 6.01,
+      "net_pnl": 18333.33,
+      "final_balance": 28333.33
+    },
+    {
+      "clone_id": "CLONE-03_M1+M30",
+      "exec_tf": "M1",
+      "htf_bias": "M30",
+      "trades": 7918,
+      "win_rate": 53.4,
+      "profit_factor": 1.26,
+      "max_drawdown_pct": 7.35,
+      "net_pnl": 18272.59,
+      "final_balance": 28272.59
+    },
+    {
+      "clone_id": "CLONE-14_M5+M15",
+      "exec_tf": "M5",
+      "htf_bias": "M15",
+      "trades": 3023,
+      "win_rate": 41.9,
+      "profit_factor": 1.23,
+      "max_drawdown_pct": 11.18,
+      "net_pnl": 7477.03,
+      "final_balance": 17477.03
+    },
+    {
+      "clone_id": "CLONE-15_M5+M30",
+      "exec_tf": "M5",
+      "htf_bias": "M30",
+      "trades": 3279,
+      "win_rate": 40.8,
+      "profit_factor": 1.21,
+      "max_drawdown_pct": 15.2,
+      "net_pnl": 7528.14,
+      "final_balance": 17528.14
+    },
+    {
+      "clone_id": "CLONE-16_M5+H1",
+      "exec_tf": "M5",
+      "htf_bias": "H1",
+      "trades": 3313,
+      "win_rate": 40.5,
+      "profit_factor": 1.17,
+      "max_drawdown_pct": 14.47,
+      "net_pnl": 6166.21,
+      "final_balance": 16166.21
+    },
+    {
+      "clone_id": "CLONE-08_M3+M15",
+      "exec_tf": "M3",
+      "htf_bias": "M15",
+      "trades": 4096,
+      "win_rate": 45.2,
+      "profit_factor": 1.1,
+      "max_drawdown_pct": 16.89,
+      "net_pnl": 4194.05,
+      "final_balance": 14194.05
+    }
+  ]
+}
