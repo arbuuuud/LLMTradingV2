@@ -1,0 +1,230 @@
+[
+  {
+    "scenario_id": "SOLO-M1",
+    "description": "Solo M1 (Bias D1)",
+    "tfs": [
+      "M1"
+    ],
+    "mode": "INDEPENDENT_ENSEMBLE",
+    "trades": 8193,
+    "win_rate": 48.5,
+    "profit_factor": 0.92,
+    "max_drawdown_pct": 94.93,
+    "net_pnl": -5785.98,
+    "tf_breakdown": {
+      "M1": {
+        "trades": 8193,
+        "pnl": -5785.98,
+        "win_rate": 48.5
+      }
+    },
+    "duration_sec": 1.35
+  },
+  {
+    "scenario_id": "SOLO-M3",
+    "description": "Solo M3 (Bias D1)",
+    "tfs": [
+      "M3"
+    ],
+    "mode": "INDEPENDENT_ENSEMBLE",
+    "trades": 5027,
+    "win_rate": 42.4,
+    "profit_factor": 0.83,
+    "max_drawdown_pct": 86.77,
+    "net_pnl": -8403.56,
+    "tf_breakdown": {
+      "M3": {
+        "trades": 5027,
+        "pnl": -8403.56,
+        "win_rate": 42.4
+      }
+    },
+    "duration_sec": 1.32
+  },
+  {
+    "scenario_id": "SOLO-M5",
+    "description": "Solo M5 (Bias M15)",
+    "tfs": [
+      "M5"
+    ],
+    "mode": "INDEPENDENT_ENSEMBLE",
+    "trades": 3868,
+    "win_rate": 43.7,
+    "profit_factor": 0.87,
+    "max_drawdown_pct": 52.03,
+    "net_pnl": -4737.4,
+    "tf_breakdown": {
+      "M5": {
+        "trades": 3868,
+        "pnl": -4737.4,
+        "win_rate": 43.7
+      }
+    },
+    "duration_sec": 1.41
+  },
+  {
+    "scenario_id": "SOLO-M15",
+    "description": "Solo M15 (Bias H1)",
+    "tfs": [
+      "M15"
+    ],
+    "mode": "INDEPENDENT_ENSEMBLE",
+    "trades": 1914,
+    "win_rate": 39.7,
+    "profit_factor": 0.96,
+    "max_drawdown_pct": 18.88,
+    "net_pnl": -816.2,
+    "tf_breakdown": {
+      "M15": {
+        "trades": 1914,
+        "pnl": -816.2,
+        "win_rate": 39.7
+      }
+    },
+    "duration_sec": 1.78
+  },
+  {
+    "scenario_id": "TRIO-M1-M3-M5",
+    "description": "Trio Ensemble (M1 + M3 + M5 Independent)",
+    "tfs": [
+      "M1",
+      "M3",
+      "M5"
+    ],
+    "mode": "INDEPENDENT_ENSEMBLE",
+    "trades": 21368,
+    "win_rate": 45.2,
+    "profit_factor": 0.87,
+    "max_drawdown_pct": 97.71,
+    "net_pnl": -8468.62,
+    "tf_breakdown": {
+      "M1": {
+        "trades": 11353,
+        "pnl": -3437.93,
+        "win_rate": 47.3
+      },
+      "M3": {
+        "trades": 5986,
+        "pnl": -3298.8,
+        "win_rate": 42.1
+      },
+      "M5": {
+        "trades": 4029,
+        "pnl": -1731.89,
+        "win_rate": 43.5
+      }
+    },
+    "duration_sec": 2.37
+  },
+  {
+    "scenario_id": "QUARTET-ALL-4-TF",
+    "description": "Kuartet Lengkap (M1 + M3 + M5 + M15 Independent)",
+    "tfs": [
+      "M1",
+      "M3",
+      "M5",
+      "M15"
+    ],
+    "mode": "INDEPENDENT_ENSEMBLE",
+    "trades": 25307,
+    "win_rate": 44.6,
+    "profit_factor": 0.88,
+    "max_drawdown_pct": 79.86,
+    "net_pnl": -7123.67,
+    "tf_breakdown": {
+      "M1": {
+        "trades": 12484,
+        "pnl": -2560.27,
+        "win_rate": 47.4
+      },
+      "M3": {
+        "trades": 6614,
+        "pnl": -2713.58,
+        "win_rate": 41.9
+      },
+      "M5": {
+        "trades": 4391,
+        "pnl": -1402.18,
+        "win_rate": 43.5
+      },
+      "M15": {
+        "trades": 1818,
+        "pnl": -447.65,
+        "win_rate": 38.5
+      }
+    },
+    "duration_sec": 3.03
+  },
+  {
+    "scenario_id": "HANDOVER-TRIO",
+    "description": "Trio + Intelligent Handover (Cancel & Upgrade Pending)",
+    "tfs": [
+      "M1",
+      "M3",
+      "M5"
+    ],
+    "mode": "HANDOVER_UPGRADE",
+    "trades": 21151,
+    "win_rate": 45.2,
+    "profit_factor": 0.86,
+    "max_drawdown_pct": 94.48,
+    "net_pnl": -9346.61,
+    "tf_breakdown": {
+      "M1": {
+        "trades": 11204,
+        "pnl": -4602.28,
+        "win_rate": 47.6
+      },
+      "M3": {
+        "trades": 5826,
+        "pnl": -2925.67,
+        "win_rate": 42.0
+      },
+      "M5": {
+        "trades": 4121,
+        "pnl": -1818.66,
+        "win_rate": 43.4
+      }
+    },
+    "duration_sec": 2.54
+  },
+  {
+    "scenario_id": "HANDOVER-QUARTET",
+    "description": "Kuartet + Intelligent Handover (M1->M3->M5->M15 Upgrade)",
+    "tfs": [
+      "M1",
+      "M3",
+      "M5",
+      "M15"
+    ],
+    "mode": "HANDOVER_UPGRADE",
+    "trades": 24856,
+    "win_rate": 44.8,
+    "profit_factor": 0.87,
+    "max_drawdown_pct": 74.13,
+    "net_pnl": -7344.87,
+    "tf_breakdown": {
+      "M1": {
+        "trades": 12272,
+        "pnl": -3583.63,
+        "win_rate": 47.6
+      },
+      "M3": {
+        "trades": 6352,
+        "pnl": -2707.08,
+        "win_rate": 41.8
+      },
+      "M5": {
+        "trades": 4322,
+        "pnl": -718.35,
+        "win_rate": 44.2
+      },
+      "M15": {
+        "trades": 1910,
+        "pnl": -335.8,
+        "win_rate": 38.6
+      }
+    },
+    "duration_sec": 3.07
+  }
+]
