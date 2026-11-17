@@ -135,6 +135,27 @@
       1. Menolak VWAP, ADX, dan RVOL dari live engine demi menjaga kesederhanaan dan kecepatan eksekusi (*Zero Complexity without Alpha*).
       2. Mengintegrasikan **Dynamic SL Buffer (0.25x)** ke `src/bridge/server.py` dan menaikkan versi PAC Scalper ke `v2.2.0` di `configs/engines/pac_scalper.yaml`.
     - *Status*: **VERIFIED & COMPLETED (DEC-029)**.
+  - [ ] **Subtask 5-3H: Riset Kage Bunshin 4 Pilar Berdasarkan Audit 4,198 Trade Live Forward Test (Roadmap Bertahap)**:
+    - *Latar Belakang*: Audit 4,198 live trade di VPS (05 Okt s/d 17 Nov 2026) mengungkapkan:
+      1. Win Rate riil konsisten tinggi (58.8% overall, 62%-88% di hari normal/konsolidasi).
+      2. 81.5% total kerugian disumbang oleh 6 hari Mega-Trend Flash Crash (-$6,044.37) akibat scalper M1 terus melawan arus (counter-trend knife catching).
+      3. Asimetri Payoff Ratio (Avg Win $2.48 vs Avg Loss $4.04, R:R 1 : 0.58) akibat trailing stop Sasuke mencekik posisi terlalu dini di +0.5R ($1.95).
+    - *Rencana Aksi Riset Empiris Bertahap (Zero Mutation Before Full Empirical Isolation)*:
+      - **Fase 1: Isolasi Mandiri Tiap Pilar (Turnamen 1, 2, 3)**:
+        * *Turnamen 1 (Pilar 1 - HTF Bias Matrix)*: Menandingkan Entry TF (M1, M3, M5, M15) terhadap Anchor/Bias HTF (M15, M30, H1, H4) dengan metriks EMA 50 Slope & BOS structure untuk memfilter counter-trend trade tanpa memangkas cuan di pasar normal.
+        * *Turnamen 2 (Pilar 2 - Trailing Engine Matrix)*: Menandingkan Fixed R-Multiples (+0.8R s/d +2.0R) vs ATR-based Trailing (ATR M1/M5/M15) vs ADX Regime Adaptive vs Naruto 2 Summary Trailing untuk menyeimbangkan R:R $\ge 1:1$.
+        * *Turnamen 3 (Pilar 3 - Zone Depletion & Stale Orders)*: Menandingkan Macro Zone Lockout (DEC-035) vs Micro Level Depletion (hanya level harga yang sudah tersentuh/terisi yang dinonaktifkan, virgin depth tetap aktif) vs Touch-and-Burn.
+      - **Fase 2: Uji Pasangan 2 Pilar (Pairwise Interaction)**:
+        * *Turnamen 4*: Best Pilar 1 + Best Pilar 2
+        * *Turnamen 5*: Best Pilar 1 + Best Pilar 3
+        * *Turnamen 6*: Best Pilar 2 + Best Pilar 3
+      - **Fase 3: Uji Tri-Ensemble (3 Pilar)**:
+        * *Turnamen 7*: Best Pilar 1 + Best Pilar 2 + Best Pilar 3
+      - **Fase 4: Uji Relevansi Pilar 4 (News Volatility Blackout)**:
+        * *Turnamen 8*: Tri-Ensemble vs Tri-Ensemble + News Blackout (Kamis 12:00-14:00 UTC) untuk memverifikasi apakah filter berita masih relevan dan memberikan alpha tambahan.
+      - **Fase 5: Laporan Evaluasi Komparatif & Approval Gate**:
+        * Menyajikan reasoning matematis lengkap, leaderboard komparatif, dan dampak PnL/DD kepada pengguna untuk konfirmasi sebelum implementasi kode.
+    - *Status*: **PLANNED & READY FOR TOURNAMENT 1 (DILARANG IMPLEMENTASI KE LIVE ENGINE SEBELUM KONFIRMASI EKSPLISIT DARI USER)**.
 
 ---
 
@@ -160,5 +181,12 @@
 | **DEC-027** | 2026-09-25 | Realistic Market Friction Calibrated Backtest Engine | Mengintegrasikan pembelajaran telemetri Forward Test MT5 ke Backtest Engine Python: (1) Asimetri spread Ask/Bid (posisi SELL exit di Ask = Bid + Spread), (2) Injeksi slippage eksekusi riil, (3) Eksekusi parsial layer-by-layer grid mandiri, dan (4) Dukungan alokasi risiko bobot grid (EQUAL vs INVERTED 50-25-25) agar hasil backtest merefleksikan dinamika akun live nyata. | **CONFIRMED** |
 | **DEC-028** | 2026-09-25 | Multi-Session Equity Budgeting, House Money & Greed Trailing (CLONE-08) | Memecah proteksi ekuitas kaku harian menjadi 3 Sesi Mandiri (Asian 00-07 UTC, London 07-13:30 UTC, NY Overlap 13:30-21 UTC). Sesi Asia yang loss tidak mematikan peluang emas di London & NY. Dilengkapi format alokasi Pyramid 20-30-50, Dynamic Greed Trailing Undak +0.5% (pullback 0.5% istirahat sesi), dan House Money Profit Carrying (menaikkan budget NY jika London profit). Terbukti di 300.440 bar M1 meraih Win Day Rate 100% dan target >= 20%/bulan lolos 12/12 bulan sempurna dengan Max DD hanya 0.17%. | **CONFIRMED** |
 | **DEC-029** | 2026-09-25 | Dynamic ATR SL Buffer Adopsi & Penolakan Indikator Lagging (ADX, VWAP, RVOL) | Berdasarkan uji tanding 30 Shadow Clones di 300.440 bar M1 XAUUSD (Kasus Wick Hunt $4295): (1) VWAP, RVOL, dan ADX terbukti mendegradasi Win Rate dan Profit Factor (over-filtering). (2) Dynamic SL Buffer 0.25x (`CLONE-HTF-BUFFER-0.25x`) terbukti secara empiris meningkatkan Profit Factor ke 136.17 dan mereduksi Max Drawdown sebesar 22% (dari 2.70% ke 2.10%). Ditetapkan: Hanya adopsi Dynamic SL Buffer 0.25x ke core engine; tolak indikator lagging yang merusak edge. | **MANDATORY** |
+| **DEC-030** | 2026-09-25 | Per-Account Dynamic Session Budgeting Isolation | Mengisolasi pelacakan equity drawdown sesi per nomor login MT5 (`account_sessions`). Akun yang terkena session halt tidak lagi membekukan akun sehat lainnya di armada. | **CONFIRMED** |
+| **DEC-031** | 2026-09-25 | Anti-Falling-Knife Directional Cooldown (`CLONE-SESSION-ADAPT-15M`) | Jeda otomatis terarah (Asia 10m, London 15m, NY 25m) setelah mengalami Stop Loss untuk memutus siklus tangkap pisau jatuh beruntun pada pergerakan satu arah. | **CONFIRMED** |
+| **DEC-032** | 2026-09-25 | Institutional POI Prioritizer (`POIPrioritizer`) | Fresh RBR Demand dan DBD Supply bases berjarak <= 12-15 pt secara deterministik mengesampingkan swing OB konvensional untuk titik batas zona yang lebih presisi. | **CONFIRMED** |
+| **DEC-033** | 2026-09-25 | Multi-Layer Summary BEP + $2.00 Trailing Stop (Naruto 2) | Mengunci SL pada rata-rata tertimbang harga masuk (*Summary BEP*) saat posisi floating +$2.00, lalu mengaktifkan trailing stop $2.00 di belakang harga. Mengamankan Net PnL +$389K (PF 6.42). | **CONFIRMED** |
+| **DEC-034** | 2026-09-25 | Master Daily Risk Guard & Hard Lockout Circuit Breaker | Penguncian harian per akun: batas max loss harian (-1.0% s/d -5.0%) dan profit target lock (+1.0% s/d +8.0%) menghentikan aktivitas akun saat target atau batas risiko tercapai. | **CONFIRMED** |
+| **DEC-035** | 2026-10-07 | Single Harvest per Structural Zone Invalidation | Begitu Take Profit tercapai pada suatu zona, area harga tersebut dikunci status `COMPLETED/SPENT`. Dilarang membuka order lagi di arah yang sama sampai terbentuk struktur baru ($\ge 1.0$ pt). | **CONFIRMED** |
+| **DEC-036** | 2026-10-07 | POI SL Recalculation & EA Fail-Safe Stop Repair | Otomatis menghitung ulang Stop Loss jika base RBR/DBD mengubah swing level, dan menambahkan fail-safe di EA jika terjadi anomali `SL >= execPrice` pada BUY_LIMIT untuk mengeliminasi error `10016 invalid stops`. | **CONFIRMED** |
 
 
