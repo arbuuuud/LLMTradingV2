@@ -1,0 +1,94 @@
+[
+  {
+    "scenario_id": "SCENARIO-01-STATUS-QUO",
+    "description": "Status Quo (Tanpa Handover, Trailing kaku, Tanpa Depletion, Tanpa Daily Lock)",
+    "metrics": {
+      "trades": 17223,
+      "win_rate": 32.7,
+      "profit_factor": 3.42,
+      "net_pnl": 162913.59,
+      "max_drawdown_pct": 4.08,
+      "avg_win": 40.82,
+      "avg_loss": 19.9,
+      "payoff_ratio": 2.05,
+      "total_days": 221,
+      "green_days": 165,
+      "win_day_rate": 74.7,
+      "target_1pct_days": 124,
+      "loss_limit_days": 21,
+      "total_weeks": 46,
+      "green_weeks": 45,
+      "win_week_rate": 97.8,
+      "target_5pct_weeks": 32
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-02-PILAR-1-PLUS-2",
+    "description": "Pilar 1 + Pilar 2 (D1 Bias + Conditional Handover & Trailing S1/S2 vs S3)",
+    "metrics": {
+      "trades": 11101,
+      "win_rate": 63.7,
+      "profit_factor": 2.38,
+      "net_pnl": 107021.0,
+      "max_drawdown_pct": 3.91,
+      "avg_win": 26.15,
+      "avg_loss": 19.32,
+      "payoff_ratio": 1.35,
+      "total_days": 221,
+      "green_days": 150,
+      "win_day_rate": 67.9,
+      "target_1pct_days": 115,
+      "loss_limit_days": 34,
+      "total_weeks": 46,
+      "green_weeks": 42,
+      "win_week_rate": 91.3,
+      "target_5pct_weeks": 29
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-03-ALL-3-PILARS",
+    "description": "Pilar 1 + 2 + 3 (D1 Bias + Conditional Trailing + Micro Depletion/Touch-and-Burn)",
+    "metrics": {
+      "trades": 10722,
+      "win_rate": 63.5,
+      "profit_factor": 2.43,
+      "net_pnl": 106128.57,
+      "max_drawdown_pct": 4.13,
+      "avg_win": 26.47,
+      "avg_loss": 19.03,
+      "payoff_ratio": 1.39,
+      "total_days": 221,
+      "green_days": 146,
+      "win_day_rate": 66.1,
+      "target_1pct_days": 113,
+      "loss_limit_days": 31,
+      "total_weeks": 46,
+      "green_weeks": 40,
+      "win_week_rate": 87.0,
+      "target_5pct_weeks": 28
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-04-GRAND-CHAMPION-1PCT-DAILY",
+    "description": "THE UNIFIED GRAND CHAMPION (+1% Daily Lockout & -1% Max Loss Guard)",
+    "metrics": {
+      "trades": 6014,
+      "win_rate": 62.4,
+      "profit_factor": 2.14,
+      "net_pnl": 49019.01,
+      "max_drawdown_pct": 4.59,
+      "avg_win": 24.53,
+      "avg_loss": 19.12,
+      "payoff_ratio": 1.28,
+      "total_days": 221,
+      "green_days": 146,
+      "win_day_rate": 66.1,
+      "target_1pct_days": 125,
+      "loss_limit_days": 40,
+      "total_weeks": 46,
+      "green_weeks": 41,
+      "win_week_rate": 89.1,
+      "target_5pct_weeks": 22
+    }
+  }
+]
