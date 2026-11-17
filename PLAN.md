@@ -155,7 +155,21 @@
         * *Turnamen 8*: Tri-Ensemble vs Tri-Ensemble + News Blackout (Kamis 12:00-14:00 UTC) untuk memverifikasi apakah filter berita masih relevan dan memberikan alpha tambahan.
       - **Fase 5: Laporan Evaluasi Komparatif & Approval Gate**:
         * Menyajikan reasoning matematis lengkap, leaderboard komparatif, dan dampak PnL/DD kepada pengguna untuk konfirmasi sebelum implementasi kode.
-    - *Status*: **PLANNED & READY FOR TOURNAMENT 1 (DILARANG IMPLEMENTASI KE LIVE ENGINE SEBELUM KONFIRMASI EKSPLISIT DARI USER)**.
+    - *Catatan Kritis Pengguna (Pilar 1 Safeguard - Anti-Spam & Zero-Collision Order Gate)*:
+      * **DILARANG KERAS terjadinya order collision / tabrakan multi-timeframe**: Jika M1, M3, M5, dan M15 mendeteksi setup searah, sistem dilarang memasang limit order bertumpuk di harga yang sama (anti-spamming).
+      * **Proximity Coalescing Guard**: Jika sudah ada pending limit order dalam radius $\le 1.0 - 1.5$ poin di arah yang sama, limit order baru dari TF lain WAJIB diabaikan atau menggantikan (replace).
+      * **Atomic Handover Protocol**: Pembatalan limit order lama (misal Cancel M1) WAJIB tuntas dan bersih sebelum limit order upgrade (M3/M5/M15) dipancarkan ke broker, untuk mencegah duplikasi order.
+      * **Hard Pending Cap**: Batas absolut maksimal 3 limit orders aktif secara bersamaan per akun MT5 di seluruh timeframe (total akumulasi risiko tetap terkunci di 0.50% akun).
+    - *Catatan Kritis Pengguna (Spread Compensation & Order Placement Evolution)*:
+      * **Mode Aktif Saat Ini (Solusi 1 - Pre-Placing dengan P95 Spread Cushion)**: Limit order dipasang lebih awal (*pre-placed*) di server broker dengan bantalan spread P95 ($0.30 - $0.35) agar order terjemput presisi saat wick chart menyentuh bibir zona tanpa tercekik pelebaran spread sesaat, dan posisi order **dapat dipantau secara visual di chart MT5**.
+      * **Evolusi Masa Depan (Solusi 3 - Virtual / Synthetic Limit Order on Touch)**: Dicatat khusus sebagai arsitektur tahap lanjut saat sistem sudah 100% stabil. Bot tidak menaruh pending order di buku broker (*stealth / hidden orders*), melainkan memantau harga Ask/Bid real-time di memori lokal dan menembakkan *Instant Market Execution* tepat saat harga menyentuh bibir (lebih *risk-free*, nol jejak broker, dan 100% terisi tanpa peduli fluktuasi spread).
+    - *Catatan Kritis Pengguna (Observasi Lapangan Live VPS - Trailing $2.00 Terlalu Ketat)*:
+      * **Masalah Teridentifikasi**: Trailing stop statis $2.00 (Naruto 2) terbukti terlalu ketat untuk instrumen emas (XAUUSD). Pada 2 gelombang live (SELL di $3867 dan BUY di $3858), seluruh posisi tertutup serempak saat terjadi micro-pullback 50 sen s/d $1.00, padahal analisa arah 100% benar dan harga kemudian melesat belasan poin ke target utama.
+      * **Arah Next Improvement**:
+        1. *Opsi 1 (Melebarkan Gap Dollar Statis)*: Menaikkan trigger dari $2.00 menjadi $3.50 s/d $4.00, dengan trailing offset $2.50 - $3.00 di belakang harga.
+        2. *Opsi 2 (Dynamic Volatility ATR M5)*: Menggunakan ATR M5 (1.5x - 2.0x ATR = ~$3.50 - $4.50) sehingga saat volatilitas emas sedang mengembang di sesi aktif, trailing stop otomatis melonggar dan tidak tersenggol noise.
+        3. *Opsi 3 (Pure Equilibrium on Normal Setup)*: Pada setup biasa M1 (Skenario 3 Mid-Air), dilarang trailing sama sekali! Biarkan posisi memantul murni ke target 50% Equilibrium ($4.50) untuk mengamankan rasio Risk-to-Reward sehat 1 : 1.25.
+    - *Status*: **TOURNAMENTS 1, 2, 3 COMPLETED IN LAB (DILARANG IMPLEMENTASI KE LIVE ENGINE SEBELUM KONFIRMASI EKSPLISIT DARI USER)**.
 
 ---
 
