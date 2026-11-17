@@ -155,7 +155,15 @@
         * *Turnamen 8*: Tri-Ensemble vs Tri-Ensemble + News Blackout (Kamis 12:00-14:00 UTC) untuk memverifikasi apakah filter berita masih relevan dan memberikan alpha tambahan.
       - **Fase 5: Laporan Evaluasi Komparatif & Approval Gate**:
         * Menyajikan reasoning matematis lengkap, leaderboard komparatif, dan dampak PnL/DD kepada pengguna untuk konfirmasi sebelum implementasi kode.
-    - *Status*: **PLANNED & READY FOR TOURNAMENT 1 (DILARANG IMPLEMENTASI KE LIVE ENGINE SEBELUM KONFIRMASI EKSPLISIT DARI USER)**.
+    - *Catatan Kritis Pengguna (Pilar 1 Safeguard - Anti-Spam & Zero-Collision Order Gate)*:
+      * **DILARANG KERAS terjadinya order collision / tabrakan multi-timeframe**: Jika M1, M3, M5, dan M15 mendeteksi setup searah, sistem dilarang memasang limit order bertumpuk di harga yang sama (anti-spamming).
+      * **Proximity Coalescing Guard**: Jika sudah ada pending limit order dalam radius $\le 1.0 - 1.5$ poin di arah yang sama, limit order baru dari TF lain WAJIB diabaikan atau menggantikan (replace).
+      * **Atomic Handover Protocol**: Pembatalan limit order lama (misal Cancel M1) WAJIB tuntas dan bersih sebelum limit order upgrade (M3/M5/M15) dipancarkan ke broker, untuk mencegah duplikasi order.
+      * **Hard Pending Cap**: Batas absolut maksimal 3 limit orders aktif secara bersamaan per akun MT5 di seluruh timeframe (total akumulasi risiko tetap terkunci di 0.50% akun).
+    - *Catatan Kritis Pengguna (Spread Compensation & Order Placement Evolution)*:
+      * **Mode Aktif Saat Ini (Solusi 1 - Pre-Placing dengan P95 Spread Cushion)**: Limit order dipasang lebih awal (*pre-placed*) di server broker dengan bantalan spread P95 ($0.30 - $0.35) agar order terjemput presisi saat wick chart menyentuh bibir zona tanpa tercekik pelebaran spread sesaat, dan posisi order **dapat dipantau secara visual di chart MT5**.
+      * **Evolusi Masa Depan (Solusi 3 - Virtual / Synthetic Limit Order on Touch)**: Dicatat khusus sebagai arsitektur tahap lanjut saat sistem sudah 100% stabil. Bot tidak menaruh pending order di buku broker (*stealth / hidden orders*), melainkan memantau harga Ask/Bid real-time di memori lokal dan menembakkan *Instant Market Execution* tepat saat harga menyentuh bibir (lebih *risk-free*, nol jejak broker, dan 100% terisi tanpa peduli fluktuasi spread).
+    - *Status*: **TOURNAMENT 1 & 2 COMPLETED IN LAB (DILARANG IMPLEMENTASI KE LIVE ENGINE SEBELUM KONFIRMASI EKSPLISIT DARI USER)**.
 
 ---
 
