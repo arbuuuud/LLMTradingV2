@@ -692,12 +692,13 @@ void OnTick()
             double pnl = m_position.Profit();
             totalUnrealized += pnl;
 
+            string posComment = m_position.Comment();
             string posItem = StringFormat(
-               "{\"ticket\":%I64u,\"magic\":%I64u,\"symbol\":\"%s\",\"type\":\"%s\",\"lots\":%.2f,\"entry_price\":%.2f,\"current_price\":%.2f,\"sl\":%.2f,\"tp\":%.2f,\"profit\":%.2f}",
+               "{\"ticket\":%I64u,\"magic\":%I64u,\"symbol\":\"%s\",\"type\":\"%s\",\"lots\":%.2f,\"entry_price\":%.2f,\"current_price\":%.2f,\"sl\":%.2f,\"tp\":%.2f,\"profit\":%.2f,\"comment\":\"%s\"}",
                m_position.Ticket(), posMagic, m_position.Symbol(),
                (m_position.PositionType() == POSITION_TYPE_BUY) ? "BUY" : "SELL",
                m_position.Volume(), m_position.PriceOpen(), m_position.PriceCurrent(),
-               m_position.StopLoss(), m_position.TakeProfit(), pnl
+               m_position.StopLoss(), m_position.TakeProfit(), pnl, posComment
             );
 
             if(positionsJson != "") positionsJson += ",";
@@ -727,11 +728,12 @@ void OnTick()
             else if(ordType == ORDER_TYPE_BUY_STOP) typeStr = "BUY_STOP";
             else if(ordType == ORDER_TYPE_SELL_STOP) typeStr = "SELL_STOP";
 
+            string ordComment = OrderGetString(ORDER_COMMENT);
             string ordItem = StringFormat(
-               "{\"ticket\":%I64u,\"magic\":%I64d,\"symbol\":\"%s\",\"type\":\"%s\",\"lots\":%.2f,\"price\":%.2f,\"sl\":%.2f,\"tp\":%.2f}",
+               "{\"ticket\":%I64u,\"magic\":%I64d,\"symbol\":\"%s\",\"type\":\"%s\",\"lots\":%.2f,\"price\":%.2f,\"sl\":%.2f,\"tp\":%.2f,\"comment\":\"%s\"}",
                ticket, ordMagic, ordSym, typeStr,
                OrderGetDouble(ORDER_VOLUME_CURRENT), OrderGetDouble(ORDER_PRICE_OPEN),
-               OrderGetDouble(ORDER_SL), OrderGetDouble(ORDER_TP)
+               OrderGetDouble(ORDER_SL), OrderGetDouble(ORDER_TP), ordComment
             );
 
             if(pendingOrdersJson != "") pendingOrdersJson += ",";

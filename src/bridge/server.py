@@ -1365,7 +1365,7 @@ class LiveMT5BridgeCore:
 
                     # Handover Pending: Upgrade lower TF pending orders to higher TF
                     if acc_matching_pending and cur_rank > 1:
-                        has_lower_tf = any(f"_{chosen_tf}_" not in str(o.get("comment", "")) for o in acc_matching_pending)
+                        has_lower_tf = any(not str(o.get("comment", "")).startswith(f"{chosen_tf}_") and f"_{chosen_tf}_" not in str(o.get("comment", "")) for o in acc_matching_pending)
                         if has_lower_tf:
                             logger.info(f"🔄 [PENDING HANDOVER] Account #{acc_num} upgrading pending limits from lower TF to {chosen_tf}!")
                             asyncio.create_task(self.broadcast({
@@ -1460,7 +1460,7 @@ class LiveMT5BridgeCore:
                             "sl": sl,
                             "tp": tp,
                             "magic": 1001,
-                            "comment": f"PAC_{acc_prof.upper()[:4]}_{chosen_tf}_L{lay_idx+1}"
+                            "comment": f"{chosen_tf}_L{lay_idx+1}_{acc_prof.upper()[:4]}"
                         }
 
                         asyncio.create_task(self.broadcast(order_cmd))

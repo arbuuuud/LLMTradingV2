@@ -180,8 +180,8 @@
         </div>
       </div>
 
-      <!-- Timeframe Grid: M1, M2, M3, M4, M5 -->
-      <div id="radar-timeframes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <!-- Timeframe Grid: M1, M2, M3, M4, M5, M15 -->
+      <div id="radar-timeframes-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <!-- Rendered dynamically by JS -->
       </div>
 
@@ -311,6 +311,40 @@
               </ul>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Live Pending Limit Orders Cockpit (With Timeframe Period Badge) -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-list-ol text-blue-400"></i>
+            <h3 class="text-sm font-bold text-white">Live Pending Limit Orders & Active Timeframe Setups</h3>
+            <span id="pending-orders-count-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">
+              0 Orders Active
+            </span>
+          </div>
+          <span class="text-[11px] text-slate-400 font-mono">Real-time MT5 Terminal Order Book</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-3">ACCOUNT</th>
+                <th class="p-3">SETUP TIMEFRAME</th>
+                <th class="p-3">TYPE</th>
+                <th class="p-3">LOTS</th>
+                <th class="p-3">LIMIT PRICE</th>
+                <th class="p-3">STOP LOSS</th>
+                <th class="p-3">TAKE PROFIT</th>
+                <th class="p-3">COMMENT</th>
+              </tr>
+            </thead>
+            <tbody id="pending-orders-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
         </div>
       </div>
       </div> <!-- /radar-pac-container -->
@@ -2220,6 +2254,7 @@
         renderRadarTimeframes(data.timeframes);
         renderChecklist(selectedRadarTf);
         renderPoiReasoning(selectedRadarTf);
+        renderPendingOrdersTable(data.account ? (data.account.pending_orders || []) : []);
 
         // Check incoming live notifications for toast popup
         if (Array.isArray(data.notifications)) {
@@ -2369,6 +2404,62 @@
         li.className = 'flex items-start gap-1.5';
         li.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 mt-0.5 text-[10px]"></i> <span>${r}</span>`;
         floorUl.appendChild(li);
+      });
+    }
+
+    function renderPendingOrdersTable(orders) {
+      const tbody = document.getElementById('pending-orders-table-body');
+      const countBadge = document.getElementById('pending-orders-count-badge');
+      if (!tbody) return;
+
+      if (countBadge) {
+        countBadge.innerText = `${orders.length} Limit Order${orders.length === 1 ? '' : 's'} Active`;
+        countBadge.className = orders.length > 0
+          ? "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30"
+          : "px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700";
+      }
+
+      tbody.innerHTML = '';
+      if (!orders || orders.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="p-6 text-center text-slate-500 font-mono">
+              <i class="fa-solid fa-inbox text-slate-600 mr-2"></i> Belum ada pending limit order aktif. Standby menunggu sinyal zona PAC.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      orders.forEach(o => {
+        const comm = String(o.comment || '');
+        // Determine timeframe period from comment or order data
+        let tfPeriod = 'M1';
+        if (comm.startsWith('M15_') || comm.includes('_M15_')) tfPeriod = 'M15';
+        else if (comm.startsWith('M5_') || comm.includes('_M5_')) tfPeriod = 'M5';
+        else if (comm.startsWith('M3_') || comm.includes('_M3_')) tfPeriod = 'M3';
+        else if (comm.startsWith('M2_') || comm.includes('_M2_')) tfPeriod = 'M2';
+
+        const isBuy = String(o.type).includes('BUY');
+        const typeBadge = isBuy
+          ? '<span class="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">BUY LIMIT</span>'
+          : '<span class="px-2 py-0.5 rounded font-bold text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30">SELL LIMIT</span>';
+
+        const tfBadge = `<span class="px-2 py-0.5 rounded font-bold text-[11px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">${tfPeriod}</span>`;
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-900/60 transition';
+        row.innerHTML = `
+          <td class="p-3 font-mono text-white font-bold">#${o.account_number || '-'}</td>
+          <td class="p-3">${tfBadge}</td>
+          <td class="p-3">${typeBadge}</td>
+          <td class="p-3 font-mono text-slate-200">${Number(o.lots || 0).toFixed(2)} L</td>
+          <td class="p-3 font-mono text-amber-400 font-bold">$${Number(o.price || 0).toFixed(2)}</td>
+          <td class="p-3 font-mono text-rose-400">$${Number(o.sl || 0).toFixed(2)}</td>
+          <td class="p-3 font-mono text-emerald-400">$${Number(o.tp || 0).toFixed(2)}</td>
+          <td class="p-3 font-mono text-slate-300"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300 border border-slate-700 font-mono">${comm || '-'}</span></td>
+        `;
+        tbody.appendChild(row);
       });
     }
 
