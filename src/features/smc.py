@@ -358,6 +358,7 @@ def detect_order_blocks(
                     mean_threshold=mt,
                     timestamp=timestamps[origin_idx],
                     bar_index=origin_idx,
+                    formation_end_index=idx,
                     has_fvg=True,
                     fvg_id=fvg.id,
                     has_swept_liquidity=swept,
@@ -386,6 +387,7 @@ def detect_order_blocks(
                     mean_threshold=mt,
                     timestamp=timestamps[origin_idx],
                     bar_index=origin_idx,
+                    formation_end_index=idx,
                     has_fvg=True,
                     fvg_id=fvg.id,
                     has_swept_liquidity=swept,
@@ -393,6 +395,46 @@ def detect_order_blocks(
                     impulse_ratio=round(imp_ratio, 2)
                 )
             )
+
+    # Calculate lifecycle across historical bars (excluding formation bars origin_idx to formation_end_index)
+    n_bars = len(closes)
+    for ob in obs:
+        start_eval = ob.formation_end_index + 1
+        for j in range(start_eval, n_bars):
+            if ob.direction == Direction.BUY:
+                if closes[j] < ob.bottom:
+                    ob.is_fully_used = True
+                    ob.is_breaker = True
+                    break
+                if closes[j] <= ob.top and closes[j] >= ob.bottom:
+                    ob.is_mitigated = True
+                if lows[j] <= ob.top and highs[j] >= ob.bottom:
+                    ob.is_touched = True
+                    if ob.deepest_touch_price is None:
+                        ob.touch_count = 1
+                        ob.deepest_touch_price = float(lows[j])
+                    elif lows[j] < ob.deepest_touch_price:
+                        ob.touch_count += 1
+                        ob.deepest_touch_price = float(lows[j])
+                if lows[j] <= ob.bottom:
+                    ob.is_fully_used = True
+            elif ob.direction == Direction.SELL:
+                if closes[j] > ob.top:
+                    ob.is_fully_used = True
+                    ob.is_breaker = True
+                    break
+                if closes[j] >= ob.bottom and closes[j] <= ob.top:
+                    ob.is_mitigated = True
+                if highs[j] >= ob.bottom and lows[j] <= ob.top:
+                    ob.is_touched = True
+                    if ob.deepest_touch_price is None:
+                        ob.touch_count = 1
+                        ob.deepest_touch_price = float(highs[j])
+                    elif highs[j] > ob.deepest_touch_price:
+                        ob.touch_count += 1
+                        ob.deepest_touch_price = float(highs[j])
+                if highs[j] >= ob.top:
+                    ob.is_fully_used = True
 
     return obs
 
@@ -402,11 +444,13 @@ def process_order_block_lifecycle(
     latest_high: float,
     latest_low: float,
     latest_close: float,
-    current_time: datetime
+    current_time: datetime,
+    current_bar_index: Optional[int] = None
 ) -> Tuple[List[OrderBlock], List[OrderBlock]]:
     """
     Updates Order Block lifecycle:
-    - Touches: deeper penetration increment (+1)
+    - Formation amnesty: formation candles (origin_idx to formation_end_index) are strictly excluded from touch counting.
+    - Touches: deeper penetration increment (+1) only evaluated on post-formation pullback candles.
     - Mitigated: candle closed inside the OB body/range
     - Fully Used: orders 100% consumed through opposite boundary
     - Breaker Block Flip: candle body closed beyond opposite boundary
@@ -416,8 +460,24 @@ def process_order_block_lifecycle(
     active_breakers: List[OrderBlock] = []
 
     for ob in obs:
+        is_formation_bar = (current_bar_index is not None and current_bar_index <= ob.formation_end_index)
+
         if ob.direction == Direction.BUY:
-            # Touched
+            # Invalidation & Breaker flip: closed below bottom (evaluated even during formation)
+            if latest_close < ob.bottom:
+                ob.is_fully_used = True
+                ob.is_breaker = True
+                ob.direction = Direction.SELL
+                ob.ob_type = OrderBlockType.BREAKER_BEARISH
+                ob.breaker_time = current_time
+                active_breakers.append(ob)
+                continue
+
+            if is_formation_bar:
+                active_obs.append(ob)
+                continue
+
+            # Touched (only post-formation pullback)
             if latest_low <= ob.top and latest_high >= ob.bottom:
                 ob.is_touched = True
                 if ob.deepest_touch_price is None:
@@ -431,19 +491,28 @@ def process_order_block_lifecycle(
             if latest_close <= ob.top and latest_close >= ob.bottom:
                 ob.is_mitigated = True
 
-            # Invalidation & Breaker flip: closed below bottom
-            if latest_close < ob.bottom:
+            # Fully used if penetrated through bottom
+            if latest_low <= ob.bottom:
                 ob.is_fully_used = True
-                ob.is_breaker = True
-                ob.direction = Direction.SELL
-                ob.ob_type = OrderBlockType.BREAKER_BEARISH
-                ob.breaker_time = current_time
-                active_breakers.append(ob)
-            else:
-                active_obs.append(ob)
+
+            active_obs.append(ob)
 
         elif ob.direction == Direction.SELL:
-            # Touched
+            # Invalidation & Breaker flip: closed above top (evaluated even during formation)
+            if latest_close > ob.top:
+                ob.is_fully_used = True
+                ob.is_breaker = True
+                ob.direction = Direction.BUY
+                ob.ob_type = OrderBlockType.BREAKER_BULLISH
+                ob.breaker_time = current_time
+                active_breakers.append(ob)
+                continue
+
+            if is_formation_bar:
+                active_obs.append(ob)
+                continue
+
+            # Touched (only post-formation pullback)
             if latest_high >= ob.bottom and latest_low <= ob.top:
                 ob.is_touched = True
                 if ob.deepest_touch_price is None:
@@ -457,16 +526,11 @@ def process_order_block_lifecycle(
             if latest_close >= ob.bottom and latest_close <= ob.top:
                 ob.is_mitigated = True
 
-            # Invalidation & Breaker flip: closed above top
-            if latest_close > ob.top:
+            # Fully used if penetrated through top
+            if latest_high >= ob.top:
                 ob.is_fully_used = True
-                ob.is_breaker = True
-                ob.direction = Direction.BUY
-                ob.ob_type = OrderBlockType.BREAKER_BULLISH
-                ob.breaker_time = current_time
-                active_breakers.append(ob)
-            else:
-                active_obs.append(ob)
+
+            active_obs.append(ob)
 
     return active_obs, active_breakers
 

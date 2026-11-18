@@ -428,10 +428,37 @@ void RedrawZones()
       double btm = rates[origin_idx].low;
 
       bool fully_used = false;
-      for(int k = origin_idx - 1; k >= 0; k--)
+      bool is_touched = false;
+      int touch_count = 0;
+      double deepest_touch = is_bull_fvg ? top : btm;
+      bool is_mitigated = false;
+
+      // Formation candles span from origin_idx (i+2) down to confirming candle i.
+      // Retest / touch evaluation starts strictly on post-formation bars (i - 1 down to 0):
+      for(int k = i - 1; k >= 0; k--)
       {
-         if(is_bull_fvg && rates[k].close < btm) { fully_used = true; break; }
-         else if(!is_bull_fvg && rates[k].close > top) { fully_used = true; break; }
+         if(is_bull_fvg)
+         {
+            if(rates[k].close < btm) { fully_used = true; break; }
+            if(rates[k].close <= top && rates[k].close >= btm) is_mitigated = true;
+            if(rates[k].low <= top && rates[k].high >= btm)
+            {
+               is_touched = true;
+               if(touch_count == 0) { touch_count = 1; deepest_touch = rates[k].low; }
+               else if(rates[k].low < deepest_touch) { touch_count++; deepest_touch = rates[k].low; }
+            }
+         }
+         else
+         {
+            if(rates[k].close > top) { fully_used = true; break; }
+            if(rates[k].close >= btm && rates[k].close <= top) is_mitigated = true;
+            if(rates[k].high >= btm && rates[k].low <= top)
+            {
+               is_touched = true;
+               if(touch_count == 0) { touch_count = 1; deepest_touch = rates[k].high; }
+               else if(rates[k].high > deepest_touch) { touch_count++; deepest_touch = rates[k].high; }
+            }
+         }
       }
       if(fully_used) continue;
 
@@ -449,10 +476,10 @@ void RedrawZones()
       z.has_swept_liq = false;
       z.is_breaker = false;
       z.breaker_time = 0;
-      z.is_touched = false;
-      z.touch_count = 0;
-      z.deepest_touch_price = 0.0;
-      z.is_mitigated = false;
+      z.is_touched = is_touched;
+      z.touch_count = touch_count;
+      z.deepest_touch_price = deepest_touch;
+      z.is_mitigated = is_mitigated;
       z.is_fully_used = false;
       z.is_inside = false;
       z.is_confluence = false;
@@ -672,6 +699,7 @@ void DrawZone(const ZoneItem &zone, datetime current_time, string prefix_tag)
    }
 
    string label = prefix_tag + " " + badge;
+   label += (zone.touch_count == 0 ? " [VIRGIN]" : StringFormat(" [TOUCHED x%d]", zone.touch_count));
    label += " MT:" + DoubleToString(zone.mean_threshold, _Digits);
 
    RegisterActiveObjectName(text_name);

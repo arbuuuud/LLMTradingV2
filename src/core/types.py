@@ -117,6 +117,7 @@ class OrderBlock(BaseModel):
     mean_threshold: float = 0.0  # 50% Mean Threshold
     timestamp: datetime
     bar_index: int
+    formation_end_index: int = 0 # Bar index where impulse displacement / FVG confirmation completes
     has_fvg: bool = True
     fvg_id: Optional[str] = None
     has_swept_liquidity: bool = False

@@ -218,12 +218,25 @@ void ScanRBRDBDBases(MqlRates &rates[], int total_rates, RBR_DBD_Base &best_dbd,
                // Imbalance / FVG confirmation: High[k+1] < Low[k-1]
                if(rates[k+1].high < rates[k-1].low)
                {
-                  best_dbd.top = rates[k].high;
-                  best_dbd.bottom = rates[k].low;
-                  best_dbd.is_dbd = true;
-                  best_dbd.time = rates[k].time;
-                  best_dbd.used = false;
-                  break;
+                  // Check if broken by subsequent bars after formation (k+1 is amnestied)
+                  bool broken = false;
+                  for(int chk = k + 2; chk < total_rates; chk++)
+                  {
+                     if(rates[chk].close > rates[k].high)
+                     {
+                        broken = true;
+                        break;
+                     }
+                  }
+                  if(!broken)
+                  {
+                     best_dbd.top = rates[k].high;
+                     best_dbd.bottom = rates[k].low;
+                     best_dbd.is_dbd = true;
+                     best_dbd.time = rates[k].time;
+                     best_dbd.used = false;
+                     break;
+                  }
                }
             }
          }
@@ -239,12 +252,25 @@ void ScanRBRDBDBases(MqlRates &rates[], int total_rates, RBR_DBD_Base &best_dbd,
                // Imbalance / FVG confirmation: Low[k+1] > High[k-1]
                if(rates[k+1].low > rates[k-1].high)
                {
-                  best_rbr.top = rates[k].high;
-                  best_rbr.bottom = rates[k].low;
-                  best_rbr.is_dbd = false;
-                  best_rbr.time = rates[k].time;
-                  best_rbr.used = false;
-                  break;
+                  // Check if broken by subsequent bars after formation (k+1 is amnestied)
+                  bool broken = false;
+                  for(int chk = k + 2; chk < total_rates; chk++)
+                  {
+                     if(rates[chk].close < rates[k].low)
+                     {
+                        broken = true;
+                        break;
+                     }
+                  }
+                  if(!broken)
+                  {
+                     best_rbr.top = rates[k].high;
+                     best_rbr.bottom = rates[k].low;
+                     best_rbr.is_dbd = false;
+                     best_rbr.time = rates[k].time;
+                     best_rbr.used = false;
+                     break;
+                  }
                }
             }
          }

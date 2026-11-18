@@ -278,3 +278,72 @@ def test_order_block_confluence_clustering():
     assert c2.is_confluence is False
 
 
+def test_rbr_formation_amnesty_and_pullback_touch_lifecycle():
+    """Verify that formation candles (origin and leg-out impulse) are amnestied from touch counts,
+    and touches are strictly evaluated only when post-formation candles pull back into the base."""
+    from src.features.smc import detect_fvgs, detect_order_blocks, process_order_block_lifecycle
+    from src.core.types import Direction, OrderBlockType
+
+    # Construct RBR sequence:
+    # Bar 0: Leg-in Rally (1995 -> 2010)
+    # Bar 1: Base candle (2008 -> 2012)
+    # Bar 2: Leg-out Impulse Rally (2010.5 -> 2024.5) with lower wick tapping 2010 (inside base)
+    # Bar 3: FVG confirmation (2025 -> 2028, Low 2022 > Bar 1 High 2012)
+    # Bar 4: Continuation Highs (2028 -> 2035)
+    # Bar 5: True Pullback dipping into base (Low 2011.0 inside 2008-2012)
+    # Bar 6: Deeper Pullback dipping into base (Low 2009.0 inside 2008-2012)
+
+    opens  = np.array([2000.0, 2010.0, 2010.5, 2025.0, 2028.0, 2025.0, 2020.0])
+    highs  = np.array([2010.0, 2012.0, 2025.0, 2030.0, 2035.0, 2026.0, 2022.0])
+    lows   = np.array([1995.0, 2008.0, 2010.0, 2022.0, 2026.0, 2011.0, 2009.0])
+    closes = np.array([2010.0, 2011.0, 2024.5, 2028.0, 2032.0, 2018.0, 2015.0])
+    times  = [datetime(2026, 1, 1, 12, i) for i in range(7)]
+
+    # 1. Detect FVG & Order Block across bars 0-3 (Formation complete at bar 3)
+    fvgs_form = detect_fvgs(highs[:4], lows[:4], times[:4])
+    obs_form = detect_order_blocks(opens[:4], highs[:4], lows[:4], closes[:4], times[:4], fvgs_form)
+    assert len(obs_form) == 1
+    ob = obs_form[0]
+    assert ob.ob_type == OrderBlockType.CONTINUATION_RBR
+    assert ob.top == 2012.0
+    assert ob.bottom == 2008.0
+    assert ob.formation_end_index == 3
+
+    # Crucial assertion: R-kanan (bar 2, low 2010) MUST NOT count as touch!
+    # Status after formation must remain 100% VIRGIN!
+    assert ob.touch_count == 0, "Formation bars must be amnestied: touch_count must be 0"
+    assert ob.is_touched is False, "Base must remain untouched after impulse leg-out"
+
+    # 2. Test lifecycle streaming during formation (bar 2) -> must be amnestied!
+    active, _ = process_order_block_lifecycle(
+        [ob], latest_high=highs[2], latest_low=lows[2], latest_close=closes[2],
+        current_time=times[2], current_bar_index=2
+    )
+    assert active[0].touch_count == 0, "Streaming formation bar 2 must not increment touch_count"
+
+    # 3. Bar 4 (Continuation up, low 2026 above base 2012) -> still untouched!
+    active, _ = process_order_block_lifecycle(
+        active, latest_high=highs[4], latest_low=lows[4], latest_close=closes[4],
+        current_time=times[4], current_bar_index=4
+    )
+    assert active[0].touch_count == 0, "Bar 4 outside base must not touch"
+    assert active[0].is_touched is False
+
+    # 4. Bar 5 (True Pullback dipping to 2011.0) -> Touch #1!
+    active, _ = process_order_block_lifecycle(
+        active, latest_high=highs[5], latest_low=lows[5], latest_close=closes[5],
+        current_time=times[5], current_bar_index=5
+    )
+    assert active[0].touch_count == 1, "Bar 5 pullback into base must count as Touch #1"
+    assert active[0].is_touched is True
+    assert active[0].deepest_touch_price == 2011.0
+
+    # 5. Bar 6 (Deeper Pullback to 2009.0) -> Increments to Touch #2!
+    active, _ = process_order_block_lifecycle(
+        active, latest_high=highs[6], latest_low=lows[6], latest_close=closes[6],
+        current_time=times[6], current_bar_index=6
+    )
+    assert active[0].touch_count == 2, "Deeper penetration to 2009 must increment to Touch #2"
+    assert active[0].deepest_touch_price == 2009.0
+
+

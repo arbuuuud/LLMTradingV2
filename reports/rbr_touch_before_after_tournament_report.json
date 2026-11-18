@@ -1,0 +1,35 @@
+[
+  {
+    "model": "BASELINE",
+    "total_trades": 8337,
+    "wins": 4484,
+    "losses": 3853,
+    "win_rate_pct": 53.78,
+    "profit_factor": 1.46,
+    "max_drawdown_pct": 5.57,
+    "net_pnl": 27104.8,
+    "final_balance": 37104.8
+  },
+  {
+    "model": "FLAWED_RBR",
+    "total_trades": 8326,
+    "wins": 4479,
+    "losses": 3847,
+    "win_rate_pct": 53.8,
+    "profit_factor": 1.46,
+    "max_drawdown_pct": 5.57,
+    "net_pnl": 27080.49,
+    "final_balance": 37080.49
+  },
+  {
+    "model": "CORRECTED_RBR",
+    "total_trades": 8415,
+    "wins": 4587,
+    "losses": 3828,
+    "win_rate_pct": 54.51,
+    "profit_factor": 1.55,
+    "max_drawdown_pct": 5.13,
+    "net_pnl": 32014.34,
+    "final_balance": 42014.34
+  }
+]
