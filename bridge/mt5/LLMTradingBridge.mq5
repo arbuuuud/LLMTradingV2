@@ -33,6 +33,8 @@ ulong          m_last_connect_ms = 0;
 datetime       m_last_heartbeat  = 0;
 ulong          m_last_timer_ms   = 0;
 string         m_incoming_buffer = "";
+int            g_hD1             = INVALID_HANDLE;
+int            g_hH1             = INVALID_HANDLE;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -54,6 +56,10 @@ int OnInit()
    PrintFormat("[LLM Bridge] Initialized. Account: %I64d (%s). Brain: %s:%d",
                AccountInfoInteger(ACCOUNT_LOGIN), AccountInfoString(ACCOUNT_COMPANY), InpServerHost, InpServerPort);
    
+   // Initialize Higher Timeframe EMA 50 handles for Pilar 1 Directional Trend Bias
+   g_hD1 = iMA(_Symbol, PERIOD_D1, 50, 0, MODE_EMA, PRICE_CLOSE);
+   g_hH1 = iMA(_Symbol, PERIOD_H1, 50, 0, MODE_EMA, PRICE_CLOSE);
+
    ConnectToServer();
    EventSetTimer(1); // 1-second timer
    return(INIT_SUCCEEDED);
@@ -66,6 +72,8 @@ void OnDeinit(const int reason)
 {
    EventKillTimer();
    DisconnectServer();
+   if(g_hD1 != INVALID_HANDLE) { IndicatorRelease(g_hD1); g_hD1 = INVALID_HANDLE; }
+   if(g_hH1 != INVALID_HANDLE) { IndicatorRelease(g_hH1); g_hH1 = INVALID_HANDLE; }
    PrintFormat("[LLM Bridge] Deinitialized (Reason: %d).", reason);
 }
 
@@ -541,6 +549,16 @@ void ProcessCommand(string cmdJson)
    }
    else if(action == "MODIFY_POSITION")
    {
+      string targetAcc = ExtractJsonString(cmdJson, "account_number");
+      if(targetAcc != "")
+      {
+         string myAcc = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+         if(targetAcc != myAcc)
+         {
+            return; // Targeted for a different MT5 terminal account - DO NOT TOUCH!
+         }
+      }
+
       ulong ticket = (ulong)ExtractJsonDouble(cmdJson, "ticket");
       double newSL = ExtractJsonDouble(cmdJson, "sl");
       double newTP = ExtractJsonDouble(cmdJson, "tp");
@@ -554,22 +572,8 @@ void ProcessCommand(string cmdJson)
       }
       else
       {
-         // If no exact ticket, modify all positions matching symbol & magic
-         string symbol = ExtractJsonString(cmdJson, "symbol");
-         long magic = (long)ExtractJsonDouble(cmdJson, "magic");
-         for(int i = PositionsTotal() - 1; i >= 0; i--)
-         {
-            if(m_position.SelectByIndex(i))
-            {
-               bool matchMagic = (magic <= 0) || (m_position.Magic() == (ulong)magic);
-               if(matchMagic && (symbol == "" || m_position.Symbol() == symbol))
-               {
-                  if(m_trade.PositionModify(m_position.Ticket(), newSL, (newTP > 0) ? newTP : m_position.TakeProfit()))
-                     modSuccess = true;
-               }
-            }
-         }
-         PrintFormat("[LLM Bridge] All Matching Positions Modified: SL -> %.2f (Result: %s)", newSL, modSuccess ? "OK" : "FAILED");
+         // Strictly do NOT modify other positions if this exact ticket is not found!
+         // Prevents cross-position / cross-layer stop loss corruption!
       }
    }
    else if(action == "CANCEL_PENDING")
@@ -683,11 +687,40 @@ void OnTick()
       }
    }
 
+   // 2B. Calculate Higher Timeframe Trend Bias (D1 and H1 EMA 50)
+   string d1Trend = "NEUTRAL";
+   string h1Trend = "NEUTRAL";
+   if(g_hD1 != INVALID_HANDLE)
+   {
+      double d1_ma[2];
+      if(CopyBuffer(g_hD1, 0, 0, 2, d1_ma) == 2)
+      {
+         double slope = d1_ma[1] - d1_ma[0];
+         if(bid > d1_ma[1] && slope >= 0) d1Trend = "STRONG_BULLISH";
+         else if(bid > d1_ma[1] && slope < 0) d1Trend = "WEAK_BULLISH";
+         else if(bid < d1_ma[1] && slope <= 0) d1Trend = "STRONG_BEARISH";
+         else if(bid < d1_ma[1] && slope > 0) d1Trend = "WEAK_BEARISH";
+      }
+   }
+   if(g_hH1 != INVALID_HANDLE)
+   {
+      double h1_ma[2];
+      if(CopyBuffer(g_hH1, 0, 0, 2, h1_ma) == 2)
+      {
+         double slope = h1_ma[1] - h1_ma[0];
+         if(bid > h1_ma[1] && slope >= 0) h1Trend = "STRONG_BULLISH";
+         else if(bid > h1_ma[1] && slope < 0) h1Trend = "WEAK_BULLISH";
+         else if(bid < h1_ma[1] && slope <= 0) h1Trend = "STRONG_BEARISH";
+         else if(bid < h1_ma[1] && slope > 0) h1Trend = "WEAK_BEARISH";
+      }
+   }
+
    // 3. Format complete JSON telemetry packet to Python Brain
    string tickJson = StringFormat(
-      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"positions\":[%s],\"orders\":[%s]}\n",
+      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"d1_trend\":\"%s\",\"h1_trend\":\"%s\",\"positions\":[%s],\"orders\":[%s]}\n",
       AccountInfoInteger(ACCOUNT_LOGIN), _Symbol, bid, ask, spread, timeMs,
       m_account.Equity(), m_account.Balance(), openCount, pendingCount, totalUnrealized,
+      d1Trend, h1Trend,
       positionsJson, pendingOrdersJson
    );
 

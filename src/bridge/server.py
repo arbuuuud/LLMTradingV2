@@ -146,6 +146,14 @@ class LiveMT5BridgeCore:
         self.consecutive_buy_losses: int = 0
         self.consecutive_sell_losses: int = 0
 
+        # Higher Timeframe Directional Trend Bias (Pilar 1: D1 & H1 Trend Gate)
+        self.d1_trend: str = "NEUTRAL"
+        self.h1_trend: str = "NEUTRAL"
+
+        # Micro Level Depletion Tracking per Timeframe (Pilar 3: Virgin Depth Preservation)
+        # tf -> {"spent_layers": set(), "roof": float, "floor": float, "direction": str}
+        self.tf_depletion: Dict[str, Dict[str, Any]] = {}
+
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
 
@@ -300,13 +308,25 @@ class LiveMT5BridgeCore:
                 elif trade_dir == "SELL":
                     self.consecutive_sell_losses = 0
 
+                # Micro Level Depletion (Pilar 3: Virgin Depth Preservation)
+                t_comm = str(data.get("comment", "")).upper()
+                spent_lay = 0
+                if "_L2" in t_comm or "L2" in t_comm:
+                    spent_lay = 1
+                elif "_L3" in t_comm or "L3" in t_comm:
+                    spent_lay = 2
+
+                for dep_tf, dep_data in self.tf_depletion.items():
+                    if dep_data.get("direction") == trade_dir:
+                        dep_data.setdefault("spent_layers", set()).add(spent_lay)
+                        logger.info(f"🏆 [MICRO DEPLETION] {dep_tf} Layer {spent_lay+1} marked as SPENT upon Take Profit. Deeper virgin layers remain active!")
+
                 # Mark active structural zone as COMPLETED / SPENT upon Take Profit (DEC-035)
                 self.zone_completed = True
                 self.completed_direction = trade_dir
                 self.completed_floor = self._current_sw_low
                 self.completed_roof = self._current_sw_high
-                logger.info(f"🏆 [ZONE COMPLETED] Take profit achieved for {trade_dir}! Zone (${self.completed_floor:.2f} - ${self.completed_roof:.2f}) marked as COMPLETED. Re-entry blocked until new structure forms.")
-                asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "magic": 1001}))
+                logger.info(f"🏆 [TAKE PROFIT HARVEST] Take profit achieved for {trade_dir}! Zone (${self.completed_floor:.2f} - ${self.completed_roof:.2f}).")
         except Exception as e:
             logger.error(f"Failed to save closed trade record: {e}")
 
@@ -351,22 +371,19 @@ class LiveMT5BridgeCore:
 
             spread_val = max(0.20, round(self.latest_tick.get("ask", 0) - self.latest_tick.get("bid", 0), 2)) if self.latest_tick else 0.35
 
-            # 1. Sasuke Sharingan Greed Trailing (Replaces legacy flat BEP +1.0pt)
+            # 1. Sasuke Sharingan Greed Trailing (Pilar 2 Relaksasi)
             pts_diff = (cur_p - entry_p) if side == "BUY" else (entry_p - cur_p)
             sl_dist = max(abs(entry_p - pos.get("sl", entry_p - 3.0)), 0.5)
             r_running = pts_diff / sl_dist
 
-            # Trailing Stepped Lock:
-            # >= +2.0R -> lock SL at +1.5R
-            # >= +1.5R -> lock SL at +1.0R
-            # >= +1.0R -> lock SL at +0.5R
+            # Trailing Stepped Lock (Relaxed to avoid premature choking):
+            # >= +2.5R -> lock SL at +1.5R
+            # >= +2.0R -> lock SL at +1.0R
             target_lock_r = None
-            if r_running >= 2.0:
+            if r_running >= 2.5:
                 target_lock_r = 1.5
-            elif r_running >= 1.5:
+            elif r_running >= 2.0:
                 target_lock_r = 1.0
-            elif r_running >= 1.0:
-                target_lock_r = 0.5
 
             if target_lock_r is not None:
                 new_trail_sl = round(entry_p + (target_lock_r * sl_dist if side == "BUY" else -target_lock_r * sl_dist), 2)
@@ -377,6 +394,7 @@ class LiveMT5BridgeCore:
                     logger.info(f"👁️ [SASUKE GREED TRAILING] Locking SL on {side} #{ticket} @ ${new_trail_sl:.2f} (+{target_lock_r}R Locked | Running: +{r_running:.2f}R)")
                     asyncio.create_task(self.broadcast({
                         "action": "MODIFY_POSITION",
+                        "account_number": str(pos.get("account_number", "")),
                         "ticket": ticket,
                         "sl": new_trail_sl,
                         "tp": pos.get("tp", 0.0)
@@ -438,6 +456,7 @@ class LiveMT5BridgeCore:
                         logger.info(f"👁️ [SASUKE GREED TRAILING] Updating SL on #{ticket} to ${new_sl:.2f}: {sasuke_verdict.rationale}")
                         asyncio.create_task(self.broadcast({
                             "action": "MODIFY_POSITION",
+                            "account_number": str(pos.get("account_number", "")),
                             "ticket": ticket,
                             "sl": new_sl,
                             "tp": pos.get("tp", 0.0)
@@ -475,15 +494,15 @@ class LiveMT5BridgeCore:
                     trail_target_sl = None
 
                     if side == "BUY":
-                        # If price reaches +$2.00 above summary BEP
-                        if current_price >= summary_bep + 2.0:
+                        # If price reaches +$3.00 above summary BEP (relaxed from $2.00 to avoid micro-pullback noise)
+                        if current_price >= summary_bep + 3.0:
                             should_trail = True
-                            trail_target_sl = max(summary_bep, round(current_price - 2.0, 2))
+                            trail_target_sl = max(summary_bep, round(current_price - 2.50, 2))
                     elif side == "SELL":
-                        # If price reaches -$2.00 below summary BEP
-                        if current_price <= summary_bep - 2.0:
+                        # If price reaches -$3.00 below summary BEP (relaxed from $2.00)
+                        if current_price <= summary_bep - 3.0:
                             should_trail = True
-                            trail_target_sl = min(summary_bep, round(current_price + 2.0, 2))
+                            trail_target_sl = min(summary_bep, round(current_price + 2.50, 2))
 
                     if should_trail and trail_target_sl is not None:
                         for p in p_list:
@@ -494,6 +513,7 @@ class LiveMT5BridgeCore:
                                 logger.info(f"🥋 [NARUTO 2 SUMMARY TRAILING] Account #{acc_k} {side} #{t_num} SL trailed to ${trail_target_sl:.2f} (Summary BEP: ${summary_bep:.2f} | Price: ${current_price:.2f})")
                                 asyncio.create_task(self.broadcast({
                                     "action": "MODIFY_POSITION",
+                                    "account_number": str(p.get("account_number", acc_k)),
                                     "ticket": t_num,
                                     "sl": trail_target_sl,
                                     "tp": p.get("tp", 0.0)
@@ -606,6 +626,10 @@ class LiveMT5BridgeCore:
         # 5. TICK (Live High-Frequency Quotes)
         elif msg_type == "TICK":
             self.latest_tick = msg
+            if "d1_trend" in msg:
+                self.d1_trend = str(msg["d1_trend"])
+            if "h1_trend" in msg:
+                self.h1_trend = str(msg["h1_trend"])
             bid = float(msg.get("bid", 0.0))
             ask = float(msg.get("ask", 0.0))
             mid = round((bid + ask) / 2.0, 2)
@@ -669,7 +693,7 @@ class LiveMT5BridgeCore:
                         "volume": 1,
                         "spread": round(ask - bid, 2)
                     })
-                    if len(self.history_m1) > 250:
+                    if len(self.history_m1) > 450:
                         self.history_m1.pop(0)
 
             # Persist radar state at most twice a second
@@ -686,11 +710,17 @@ class LiveMT5BridgeCore:
         ask = float(self.latest_tick.get("ask", last_c + 0.15)) if self.latest_tick else (last_c + 0.15)
         mid = round((bid + ask) / 2.0, 2)
 
+        if self.latest_tick:
+            if "d1_trend" in self.latest_tick:
+                self.d1_trend = str(self.latest_tick["d1_trend"])
+            if "h1_trend" in self.latest_tick:
+                self.h1_trend = str(self.latest_tick["h1_trend"])
+
         # Multi-timeframe bar aggregation & PAC calculation
         tf_dict = {}
         tf_candles = {}
 
-        for tf, mult in [("M1", 1), ("M2", 2), ("M3", 3), ("M4", 4), ("M5", 5)]:
+        for tf, mult in [("M1", 1), ("M2", 2), ("M3", 3), ("M4", 4), ("M5", 5), ("M15", 15)]:
             # Aggregate M1 bars into TF bars
             aggregated = []
             m1_len = len(self.history_m1)
@@ -1092,26 +1122,8 @@ class LiveMT5BridgeCore:
             logger.info(f"🛑 [SESSION CIRCUIT BREAKER] {self.session_status_desc}. Purging pending orders for safety.")
             asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "magic": 1001}))
 
-        m1_setup = tf_dict.get("M1", {})
-        if m1_setup.get("active_setup") and self.active_writers:
-            dir_cmd = m1_setup["direction"]
-            sw_low = m1_setup["swing_low"]
-            sw_high = m1_setup["swing_high"]
-
-            self._current_sw_low = sw_low
-            self._current_sw_high = sw_high
-
-            # Check if new structure formed to reset previously completed zone (DEC-035)
-            if self.zone_completed:
-                if abs(sw_high - self.completed_roof) >= 1.0 or abs(sw_low - self.completed_floor) >= 1.0:
-                    self.zone_completed = False
-                    logger.info(f"🔄 [NEW STRUCTURE] Reset completed zone! New Zone: ${sw_low:.2f} - ${sw_high:.2f}")
-
-            # Gate: Do not re-enter a spent zone in the same direction!
-            if self.zone_completed and dir_cmd == self.completed_direction:
-                return
-
-            # Note: Global self.session_halted acts as fallback, but evaluation is prioritized per-account below
+        # Multi-Timeframe Entry Scanning & Handover Engine (Pilar 1, 2, 3)
+        if self.active_writers:
             if self.session_halted and not self.account_sessions:
                 return
 
@@ -1122,122 +1134,37 @@ class LiveMT5BridgeCore:
                     logger.error(f"🚫 [SASUKE CIRCUIT BREAKER ACTIVE] Daily Drawdown limit (-1.0%) tripped: {getattr(cb_status, 'reason', '')}. Trading HALTED!")
                 return
 
-            # Strict Retest Rule: Only 1 pending order per active zone to avoid spamming duplicate limit orders
-            has_matching_pending = any(
-                (ord.get("type") == ("BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"))
-                for ord in self.live_pending_orders
-            )
-            has_active_pos = any(
-                (pos.get("type") == dir_cmd)
-                for pos in self.live_open_positions
-            )
+            # Load active accounts and profiles from accounts.yaml
+            target_accounts = {}
+            if ACCOUNTS_CONFIG_PATH.exists():
+                try:
+                    import yaml
+                    with open(ACCOUNTS_CONFIG_PATH, "r", encoding="utf-8") as f:
+                        cfg = yaml.safe_load(f) or {}
+                    profiles_cfg = cfg.get("risk_profiles", {})
+                    for acc_k, acc_v in cfg.get("accounts", {}).items():
+                        p_name = acc_v.get("risk_profile", "none")
+                        is_active = acc_v.get("active", False)
+                        if is_active and p_name in profiles_cfg:
+                            r_pct = float(profiles_cfg[p_name].get("risk_per_trade_pct", 0.50))
+                            broker_name_str = str(acc_v.get("broker_name", "")).lower()
+                            target_accounts[acc_k] = {
+                                "account_number": str(acc_v.get("account_number")),
+                                "profile": p_name,
+                                "broker_name": acc_v.get("broker_name", "MetaQuotes"),
+                                "is_cent": "cent" in broker_name_str or "pu" in broker_name_str or acc_v.get("account_number") == "33848251",
+                                "equity": float(acc_v.get("equity", self.equity)),
+                                "risk_pct": r_pct,
+                                "assigned_timeframes": acc_v.get("assigned_timeframes", ["M1", "M2", "M3", "M5", "M15"])
+                            }
+                except Exception as e:
+                    logger.error(f"Error loading accounts for dispatch: {e}")
 
-            # Auto-cleanup stale pending orders from previous opposite or far expired zones
-            if (dir_cmd != self._last_order_direction):
-                # Direction flipped! Cancel outdated pending orders in opposite direction
-                opp_side = "BUY_LIMIT" if dir_cmd == "SELL" else "SELL_LIMIT"
-                if any(ord.get("type") == opp_side for ord in self.live_pending_orders):
-                    asyncio.create_task(self.broadcast({
-                        "action": "CANCEL_PENDING",
-                        "symbol": "XAUUSD",
-                        "magic": 1001
-                    }))
-                    logger.info(f"🧹 [STALE ORDER CLEANUP] Direction flipped to {dir_cmd}. Purging outdated pending orders.")
-
-            # Cooldown: 1 order event per direction change, no duplicate pending in same zone, and cooldown > 30s
-            if not has_matching_pending and not has_active_pos and ((dir_cmd != self._last_order_direction) or (now_time - self._last_order_time > 60.0)):
-                # Directional Anti-Falling-Knife Gate (DEC-031 Champion)
-                if dir_cmd == "BUY" and now_time < self.buy_cooldown_until:
-                    rem_cd = int(self.buy_cooldown_until - now_time)
-                    if not hasattr(self, "_last_knife_warn_buy") or (now_time - getattr(self, "_last_knife_warn_buy", 0) > 120.0):
-                        self._last_knife_warn_buy = now_time
-                        logger.info(f"⏳ [ANTI-FALLING-KNIFE GATE] BUY order skipped! Paused for cooling down after loss ({rem_cd}s remaining).")
-                    return
-
-                if dir_cmd == "SELL" and now_time < self.sell_cooldown_until:
-                    rem_cd = int(self.sell_cooldown_until - now_time)
-                    if not hasattr(self, "_last_knife_warn_sell") or (now_time - getattr(self, "_last_knife_warn_sell", 0) > 120.0):
-                        self._last_knife_warn_sell = now_time
-                        logger.info(f"⏳ [ANTI-FALLING-KNIFE GATE] SELL order skipped! Paused for cooling down after loss ({rem_cd}s remaining).")
-                    return
-
-                self._last_order_direction = dir_cmd
-                self._last_order_time = now_time
-
-                side = "BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"
-                spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
-
-                sw_low = m1_setup["swing_low"]
-                sw_high = m1_setup["swing_high"]
-                span = max(sw_high - sw_low, 1.0)
-                base_sl = m1_setup["sl_hard"]
-
-                # 1. Hard Stop Loss Adjustment (Spread Compensated)
-                if dir_cmd == "SELL":
-                    sl = round(base_sl + spread_val, 2)
-                else:
-                    sl = round(base_sl - spread_val, 2)
-
-                # 2. Take Profit Adjustment: Shared Single Target TP (Adaptive Quick Escape Juara 5-3C)
-                base_tp = m1_setup["tp_midpoint"]
-                if dir_cmd == "BUY":
-                    tp = round(base_tp, 2)
-                else:
-                    tp = round(base_tp + spread_val, 2)
-
-        # 3. KUBU-GRID-3-LAYER DISPATCHER (Juara Mutlak Turnamen Subtask 5-3D)
-                # Menebar 3 Limit Order Serentak dari Lantai Atas ke Dasar:
-                # Untuk BUY : Layer 1 di 25% (Lantai Atas Buy), Layer 2 di 12.5% (Tengah), Layer 3 di 0% (Dasar Lantai)
-                # Untuk SELL: Layer 1 di 75% (Lantai Bawah Sell), Layer 2 di 87.5% (Tengah), Layer 3 di 100% (Pucuk Atap)
-                num_layers = 3
-
-                if dir_cmd == "BUY":
-                    target_levels = [
-                        round(min(bid - 0.25, sw_low + span * 0.25), 2),  # Layer 1: Bibir Masuk (25%)
-                        round(min(bid - 0.50, sw_low + span * 0.125), 2), # Layer 2: Kedalaman Murni (12.5%)
-                        round(min(bid - 0.75, sw_low + span * 0.00), 2)   # Layer 3: Lantai Dasar (0%)
-                    ]
-                else:
-                    target_levels = [
-                        round(max(ask + 0.25, sw_low + span * 0.75), 2),  # Layer 1: Bibir Masuk (75%)
-                        round(max(ask + 0.50, sw_low + span * 0.875), 2), # Layer 2: Kedalaman Murni (87.5%)
-                        round(max(ask + 0.75, sw_high), 2)                # Layer 3: Pucuk Atap (100%)
-                    ]
-
-                # Load current configured accounts & risk profiles from accounts.yaml
-                target_accounts = {}
-                if ACCOUNTS_CONFIG_PATH.exists():
-                    try:
-                        import yaml
-                        with open(ACCOUNTS_CONFIG_PATH, "r", encoding="utf-8") as f:
-                            cfg = yaml.safe_load(f) or {}
-                        profiles_cfg = cfg.get("risk_profiles", {})
-                        for acc_k, acc_v in cfg.get("accounts", {}).items():
-                            p_name = acc_v.get("risk_profile", "none")
-                            is_active = acc_v.get("active", False)
-                            # Only trade if account is active AND has an assigned profile (not 'none')
-                            if is_active and p_name in profiles_cfg:
-                                r_pct = float(profiles_cfg[p_name].get("risk_per_trade_pct", 0.50))
-                                broker_name_str = str(acc_v.get("broker_name", "")).lower()
-                                target_accounts[acc_k] = {
-                                    "account_number": str(acc_v.get("account_number")),
-                                    "profile": p_name,
-                                    "broker_name": acc_v.get("broker_name", "MetaQuotes"),
-                                    "is_cent": "cent" in broker_name_str or "pu" in broker_name_str or acc_v.get("account_number") == "33848251",
-                                    "equity": float(acc_v.get("equity", self.equity)),
-                                    "risk_pct": r_pct
-                                }
-                    except Exception as e:
-                        logger.error(f"Error loading accounts for dispatch: {e}")
-
-                # If no accounts configured in yaml or none active, fallback to single active account
-                if not target_accounts:
-                    logger.warning("⚠️ No active accounts with configured risk profile found in accounts.yaml. Order dispatch skipped.")
-                    return
-
+            if target_accounts:
                 dispatched_orders_summary = []
-                # Alokasi Bobot Grid Terkalibrasi (L1: 25%, L2: 35%, L3: 40%) - Juara Naruto 2
                 pyramid_weights = [0.25, 0.35, 0.40]
+                spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
+                d1_bias = getattr(self, "d1_trend", "NEUTRAL")
 
                 for acc_k, acc_info in target_accounts.items():
                     acc_num = acc_info["account_number"]
@@ -1257,7 +1184,6 @@ class LiveMT5BridgeCore:
                     if daily_pnl > acc_daily["peak_daily_pnl"]:
                         acc_daily["peak_daily_pnl"] = daily_pnl
 
-                    # Ambil setting batas harian dari accounts.yaml
                     p_cfg = profiles_cfg.get(acc_prof, {})
                     daily_target_pct = float(p_cfg.get("daily_target_pct", 2.5))
                     max_daily_loss_pct = float(p_cfg.get("max_daily_loss_pct", 2.0))
@@ -1277,7 +1203,7 @@ class LiveMT5BridgeCore:
                     # B. Cek Daily Profit Target & Pullback Lock
                     if acc_daily["peak_daily_pnl"] >= daily_target_dollar:
                         pullback_dollar = acc_daily["daily_start_equity"] * (pullback_lock_pct / 100.0)
-                        daily_floor_lock = daily_target_dollar * 0.60 # amankan 60% dari target
+                        daily_floor_lock = daily_target_dollar * 0.60
                         if daily_pnl <= (acc_daily["peak_daily_pnl"] - pullback_dollar) or daily_pnl <= daily_floor_lock:
                             if not acc_daily["daily_halted"]:
                                 acc_daily["daily_halted"] = True
@@ -1286,7 +1212,6 @@ class LiveMT5BridgeCore:
                                 asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "account_number": acc_num, "magic": 1001}))
 
                     if acc_daily["daily_halted"]:
-                        # Lewati akun yang sudah selesai atau kena batas rugi harian
                         continue
 
                     # 2. Per-Account Dynamic Session Risk & Greed Trailing Evaluation (DEC-030)
@@ -1301,14 +1226,11 @@ class LiveMT5BridgeCore:
                     if acc_pnl > acc_sess["peak_pnl"]:
                         acc_sess["peak_pnl"] = acc_pnl
 
-                    # Budget kerugian per-sesi untuk akun ini
-                    # Gunakan risk_pct profil akun atau min $5.00 (agar akun mikro/YOLO tidak ter-halt palsu oleh micro-noise)
                     acc_loss_budget = max(5.0, acc_sess["start_equity"] * (acc_risk_tot / 100.0))
                     acc_floor_pnl = -acc_loss_budget
                     acc_target_1pct = max(10.0, acc_sess["start_equity"] * 0.010)
                     acc_step_05pct = max(5.0, acc_sess["start_equity"] * 0.005)
 
-                    # Stepped greed trailing per akun
                     if acc_sess["peak_pnl"] >= acc_target_1pct:
                         steps = int((acc_sess["peak_pnl"] - acc_target_1pct) / acc_step_05pct)
                         acc_floor_pnl = (acc_target_1pct * 0.50) + (steps * acc_step_05pct)
@@ -1318,7 +1240,6 @@ class LiveMT5BridgeCore:
                             acc_sess["halted"] = True
                             acc_sess["reason"] = f"Account Session Threshold Hit (PnL: ${acc_pnl:+.2f})"
                             logger.info(f"🛑 [ACCOUNT SESSION HALT] Account #{acc_num} ({acc_prof}) reached threshold: PnL ${acc_pnl:+.2f}. Trading halted for this account.")
-                            # Batalkan pending order hanya untuk akun spesifik ini
                             asyncio.create_task(self.broadcast({
                                 "action": "CANCEL_PENDING",
                                 "symbol": "XAUUSD",
@@ -1327,15 +1248,163 @@ class LiveMT5BridgeCore:
                             }))
 
                     if acc_sess["halted"]:
-                        # Lewati hanya akun yang terkena halt, akun lain yang masih sehat tetap boleh trade!
                         continue
 
-                    # Select broker adapter: Cent adapter if real cent account, else standard
+                    acc_pending = [o for o in self.live_pending_orders if str(o.get("account_number")) == acc_num]
+                    acc_open = [p for p in self.live_open_positions if str(p.get("account_number")) == acc_num]
+
+                    # Hard Pending Orders Cap: Max 3 pending orders per account
+                    if len(acc_pending) >= 3:
+                        continue
+
+                    # 3. Multi-Timeframe Setup Scanning (Priority: M15 -> M5 -> M3 -> M1)
+                    user_tfs = acc_info.get("assigned_timeframes", ["M1", "M2", "M3", "M5", "M15"])
+                    chosen_setup = None
+                    chosen_tf = None
+
+                    for scan_tf in ["M15", "M5", "M3", "M1"]:
+                        if scan_tf not in user_tfs:
+                            continue
+                        cand_setup = tf_dict.get(scan_tf, {})
+                        if not cand_setup or not cand_setup.get("active_setup"):
+                            continue
+
+                        c_dir = cand_setup["direction"]
+
+                        # A. Pilar 1: D1 Bias Gatekeeper (Anti-Falling-Knife on Macro Trend)
+                        if d1_bias in ("STRONG_BEARISH", "WEAK_BEARISH") and c_dir == "BUY":
+                            continue
+                        if d1_bias in ("STRONG_BULLISH", "WEAK_BULLISH") and c_dir == "SELL":
+                            continue
+
+                        # B. Directional Cooldown (Anti-Falling-Knife DEC-031)
+                        if c_dir == "BUY" and now_time < self.buy_cooldown_until:
+                            continue
+                        if c_dir == "SELL" and now_time < self.sell_cooldown_until:
+                            continue
+
+                        # C. Pilar 3: Micro Level Depletion Check
+                        dep_info = self.tf_depletion.setdefault(scan_tf, {
+                            "spent_layers": set(),
+                            "roof": cand_setup["swing_high"],
+                            "floor": cand_setup["swing_low"],
+                            "direction": c_dir
+                        })
+                        # Reset if structure shifted >= 1.0 pt or direction flipped
+                        if abs(cand_setup["swing_high"] - dep_info["roof"]) >= 1.0 or abs(cand_setup["swing_low"] - dep_info["floor"]) >= 1.0 or c_dir != dep_info["direction"]:
+                            dep_info["spent_layers"].clear()
+                            dep_info["roof"] = cand_setup["swing_high"]
+                            dep_info["floor"] = cand_setup["swing_low"]
+                            dep_info["direction"] = c_dir
+                            logger.info(f"🔄 [{scan_tf} NEW STRUCTURE] Reset micro-depletion! New Zone: ${cand_setup['swing_low']:.2f} - ${cand_setup['swing_high']:.2f}")
+
+                        if len(dep_info["spent_layers"]) >= 3:
+                            continue
+
+                        chosen_setup = cand_setup
+                        chosen_tf = scan_tf
+                        break
+
+                    if not chosen_setup or not chosen_tf:
+                        continue
+
+                    dir_cmd = chosen_setup["direction"]
+                    side = "BUY_LIMIT" if dir_cmd == "BUY" else "SELL_LIMIT"
+                    sw_low = chosen_setup["swing_low"]
+                    sw_high = chosen_setup["swing_high"]
+                    span = max(sw_high - sw_low, 1.0)
+                    sl_buffer = max(0.50, round(span * 0.0375, 2))
+
+                    # Direction flip: Cancel outdated opposite pending orders
+                    opp_side = "BUY_LIMIT" if dir_cmd == "SELL" else "SELL_LIMIT"
+                    if any(o.get("type") == opp_side for o in acc_pending):
+                        asyncio.create_task(self.broadcast({
+                            "action": "CANCEL_PENDING",
+                            "symbol": "XAUUSD",
+                            "account_number": acc_num,
+                            "magic": 1001
+                        }))
+
+                    # If account already has active open positions in this direction, let them run!
+                    if any(p.get("type") == dir_cmd for p in acc_open):
+                        continue
+
+                    acc_matching_pending = [o for o in acc_pending if o.get("type") == side]
+                    tf_rank_map = {"M1": 1, "M2": 2, "M3": 3, "M4": 4, "M5": 5, "M15": 15}
+                    cur_rank = tf_rank_map.get(chosen_tf, 1)
+
+                    # Handover Pending: Upgrade lower TF pending orders to higher TF
+                    if acc_matching_pending and cur_rank > 1:
+                        has_lower_tf = any(f"_{chosen_tf}_" not in str(o.get("comment", "")) for o in acc_matching_pending)
+                        if has_lower_tf:
+                            logger.info(f"🔄 [PENDING HANDOVER] Account #{acc_num} upgrading pending limits from lower TF to {chosen_tf}!")
+                            asyncio.create_task(self.broadcast({
+                                "action": "CANCEL_PENDING",
+                                "symbol": "XAUUSD",
+                                "account_number": acc_num,
+                                "magic": 1001
+                            }))
+                            acc_matching_pending = []
+
+                    # Pure Geometric S&D Levels
+                    if dir_cmd == "BUY":
+                        raw_levels = [
+                            round(sw_low + span * 0.25, 2),  # L1: 25% Bibir
+                            round(sw_low + span * 0.125, 2), # L2: 12.5% Tengah
+                            round(sw_low, 2)                 # L3: 0% Dasar
+                        ]
+                        base_sl = chosen_setup["sl_hard"]
+                        sl = round(base_sl - spread_val, 2)
+                        # Handover TP: check if nested in M15
+                        m15_s = tf_dict.get("M15", {})
+                        if m15_s.get("active_setup") and m15_s.get("direction") == "BUY":
+                            tp = round(max(chosen_setup["tp_midpoint"] + 2.0, m15_s["tp_midpoint"]), 2)
+                        else:
+                            tp = round(chosen_setup["tp_midpoint"], 2)
+                    else:
+                        raw_levels = [
+                            round(sw_low + span * 0.75, 2),  # L1: 75% Bibir
+                            round(sw_low + span * 0.875, 2), # L2: 87.5% Tengah
+                            round(sw_high, 2)                # L3: 100% Pucuk
+                        ]
+                        base_sl = chosen_setup["sl_hard"]
+                        sl = round(base_sl + spread_val, 2)
+                        m15_s = tf_dict.get("M15", {})
+                        if m15_s.get("active_setup") and m15_s.get("direction") == "SELL":
+                            tp = round(min(chosen_setup["tp_midpoint"] - 2.0, m15_s["tp_midpoint"]) + spread_val, 2)
+                        else:
+                            tp = round(chosen_setup["tp_midpoint"] + spread_val, 2)
+
+                    # Filter valid layers:
+                    # 1. Micro level depletion (skip spent layers)
+                    # 2. Broker limit price check (BUY_LIMIT < bid, SELL_LIMIT > ask)
+                    # 3. Proximity coalescing (no duplicate within 1.5 pts of existing pending order)
+                    spent_set = self.tf_depletion.get(chosen_tf, {}).get("spent_layers", set())
+                    existing_p_prices = [float(o.get("price", 0.0)) for o in acc_matching_pending]
+
+                    valid_layers = []
+                    for lay_i, limit_p in enumerate(raw_levels):
+                        if lay_i in spent_set:
+                            continue
+                        if dir_cmd == "BUY" and limit_p >= (bid - 0.10):
+                            continue # Already penetrated below this level
+                        if dir_cmd == "SELL" and limit_p <= (ask + 0.10):
+                            continue # Already penetrated above this level
+                        if any(abs(limit_p - ep) <= 1.50 for ep in existing_p_prices):
+                            continue # Proximity collision prevented
+
+                        if len(acc_matching_pending) + len(valid_layers) >= 3:
+                            break
+
+                        valid_layers.append((lay_i, limit_p))
+
+                    if not valid_layers:
+                        continue
+
                     active_adapter = self.cent_adapter if acc_info.get("is_cent") else self.adapter
 
-                    for lay_idx, limit_p in enumerate(target_levels):
-                        # Terapkan bobot Pyramid per layer
-                        layer_weight = pyramid_weights[lay_idx] if lay_idx < len(pyramid_weights) else (1.0 / num_layers)
+                    for lay_idx, limit_p in valid_layers:
+                        layer_weight = pyramid_weights[lay_idx] if lay_idx < len(pyramid_weights) else 0.33
                         risk_per_layer = acc_risk_tot * layer_weight
 
                         sl_dist = max(1.0, abs(limit_p - sl))
@@ -1358,29 +1427,28 @@ class LiveMT5BridgeCore:
                             "lots": layer_lot,
                             "price": limit_p,
                             "sl": sl,
-                            "tp": tp, # 1 titik Hard TP bersama
+                            "tp": tp,
                             "magic": 1001,
-                            "comment": f"PAC_{acc_prof.upper()[:4]}_L{lay_idx+1}"
+                            "comment": f"PAC_{acc_prof.upper()[:4]}_{chosen_tf}_L{lay_idx+1}"
                         }
 
-                        # Broadcast order to MT5 clients
                         asyncio.create_task(self.broadcast(order_cmd))
-                        dispatched_orders_summary.append(f"{acc_prof}({layer_lot:.2f}L)")
+                        dispatched_orders_summary.append(f"{acc_prof}_{chosen_tf}({layer_lot:.2f}L)")
 
-                # Push instant Snackbar Notification for Dashboard
-                summary_str = ", ".join(list(set(dispatched_orders_summary)))
-                notif = {
-                    "id": int(now_time * 1000),
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
-                    "title": f"🚀 3-LAYER GRID {side} DISPATCHED!",
-                    "message": f"Accounts: {summary_str} | SL: ${sl:.2f} | Shared TP: ${tp:.2f}",
-                    "type": "BUY" if dir_cmd == "BUY" else "SELL",
-                    "price": target_levels[0]
-                }
-                self.pending_notifications.append(notif)
-                if len(self.pending_notifications) > 10:
-                    self.pending_notifications.pop(0)
-                logger.info(f"⚡ [MULTI-ACCOUNT GRID DISPATCH] Sent 3 {side} orders to {len(target_accounts)} active accounts: {summary_str}")
+                if dispatched_orders_summary:
+                    summary_str = ", ".join(list(set(dispatched_orders_summary)))
+                    notif = {
+                        "id": int(now_time * 1000),
+                        "timestamp": datetime.now().strftime("%H:%M:%S"),
+                        "title": f"🚀 MULTI-TF GRID DISPATCHED!",
+                        "message": f"Accounts: {summary_str}",
+                        "type": "BUY" if dir_cmd == "BUY" else "SELL",
+                        "price": mid
+                    }
+                    self.pending_notifications.append(notif)
+                    if len(self.pending_notifications) > 10:
+                        self.pending_notifications.pop(0)
+                    logger.info(f"⚡ [MULTI-TF GRID DISPATCH] Sent orders to {len(target_accounts)} active accounts: {summary_str}")
 
         now_utc = datetime.now(timezone.utc)
         curr_h = now_utc.hour
