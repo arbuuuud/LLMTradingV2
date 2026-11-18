@@ -941,6 +941,7 @@ class LiveMT5BridgeCore:
                     "leg_candles": roof_leg_bars,
                     "reasons": [
                         f"{'★ PRIORITIZED DBD SUPPLY BASE' if roof_is_dbd else 'Liquidity Sweep Peak'} at ${sw_high:.2f} ({roof_time_str})",
+                        f"Touch Lifecycle: {'✨ 100% VIRGIN BASE (Untouched)' if selected_roof.is_virgin else f'Retested ({selected_roof.touch_count} touches)'}",
                         f"Consolidated Zone: ${sell_zone_bottom:.2f} - ${sw_high:.2f}",
                         f"3-Layer Sell Grid: L1=${sell_grid_levels[0]:.2f}, L2=${sell_grid_levels[1]:.2f}, L3=${sell_grid_levels[2]:.2f}",
                         f"Virgin Depth >50% Untouched above ${untouched_sell_bottom:.2f}"
@@ -961,6 +962,7 @@ class LiveMT5BridgeCore:
                     "leg_candles": floor_leg_bars,
                     "reasons": [
                         f"{'★ PRIORITIZED RBR DEMAND BASE' if floor_is_rbr else 'Demand Absorption Low'} at ${sw_low:.2f} ({floor_time_str})",
+                        f"Touch Lifecycle: {'✨ 100% VIRGIN BASE (Untouched)' if selected_floor.is_virgin else f'Retested ({selected_floor.touch_count} touches)'}",
                         f"Consolidated Zone: ${sw_low:.2f} - ${buy_zone_top:.2f}",
                         f"3-Layer Buy Grid: L1=${buy_grid_levels[0]:.2f}, L2=${buy_grid_levels[1]:.2f}, L3=${buy_grid_levels[2]:.2f}",
                         f"Virgin Depth >50% Untouched below ${untouched_buy_top:.2f}"
