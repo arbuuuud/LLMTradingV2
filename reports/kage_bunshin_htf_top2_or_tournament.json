@@ -1,0 +1,222 @@
+[
+  {
+    "trades": 6753,
+    "win_rate": 53.7,
+    "profit_factor": 1.45,
+    "max_drawdown_pct": 7.91,
+    "net_pnl": 21196.15,
+    "final_balance": 31196.15,
+    "id": "M1_D1_ONLY",
+    "tf": "M1",
+    "desc": "Top 1 D1"
+  },
+  {
+    "trades": 6596,
+    "win_rate": 52.7,
+    "profit_factor": 1.44,
+    "max_drawdown_pct": 7.12,
+    "net_pnl": 20671.64,
+    "final_balance": 30671.64,
+    "id": "M1_H4_ONLY",
+    "tf": "M1",
+    "desc": "Top 2 H4"
+  },
+  {
+    "trades": 7970,
+    "win_rate": 51.9,
+    "profit_factor": 1.52,
+    "max_drawdown_pct": 6.16,
+    "net_pnl": 30269.11,
+    "final_balance": 40269.11,
+    "id": "M1_D1_OR_H4_PERMISSIVE",
+    "tf": "M1",
+    "desc": "Block if BOTH Bearish"
+  },
+  {
+    "trades": 4785,
+    "win_rate": 54.6,
+    "profit_factor": 1.42,
+    "max_drawdown_pct": 7.28,
+    "net_pnl": 14010.86,
+    "final_balance": 24010.86,
+    "id": "M1_D1_OR_H4_STRICT",
+    "tf": "M1",
+    "desc": "Block if EITHER Bearish"
+  },
+  {
+    "trades": 3504,
+    "win_rate": 42.7,
+    "profit_factor": 1.03,
+    "max_drawdown_pct": 13.66,
+    "net_pnl": 922.66,
+    "final_balance": 10922.66,
+    "id": "M3_D1_ONLY",
+    "tf": "M3",
+    "desc": "Top 1 D1"
+  },
+  {
+    "trades": 3509,
+    "win_rate": 43.1,
+    "profit_factor": 1.34,
+    "max_drawdown_pct": 18.64,
+    "net_pnl": 10529.48,
+    "final_balance": 20529.48,
+    "id": "M3_H4_ONLY",
+    "tf": "M3",
+    "desc": "Top 2 H4"
+  },
+  {
+    "trades": 4272,
+    "win_rate": 41.5,
+    "profit_factor": 1.0,
+    "max_drawdown_pct": 19.65,
+    "net_pnl": 4.25,
+    "final_balance": 10004.25,
+    "id": "M3_D1_OR_H4_PERMISSIVE",
+    "tf": "M3",
+    "desc": "Block if BOTH Bearish"
+  },
+  {
+    "trades": 2526,
+    "win_rate": 44.4,
+    "profit_factor": 1.08,
+    "max_drawdown_pct": 11.05,
+    "net_pnl": 1653.93,
+    "final_balance": 11653.93,
+    "id": "M3_D1_OR_H4_STRICT",
+    "tf": "M3",
+    "desc": "Block if EITHER Bearish"
+  },
+  {
+    "trades": 2676,
+    "win_rate": 40.3,
+    "profit_factor": 1.42,
+    "max_drawdown_pct": 7.84,
+    "net_pnl": 10486.09,
+    "final_balance": 20486.09,
+    "id": "M5_D1_ONLY",
+    "tf": "M5",
+    "desc": "Top 1 PnL D1"
+  },
+  {
+    "trades": 2667,
+    "win_rate": 40.5,
+    "profit_factor": 1.37,
+    "max_drawdown_pct": 6.32,
+    "net_pnl": 9113.55,
+    "final_balance": 19113.55,
+    "id": "M5_H4_ONLY",
+    "tf": "M5",
+    "desc": "Top 2 PnL H4"
+  },
+  {
+    "trades": 2149,
+    "win_rate": 40.9,
+    "profit_factor": 1.03,
+    "max_drawdown_pct": 12.71,
+    "net_pnl": 609.88,
+    "final_balance": 10609.88,
+    "id": "M5_M15_ONLY",
+    "tf": "M5",
+    "desc": "Top 1 Min-DD M15"
+  },
+  {
+    "trades": 3323,
+    "win_rate": 39.3,
+    "profit_factor": 1.37,
+    "max_drawdown_pct": 9.5,
+    "net_pnl": 11541.1,
+    "final_balance": 21541.1,
+    "id": "M5_D1_OR_H4_PERMISSIVE",
+    "tf": "M5",
+    "desc": "D1+H4 Block if BOTH Bearish"
+  },
+  {
+    "trades": 1945,
+    "win_rate": 41.7,
+    "profit_factor": 1.45,
+    "max_drawdown_pct": 5.6,
+    "net_pnl": 8006.17,
+    "final_balance": 18006.17,
+    "id": "M5_D1_OR_H4_STRICT",
+    "tf": "M5",
+    "desc": "D1+H4 Block if EITHER Bearish"
+  },
+  {
+    "trades": 3501,
+    "win_rate": 39.4,
+    "profit_factor": 1.31,
+    "max_drawdown_pct": 8.75,
+    "net_pnl": 10184.89,
+    "final_balance": 20184.89,
+    "id": "M5_D1_OR_M15_PERMISSIVE",
+    "tf": "M5",
+    "desc": "D1+M15 Block if BOTH Bearish"
+  },
+  {
+    "trades": 1208,
+    "win_rate": 43.5,
+    "profit_factor": 1.16,
+    "max_drawdown_pct": 7.52,
+    "net_pnl": 1671.95,
+    "final_balance": 11671.95,
+    "id": "M5_D1_OR_M15_STRICT",
+    "tf": "M5",
+    "desc": "D1+M15 Block if EITHER Bearish"
+  },
+  {
+    "trades": 1085,
+    "win_rate": 35.2,
+    "profit_factor": 1.05,
+    "max_drawdown_pct": 14.53,
+    "net_pnl": 562.71,
+    "final_balance": 10562.71,
+    "id": "M15_H1_ONLY",
+    "tf": "M15",
+    "desc": "Top 1 H1"
+  },
+  {
+    "trades": 1249,
+    "win_rate": 35.0,
+    "profit_factor": 1.12,
+    "max_drawdown_pct": 14.97,
+    "net_pnl": 1484.45,
+    "final_balance": 11484.45,
+    "id": "M15_H4_ONLY",
+    "tf": "M15",
+    "desc": "Top 2 H4"
+  },
+  {
+    "trades": 1423,
+    "win_rate": 36.1,
+    "profit_factor": 1.2,
+    "max_drawdown_pct": 9.26,
+    "net_pnl": 2820.08,
+    "final_balance": 12820.08,
+    "id": "M15_H1_OR_H4_PERMISSIVE",
+    "tf": "M15",
+    "desc": "Block if BOTH Bearish"
+  },
+  {
+    "trades": 909,
+    "win_rate": 33.6,
+    "profit_factor": 0.94,
+    "max_drawdown_pct": 15.85,
+    "net_pnl": -595.22,
+    "final_balance": 9404.78,
+    "id": "M15_H1_OR_H4_STRICT",
+    "tf": "M15",
+    "desc": "Block if EITHER Bearish"
+  },
+  {
+    "trades": 1423,
+    "win_rate": 36.1,
+    "profit_factor": 1.2,
+    "max_drawdown_pct": 9.26,
+    "net_pnl": 2820.08,
+    "final_balance": 12820.08,
+    "id": "M15_H1_OR_H4_ALIGNED",
+    "tf": "M15",
+    "desc": "Allow if EITHER Bullish"
+  }
+]

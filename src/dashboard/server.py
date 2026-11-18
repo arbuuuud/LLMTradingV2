@@ -107,6 +107,7 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                 curr_h = now_utc.hour
                 session_label = "Asian Session" if 0 <= curr_h < 8 else ("London Open" if 8 <= curr_h < 13 else ("NY Session" if 13 <= curr_h < 21 else "Off-Hours"))
                 tf_specs = live_data["timeframes"]
+                total_tfs = len(tf_specs) if tf_specs else 6
                 bull_count = sum(1 for tf, data in tf_specs.items() if data.get("direction") == "BUY" and data.get("active_setup"))
                 return {
                     "engine": "PAC (Price Action Channel) Scalper",
@@ -117,11 +118,19 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                     "session_budget": live_data.get("session_budget"),
                     "account": live_data.get("account"),
                     "notifications": live_data.get("notifications", []),
+                    "htf_bias": live_data.get("htf_bias", {
+                        "D1": live_data.get("d1_trend", "NEUTRAL"),
+                        "H4": live_data.get("h4_trend", "NEUTRAL"),
+                        "H1": live_data.get("h1_trend", "NEUTRAL")
+                    }),
+                    "d1_trend": live_data.get("d1_trend", "NEUTRAL"),
+                    "h4_trend": live_data.get("h4_trend", "NEUTRAL"),
+                    "h1_trend": live_data.get("h1_trend", "NEUTRAL"),
                     "ensemble_confluence": {
                         "bullish_timeframes": bull_count,
-                        "total_timeframes": 5,
-                        "confluence_pct": (bull_count / 5.0) * 100.0,
-                        "recommendation": "STRONG_BUY_CONFLUENCE" if bull_count >= 3 else "STANDBY"
+                        "total_timeframes": total_tfs,
+                        "confluence_pct": round((bull_count / float(total_tfs)) * 100.0, 1),
+                        "recommendation": "STRONG_BUY_CONFLUENCE" if bull_count >= (total_tfs // 2 + 1) else "STANDBY"
                     },
                     "timeframes": tf_specs
                 }
@@ -264,12 +273,38 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                 {"label": "Midpoint Hard TP Target", "ok": True, "val": "HTF Midpoint 2654.00 RR 1:2.0"},
                 {"label": "Soft SL Protective Close", "ok": True, "val": "Hard SL 2638.50 safely below swing low"}
             ]
+        },
+        "M15": {
+            "timeframe": "M15",
+            "active_setup": False,
+            "direction": "NEUTRAL",
+            "status": "WATCHING_HTF_LEVELS",
+            "quadrant": "50% (Equilibrium)",
+            "structure": "BULLISH_TREND_ALIGNMENT",
+            "swing_high": 2672.00,
+            "swing_low": 2635.00,
+            "equilibrium": 2653.50,
+            "pac_channel_high": 2670.00,
+            "pac_channel_low": 2638.00,
+            "current_price": 2650.60,
+            "sl_hard": 2632.50,
+            "tp_midpoint": 2653.50,
+            "retest_mode": "MULTI_RETEST_DEEPER",
+            "checklist_score": 8.0,
+            "checklist": [
+                {"label": "Valid PAC Demand Zone (0-25%)", "ok": False, "val": "Consolidating near equilibrium"},
+                {"label": "Structural Alignment (BOS / CHoCH)", "ok": True, "val": "Institutional Structure Active"},
+                {"label": "Retest Quality (Deeper Penetration)", "ok": False, "val": "Awaiting retest"},
+                {"label": "Midpoint Hard TP Target", "ok": True, "val": "Target $2653.50"},
+                {"label": "Soft SL Protective Close", "ok": True, "val": "Protected"}
+            ]
         }
     }
 
     # Ensemble Confluence Summary
+    total_tfs = len(tf_specs)
     bull_count = sum(1 for tf, data in tf_specs.items() if data["direction"] == "BUY" and data["active_setup"])
-    ensemble_score = (bull_count / 5.0) * 100.0
+    ensemble_score = (bull_count / float(total_tfs)) * 100.0
 
     return {
         "engine": "PAC (Price Action Channel) Scalper",
@@ -277,11 +312,19 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
         "current_price": 2650.60,
         "session": session_label,
         "updated_at": now_utc.isoformat(),
+        "htf_bias": {
+            "D1": "STRONG_BULLISH",
+            "H4": "STRONG_BULLISH",
+            "H1": "WEAK_BULLISH"
+        },
+        "d1_trend": "STRONG_BULLISH",
+        "h4_trend": "STRONG_BULLISH",
+        "h1_trend": "WEAK_BULLISH",
         "ensemble_confluence": {
             "bullish_timeframes": bull_count,
-            "total_timeframes": 5,
+            "total_timeframes": total_tfs,
             "confluence_pct": ensemble_score,
-            "recommendation": "STRONG_BUY_CONFLUENCE" if bull_count >= 3 else "STANDBY"
+            "recommendation": "STRONG_BUY_CONFLUENCE" if bull_count >= (total_tfs // 2 + 1) else "STANDBY"
         },
         "timeframes": tf_specs
     }

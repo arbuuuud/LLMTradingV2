@@ -34,6 +34,7 @@ datetime       m_last_heartbeat  = 0;
 ulong          m_last_timer_ms   = 0;
 string         m_incoming_buffer = "";
 int            g_hD1             = INVALID_HANDLE;
+int            g_hH4             = INVALID_HANDLE;
 int            g_hH1             = INVALID_HANDLE;
 
 //+------------------------------------------------------------------+
@@ -58,6 +59,7 @@ int OnInit()
    
    // Initialize Higher Timeframe EMA 50 handles for Pilar 1 Directional Trend Bias
    g_hD1 = iMA(_Symbol, PERIOD_D1, 50, 0, MODE_EMA, PRICE_CLOSE);
+   g_hH4 = iMA(_Symbol, PERIOD_H4, 50, 0, MODE_EMA, PRICE_CLOSE);
    g_hH1 = iMA(_Symbol, PERIOD_H1, 50, 0, MODE_EMA, PRICE_CLOSE);
 
    ConnectToServer();
@@ -73,6 +75,7 @@ void OnDeinit(const int reason)
    EventKillTimer();
    DisconnectServer();
    if(g_hD1 != INVALID_HANDLE) { IndicatorRelease(g_hD1); g_hD1 = INVALID_HANDLE; }
+   if(g_hH4 != INVALID_HANDLE) { IndicatorRelease(g_hH4); g_hH4 = INVALID_HANDLE; }
    if(g_hH1 != INVALID_HANDLE) { IndicatorRelease(g_hH1); g_hH1 = INVALID_HANDLE; }
    PrintFormat("[LLM Bridge] Deinitialized (Reason: %d).", reason);
 }
@@ -687,8 +690,9 @@ void OnTick()
       }
    }
 
-   // 2B. Calculate Higher Timeframe Trend Bias (D1 and H1 EMA 50)
+   // 2B. Calculate Higher Timeframe Trend Bias (D1, H4, and H1 EMA 50)
    string d1Trend = "NEUTRAL";
+   string h4Trend = "NEUTRAL";
    string h1Trend = "NEUTRAL";
    if(g_hD1 != INVALID_HANDLE)
    {
@@ -700,6 +704,18 @@ void OnTick()
          else if(bid > d1_ma[1] && slope < 0) d1Trend = "WEAK_BULLISH";
          else if(bid < d1_ma[1] && slope <= 0) d1Trend = "STRONG_BEARISH";
          else if(bid < d1_ma[1] && slope > 0) d1Trend = "WEAK_BEARISH";
+      }
+   }
+   if(g_hH4 != INVALID_HANDLE)
+   {
+      double h4_ma[2];
+      if(CopyBuffer(g_hH4, 0, 0, 2, h4_ma) == 2)
+      {
+         double slope = h4_ma[1] - h4_ma[0];
+         if(bid > h4_ma[1] && slope >= 0) h4Trend = "STRONG_BULLISH";
+         else if(bid > h4_ma[1] && slope < 0) h4Trend = "WEAK_BULLISH";
+         else if(bid < h4_ma[1] && slope <= 0) h4Trend = "STRONG_BEARISH";
+         else if(bid < h4_ma[1] && slope > 0) h4Trend = "WEAK_BEARISH";
       }
    }
    if(g_hH1 != INVALID_HANDLE)
@@ -717,10 +733,10 @@ void OnTick()
 
    // 3. Format complete JSON telemetry packet to Python Brain
    string tickJson = StringFormat(
-      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"d1_trend\":\"%s\",\"h1_trend\":\"%s\",\"positions\":[%s],\"orders\":[%s]}\n",
+      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"d1_trend\":\"%s\",\"h4_trend\":\"%s\",\"h1_trend\":\"%s\",\"positions\":[%s],\"orders\":[%s]}\n",
       AccountInfoInteger(ACCOUNT_LOGIN), _Symbol, bid, ask, spread, timeMs,
       m_account.Equity(), m_account.Balance(), openCount, pendingCount, totalUnrealized,
-      d1Trend, h1Trend,
+      d1Trend, h4Trend, h1Trend,
       positionsJson, pendingOrdersJson
    );
 

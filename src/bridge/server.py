@@ -146,8 +146,9 @@ class LiveMT5BridgeCore:
         self.consecutive_buy_losses: int = 0
         self.consecutive_sell_losses: int = 0
 
-        # Higher Timeframe Directional Trend Bias (Pilar 1: D1 & H1 Trend Gate)
+        # Higher Timeframe Directional Trend Bias (Pilar 1: D1, H4, and H1 Trend Gates)
         self.d1_trend: str = "NEUTRAL"
+        self.h4_trend: str = "NEUTRAL"
         self.h1_trend: str = "NEUTRAL"
 
         # Micro Level Depletion Tracking per Timeframe (Pilar 3: Virgin Depth Preservation)
@@ -713,6 +714,8 @@ class LiveMT5BridgeCore:
         if self.latest_tick:
             if "d1_trend" in self.latest_tick:
                 self.d1_trend = str(self.latest_tick["d1_trend"])
+            if "h4_trend" in self.latest_tick:
+                self.h4_trend = str(self.latest_tick["h4_trend"])
             if "h1_trend" in self.latest_tick:
                 self.h1_trend = str(self.latest_tick["h1_trend"])
 
@@ -1271,10 +1274,26 @@ class LiveMT5BridgeCore:
 
                         c_dir = cand_setup["direction"]
 
-                        # A. Pilar 1: D1 Bias Gatekeeper (Anti-Falling-Knife on Macro Trend)
-                        if d1_bias in ("STRONG_BEARISH", "WEAK_BEARISH") and c_dir == "BUY":
+                        # A. Pilar 1: Top 2 HTF Bias Gatekeeper (Empirical Permissive OR)
+                        # M1, M2, M3, M4, M5 -> Guarded by D1 & H4 (PF 1.52 / DD 5.6%)
+                        # M15 -> Guarded by H1 & H4 (PF 1.20 / DD 9.26%)
+                        if scan_tf in ("M1", "M2", "M3", "M4", "M5"):
+                            bias1 = getattr(self, "d1_trend", "NEUTRAL")
+                            bias2 = getattr(self, "h4_trend", "NEUTRAL")
+                        else:  # M15
+                            bias1 = getattr(self, "h1_trend", "NEUTRAL")
+                            bias2 = getattr(self, "h4_trend", "NEUTRAL")
+
+                        b1_bear = bias1 in ("STRONG_BEARISH", "WEAK_BEARISH")
+                        b1_bull = bias1 in ("STRONG_BULLISH", "WEAK_BULLISH")
+                        b2_bear = bias2 in ("STRONG_BEARISH", "WEAK_BEARISH")
+                        b2_bull = bias2 in ("STRONG_BULLISH", "WEAK_BULLISH")
+
+                        # Permissive OR: Gembok BUY HANYA JIKA KEDUA HTF SEPAKAT BEARISH!
+                        if c_dir == "BUY" and (b1_bear and b2_bear):
                             continue
-                        if d1_bias in ("STRONG_BULLISH", "WEAK_BULLISH") and c_dir == "SELL":
+                        # Permissive OR: Gembok SELL HANYA JIKA KEDUA HTF SEPAKAT BULLISH!
+                        if c_dir == "SELL" and (b1_bull and b2_bull):
                             continue
 
                         # B. Directional Cooldown (Anti-Falling-Knife DEC-031)
@@ -1481,6 +1500,14 @@ class LiveMT5BridgeCore:
                 "open_positions": list(self.live_open_positions),
                 "pending_orders": list(self.live_pending_orders)
             },
+            "htf_bias": {
+                "D1": getattr(self, "d1_trend", "NEUTRAL"),
+                "H4": getattr(self, "h4_trend", "NEUTRAL"),
+                "H1": getattr(self, "h1_trend", "NEUTRAL")
+            },
+            "d1_trend": getattr(self, "d1_trend", "NEUTRAL"),
+            "h4_trend": getattr(self, "h4_trend", "NEUTRAL"),
+            "h1_trend": getattr(self, "h1_trend", "NEUTRAL"),
             "bars": tf_candles.get("M1", []),
             "timeframe_bars": tf_candles,
             "timeframes": tf_dict

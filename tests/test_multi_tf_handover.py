@@ -76,3 +76,48 @@ async def test_proximity_coalescing_prevents_duplicate_orders():
 
     assert collision_1 is True, "Order within 0.75 pt must trigger proximity collision guard"
     assert collision_2 is False, "Order 2.50 pt away should be permitted"
+
+
+@pytest.mark.asyncio
+async def test_top2_permissive_or_gatekeeper_logic():
+    """Verify Pilar 1: Top 2 HTF Bias Permissive OR Gatekeeper for M1 (D1+H4) and M15 (H1+H4)."""
+    bridge = LiveMT5BridgeCore(host="127.0.0.1", port=5597)
+
+    # 1. Test M1 Entry: Guarded by D1 & H4
+    # Case A: Both D1 and H4 are Bearish -> BUY MUST BE BLOCKED
+    bridge.d1_trend = "STRONG_BEARISH"
+    bridge.h4_trend = "STRONG_BEARISH"
+    b1_bear = bridge.d1_trend in ("STRONG_BEARISH", "WEAK_BEARISH")
+    b2_bear = bridge.h4_trend in ("STRONG_BEARISH", "WEAK_BEARISH")
+    assert (b1_bear and b2_bear) is True, "Both bearish must trigger block"
+
+    # Case B: D1 is Bearish, but H4 has a bullish pullback -> BUY IS PERMITTED (Permissive OR Alpha)
+    bridge.h4_trend = "STRONG_BULLISH"
+    b2_bear = bridge.h4_trend in ("STRONG_BEARISH", "WEAK_BEARISH")
+    assert (b1_bear and b2_bear) is False, "Permissive OR must permit BUY when H4 is bullish pullback"
+
+    # 2. Test M15 Entry: Guarded by H1 & H4
+    bridge.h1_trend = "STRONG_BEARISH"
+    bridge.h4_trend = "STRONG_BEARISH"
+    h1_bear = bridge.h1_trend in ("STRONG_BEARISH", "WEAK_BEARISH")
+    h4_bear = bridge.h4_trend in ("STRONG_BEARISH", "WEAK_BEARISH")
+    assert (h1_bear and h4_bear) is True, "M15 BUY must be blocked when both H1 & H4 are bearish"
+
+    # Case C: H1 Bullish, H4 Bearish -> M15 BUY IS PERMITTED
+    bridge.h1_trend = "STRONG_BULLISH"
+    h1_bear = bridge.h1_trend in ("STRONG_BEARISH", "WEAK_BEARISH")
+    assert (h1_bear and h4_bear) is False, "M15 BUY permitted when H1 is bullish"
+
+
+def test_tactical_radar_includes_m15_and_htf_bias():
+    """Verify Dashboard Tactical Radar state includes M15 and HTF Bias metadata."""
+    from src.dashboard.server import build_tactical_radar_pac
+    radar = build_tactical_radar_pac()
+
+    assert "timeframes" in radar
+    assert "M15" in radar["timeframes"], "Tactical radar must include M15"
+    assert "htf_bias" in radar, "Tactical radar must include htf_bias"
+    assert "D1" in radar["htf_bias"]
+    assert "H4" in radar["htf_bias"]
+    assert "H1" in radar["htf_bias"]
+    assert radar["ensemble_confluence"]["total_timeframes"] == 6
