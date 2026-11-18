@@ -202,5 +202,26 @@
 | **DEC-034** | 2026-09-25 | Master Daily Risk Guard & Hard Lockout Circuit Breaker | Penguncian harian per akun: batas max loss harian (-1.0% s/d -5.0%) dan profit target lock (+1.0% s/d +8.0%) menghentikan aktivitas akun saat target atau batas risiko tercapai. | **CONFIRMED** |
 | **DEC-035** | 2026-10-07 | Single Harvest per Structural Zone Invalidation | Begitu Take Profit tercapai pada suatu zona, area harga tersebut dikunci status `COMPLETED/SPENT`. Dilarang membuka order lagi di arah yang sama sampai terbentuk struktur baru ($\ge 1.0$ pt). | **CONFIRMED** |
 | **DEC-036** | 2026-10-07 | POI SL Recalculation & EA Fail-Safe Stop Repair | Otomatis menghitung ulang Stop Loss jika base RBR/DBD mengubah swing level, dan menambahkan fail-safe di EA jika terjadi anomali `SL >= execPrice` pada BUY_LIMIT untuk mengeliminasi error `10016 invalid stops`. | **CONFIRMED** |
+| **DEC-037** | 2026-11-18 | Top 2 HTF Bias Permissive OR Gatekeeper | M1–M5 dipayungi D1 & H4 (PF 1.52, DD 6.16%); M15 dipayungi H1 & H4 (PF 1.20, DD 9.26%). Order BUY hanya digembok jika KEDUA HTF bearish; Order SELL hanya digembok jika KEDUA HTF bullish. | **CONFIRMED** |
+| **DEC-038** | 2026-11-18 | Formation Candle Amnesty for True S&D Lifecycle | Mengecualikan lilin pembentukan (Origin & Leg-Out Impulse) dari evaluasi touch. Status virgin dipertahankan 100% sampai terjadi true pullback dari luar base. Terbukti empiris di 300.440 bar M1 menaikkan PF dari 1.46 ke 1.55 (+18.2% Net PnL) dan memangkas Max DD dari 5.57% ke 5.13%. | **CONFIRMED** |
+
+---
+
+### 🏆 Subtask 5-3I: Grand Tournament Multi-TF Handover, Real POI & SL Architecture (Full Year & Quarterly Walk-Forward)
+- **Tujuan**: Menjawab dilema empiris seputar Phantom Orders (garis acak di udara kosong), SL lokal M1 vs Atap M15, dan Handover Pasca-SL (saat M1 kena SL tapi harga masih di dalam zona Supply/Demand M15) secara 100% bebas asumsi di atas 300.440 bar M1 penuh dan 4 kuartal rezim pasar berbeda.
+- **Matriks 7 Kubu Tanding**:
+  1. *Kubu 1 (Status Quo Baseline)*: Kuadran matematika bebas (bisa di udara kosong) + SL lokal M1 (3.5pt) + Global Cooldown saat SL (M15 terkunci).
+  2. *Kubu 2 (Strict Real POI Only)*: Order DILARANG dipasang jika tidak ada Base DBD/RBR atau FVG (No phantom orders).
+  3. *Kubu 3 (Nested M15 Gate)*: M1 hanya boleh pasang order jika M15 sudah di zona ekstrem ($\ge 75\%$).
+  4. *Kubu 4 (HTF SL at Birth)*: M1 masuk posisi tapi SL sejak lahir ditaruh di atap M15 (lot size mengecil proporsional agar risiko flat $50).
+  5. *Kubu 5 (Pending Handover)*: M1 pasang limit; jika M15 mengonfirmasi atap $\to$ batalkan M1, upgrade ke limit M15.
+  6. *Kubu 6 (Decoupled Post-SL Handover)*: M1 pasang limit; jika M1 kena SL tapi harga masih di area Supply M15 $\to$ M15 LANGSUNG PASANG LIMIT BARU di atap M15 (cooldown M1 tidak membekukan M15).
+  7. *Kubu 7 (Dominant TF Only)*: M1 dimatikan total. Akun hanya trading di level struktural M5 & M15.
+- **Dataset Evaluasi**:
+  * Test Full: 300.440 bars (Mei 2025 - April 2026)
+  * Q3 2025: 89.291 bars (Konsolidasi & Breakout)
+  * Q4 2025: 88.494 bars (Steady Bull Trending)
+  * Q1 2026: 86.297 bars (Volatilitas Ekstrim ATH & Heavy Pullback)
+- **Status**: **UNDER EXECUTION VIA KAGE BUNSHIN TOURNAMENT ENGINE**.
 
 

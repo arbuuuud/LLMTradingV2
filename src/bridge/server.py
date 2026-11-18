@@ -187,7 +187,7 @@ class LiveMT5BridgeCore:
                     "status": "CONNECTED",
                     "balance": balance,
                     "equity": equity,
-                    "assigned_timeframes": ["M1", "M2", "M3", "M5"],
+                    "assigned_timeframes": ["M1", "M2", "M3", "M5", "M15"],
                     "updated_at": datetime.now().isoformat()
                 }
                 logger.info(f"✨ [AUTO-REGISTER] New Live MT5 Account #{acc_id} detected! Profile='none', Active=False. Configure in Dashboard!")
@@ -1032,6 +1032,10 @@ class LiveMT5BridgeCore:
                     "active": in_premium
                 },
                 "current_price": mid,
+                "roof_poi_type": selected_roof.poi_type,
+                "floor_poi_type": selected_floor.poi_type,
+                "roof_is_virgin": selected_roof.is_virgin,
+                "floor_is_virgin": selected_floor.is_virgin,
                 "sl_hard": hard_sl,
                 "sl_soft": soft_sl,
                 "tp_midpoint": equilibrium,
@@ -1307,13 +1311,33 @@ class LiveMT5BridgeCore:
                         if c_dir == "SELL" and (b1_bull and b2_bull):
                             continue
 
-                        # B. Directional Cooldown (Anti-Falling-Knife DEC-031)
+                        # B. Nested M15 Gatekeeper (Empirical Champion DEC-039 / Kubu 3)
+                        # Lower timeframe (M1, M2, M3, M4, M5) setups are ONLY allowed to enter if M15 has matured into the corresponding extreme zone!
+                        # For BUY: M15 must be in Discount (<= 25% or IN_BUY_ZONE).
+                        # For SELL: M15 must be in Premium (>= 75% or IN_SELL_ZONE).
+                        # If M15 is in Equilibrium (neutral 25%-75%), lower TF entries are blocked to prevent premature entries before HTF maturity!
+                        if scan_tf in ("M1", "M2", "M3", "M4", "M5"):
+                            m15_setup = tf_dict.get("M15", {})
+                            if m15_setup:
+                                m15_status = m15_setup.get("status", "EQUILIBRIUM_WAIT")
+                                if c_dir == "BUY" and m15_status != "IN_BUY_ZONE":
+                                    continue
+                                if c_dir == "SELL" and m15_status != "IN_SELL_ZONE":
+                                    continue
+
+                        # C. Strict Real POI Filter (Empirical Champion DEC-039 / Kubu 2)
+                        # Phantom orders in thin air are strictly forbidden. Setup MUST anchor to a verified institutional POI (DBD/RBR/FVG/OB).
+                        poi_anchor_type = cand_setup.get("floor_poi_type") if c_dir == "BUY" else cand_setup.get("roof_poi_type")
+                        if poi_anchor_type in ("SWING", None, ""):
+                            continue
+
+                        # D. Directional Cooldown (Anti-Falling-Knife DEC-031)
                         if c_dir == "BUY" and now_time < self.buy_cooldown_until:
                             continue
                         if c_dir == "SELL" and now_time < self.sell_cooldown_until:
                             continue
 
-                        # C. Pilar 3: Micro Level Depletion Check
+                        # E. Pilar 3: Micro Level Depletion Check
                         dep_info = self.tf_depletion.setdefault(scan_tf, {
                             "spent_layers": set(),
                             "roof": cand_setup["swing_high"],

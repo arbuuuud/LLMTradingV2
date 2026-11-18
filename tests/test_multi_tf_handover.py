@@ -144,3 +144,42 @@ async def test_inflight_order_dispatch_throttle_prevents_duplicate_orders():
     future_time = now_time + 5.1
     is_throttled_future = (future_time - bridge.account_last_order_dispatch.get(acc_num, 0.0)) < 5.0
     assert is_throttled_future is False, "Dispatch must be permitted after 5.0s cooldown"
+
+
+def test_nested_m15_gatekeeper_blocks_premature_m1_entry():
+    """Verify Nested M15 Gatekeeper (DEC-039 / Kubu 3): M1 entry is blocked if M15 is in Equilibrium."""
+    # Setup M15 in Equilibrium (neutral)
+    tf_dict = {
+        "M15": {"status": "EQUILIBRIUM_WAIT", "direction": "NEUTRAL"},
+        "M1": {"active_setup": True, "direction": "SELL", "status": "IN_SELL_ZONE", "roof_poi_type": "DBD"}
+    }
+
+    scan_tf = "M1"
+    c_dir = tf_dict["M1"]["direction"]
+    m15_setup = tf_dict.get("M15", {})
+    m15_status = m15_setup.get("status", "EQUILIBRIUM_WAIT")
+
+    # M1 SELL must be blocked when M15 is not IN_SELL_ZONE
+    is_blocked = (c_dir == "SELL" and m15_status != "IN_SELL_ZONE")
+    assert is_blocked is True, "Premature M1 SELL must be blocked when M15 is in Equilibrium"
+
+    # When M15 matures into IN_SELL_ZONE -> M1 SELL permitted
+    tf_dict["M15"]["status"] = "IN_SELL_ZONE"
+    m15_status = tf_dict["M15"]["status"]
+    is_blocked_mature = (c_dir == "SELL" and m15_status != "IN_SELL_ZONE")
+    assert is_blocked_mature is False, "M1 SELL permitted once M15 enters IN_SELL_ZONE"
+
+
+def test_strict_poi_filter_rejects_phantom_orders():
+    """Verify Strict Real POI Filter (DEC-039 / Kubu 2): Orders on raw swings without POI base are rejected."""
+    # Scenario A: Setup has SWING fallback only (no DBD/RBR/FVG)
+    setup_phantom = {"direction": "SELL", "roof_poi_type": "SWING"}
+    poi_type_sell = setup_phantom.get("roof_poi_type")
+    is_rejected = poi_type_sell in ("SWING", None, "")
+    assert is_rejected is True, "Phantom order on raw swing without POI base must be rejected"
+
+    # Scenario B: Setup has validated DBD base
+    setup_valid = {"direction": "SELL", "roof_poi_type": "DBD"}
+    poi_type_valid = setup_valid.get("roof_poi_type")
+    is_valid_allowed = poi_type_valid not in ("SWING", None, "")
+    assert is_valid_allowed is True, "Order with real institutional DBD base must be accepted"

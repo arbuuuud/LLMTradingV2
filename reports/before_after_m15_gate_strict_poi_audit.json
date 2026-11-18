@@ -1,0 +1,170 @@
+{
+  "FULL_YEAR": {
+    "before": {
+      "total_trades": 8337,
+      "wins": 4484,
+      "losses": 3853,
+      "win_rate_pct": 53.78,
+      "profit_factor": 1.46,
+      "max_drawdown_pct": 5.57,
+      "net_pnl": 27104.8,
+      "final_balance": 37104.8
+    },
+    "after_m15_gate": {
+      "total_trades": 5461,
+      "wins": 2411,
+      "losses": 3050,
+      "win_rate_pct": 44.15,
+      "profit_factor": 1.65,
+      "max_drawdown_pct": 11.54,
+      "net_pnl": 30216.8,
+      "final_balance": 40216.8
+    },
+    "after_strict_poi": {
+      "total_trades": 1976,
+      "wins": 1157,
+      "losses": 819,
+      "win_rate_pct": 58.55,
+      "profit_factor": 1.48,
+      "max_drawdown_pct": 6.67,
+      "net_pnl": 5871.41,
+      "final_balance": 15871.41
+    },
+    "after_integrated": {
+      "total_trades": 1018,
+      "wins": 527,
+      "losses": 491,
+      "win_rate_pct": 51.77,
+      "profit_factor": 2.22,
+      "max_drawdown_pct": 3.91,
+      "net_pnl": 8976.71,
+      "final_balance": 18976.71
+    }
+  },
+  "2025_Q3": {
+    "before": {
+      "total_trades": 1898,
+      "wins": 1224,
+      "losses": 674,
+      "win_rate_pct": 64.49,
+      "profit_factor": 1.51,
+      "max_drawdown_pct": 5.33,
+      "net_pnl": 4979.92,
+      "final_balance": 14979.92
+    },
+    "after_m15_gate": {
+      "total_trades": 1240,
+      "wins": 718,
+      "losses": 522,
+      "win_rate_pct": 57.9,
+      "profit_factor": 1.49,
+      "max_drawdown_pct": 6.17,
+      "net_pnl": 3782.08,
+      "final_balance": 13782.08
+    },
+    "after_strict_poi": {
+      "total_trades": 520,
+      "wins": 333,
+      "losses": 187,
+      "win_rate_pct": 64.04,
+      "profit_factor": 1.17,
+      "max_drawdown_pct": 5.12,
+      "net_pnl": 456.96,
+      "final_balance": 10456.96
+    },
+    "after_integrated": {
+      "total_trades": 282,
+      "wins": 174,
+      "losses": 108,
+      "win_rate_pct": 61.7,
+      "profit_factor": 1.34,
+      "max_drawdown_pct": 1.88,
+      "net_pnl": 529.44,
+      "final_balance": 10529.44
+    }
+  },
+  "2025_Q4": {
+    "before": {
+      "total_trades": 2720,
+      "wins": 1488,
+      "losses": 1232,
+      "win_rate_pct": 54.71,
+      "profit_factor": 1.9,
+      "max_drawdown_pct": 6.01,
+      "net_pnl": 16983.15,
+      "final_balance": 26983.15
+    },
+    "after_m15_gate": {
+      "total_trades": 1755,
+      "wins": 790,
+      "losses": 965,
+      "win_rate_pct": 45.01,
+      "profit_factor": 1.79,
+      "max_drawdown_pct": 7.84,
+      "net_pnl": 11788.16,
+      "final_balance": 21788.16
+    },
+    "after_strict_poi": {
+      "total_trades": 663,
+      "wins": 414,
+      "losses": 249,
+      "win_rate_pct": 62.44,
+      "profit_factor": 2.49,
+      "max_drawdown_pct": 2.42,
+      "net_pnl": 5566.29,
+      "final_balance": 15566.29
+    },
+    "after_integrated": {
+      "total_trades": 322,
+      "wins": 170,
+      "losses": 152,
+      "win_rate_pct": 52.8,
+      "profit_factor": 3.48,
+      "max_drawdown_pct": 2.28,
+      "net_pnl": 5710.28,
+      "final_balance": 15710.28
+    }
+  },
+  "2026_Q1": {
+    "before": {
+      "total_trades": 2660,
+      "wins": 1177,
+      "losses": 1483,
+      "win_rate_pct": 44.25,
+      "profit_factor": 1.21,
+      "max_drawdown_pct": 9.19,
+      "net_pnl": 4894.65,
+      "final_balance": 14894.65
+    },
+    "after_m15_gate": {
+      "total_trades": 1787,
+      "wins": 588,
+      "losses": 1199,
+      "win_rate_pct": 32.9,
+      "profit_factor": 1.68,
+      "max_drawdown_pct": 11.47,
+      "net_pnl": 12750.69,
+      "final_balance": 22750.69
+    },
+    "after_strict_poi": {
+      "total_trades": 558,
+      "wins": 274,
+      "losses": 284,
+      "win_rate_pct": 49.1,
+      "profit_factor": 1.0,
+      "max_drawdown_pct": 7.83,
+      "net_pnl": -11.97,
+      "final_balance": 9988.03
+    },
+    "after_integrated": {
+      "total_trades": 277,
+      "wins": 116,
+      "losses": 161,
+      "win_rate_pct": 41.88,
+      "profit_factor": 2.1,
+      "max_drawdown_pct": 3.46,
+      "net_pnl": 2698.69,
+      "final_balance": 12698.69
+    }
+  }
+}
