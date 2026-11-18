@@ -151,6 +151,10 @@ class LiveMT5BridgeCore:
         self.h4_trend: str = "NEUTRAL"
         self.h1_trend: str = "NEUTRAL"
 
+        # Per-Account Order Dispatch Throttle (In-Flight Anti-Spam Guard)
+        # acc_id -> timestamp of last limit order dispatch (5.0s cooldown per account)
+        self.account_last_order_dispatch: Dict[str, float] = {}
+
         # Micro Level Depletion Tracking per Timeframe (Pilar 3: Virgin Depth Preservation)
         # tf -> {"spent_layers": set(), "roof": float, "floor": float, "direction": str}
         self.tf_depletion: Dict[str, Dict[str, Any]] = {}
@@ -1256,8 +1260,13 @@ class LiveMT5BridgeCore:
                     acc_pending = [o for o in self.live_pending_orders if str(o.get("account_number")) == acc_num]
                     acc_open = [p for p in self.live_open_positions if str(p.get("account_number")) == acc_num]
 
-                    # Hard Pending Orders Cap: Max 3 pending orders per account
+                    # 1. Hard Pending Orders Cap: Max 3 pending orders per account
                     if len(acc_pending) >= 3:
+                        continue
+
+                    # 2. In-Flight Order Throttle: Min 5.0s between new LIMIT order batches for this specific account
+                    # (Prevents duplicate order dispatch during MT5 network round-trip; zero effect on Sasuke trailing)
+                    if now_time - self.account_last_order_dispatch.get(acc_num, 0.0) < 5.0:
                         continue
 
                     # 3. Multi-Timeframe Setup Scanning (Priority: M15 -> M5 -> M3 -> M1)
@@ -1420,6 +1429,7 @@ class LiveMT5BridgeCore:
                     if not valid_layers:
                         continue
 
+                    self.account_last_order_dispatch[acc_num] = now_time
                     active_adapter = self.cent_adapter if acc_info.get("is_cent") else self.adapter
 
                     for lay_idx, limit_p in valid_layers:
@@ -1452,6 +1462,17 @@ class LiveMT5BridgeCore:
                         }
 
                         asyncio.create_task(self.broadcast(order_cmd))
+                        # Optimistic in-flight record to immediately block double-dispatch in same sub-second loop
+                        self.live_pending_orders.append({
+                            "account_number": acc_num,
+                            "type": side,
+                            "price": limit_p,
+                            "sl": sl,
+                            "tp": tp,
+                            "ticket": int(now_time * 1000) + lay_idx,
+                            "magic": 1001,
+                            "comment": order_cmd["comment"]
+                        })
                         dispatched_orders_summary.append(f"{acc_prof}_{chosen_tf}({layer_lot:.2f}L)")
 
                 if dispatched_orders_summary:

@@ -459,6 +459,31 @@ void ProcessCommand(string cmdJson)
       {
          double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
          double execPrice = (price > 0.0) ? price : (ask - 2.0);
+
+         // Terminal-side duplicate pending order guard (proximity <= 0.50 pt)
+         bool isDuplicate = false;
+         for(int i = OrdersTotal() - 1; i >= 0; i--)
+         {
+            ulong ordTicket = OrderGetTicket(i);
+            if(ordTicket > 0 && OrderSelect(ordTicket))
+            {
+               if((ENUM_ORDER_TYPE)OrderGetInteger(ORDER_TYPE) == ORDER_TYPE_BUY_LIMIT)
+               {
+                  double oPrice = OrderGetDouble(ORDER_PRICE_OPEN);
+                  if(MathAbs(oPrice - execPrice) <= 0.50)
+                  {
+                     isDuplicate = true;
+                     break;
+                  }
+               }
+            }
+         }
+         if(isDuplicate)
+         {
+            PrintFormat("[LLM Bridge] ⚠️ DUPLICATE BUY_LIMIT REJECTED: Order at %.2f already exists on account %I64d!", execPrice, AccountInfoInteger(ACCOUNT_LOGIN));
+            return;
+         }
+
          // Fail-safe sanity check for Stop Loss & Take Profit logic
          if(sl >= execPrice)
          {
@@ -476,6 +501,31 @@ void ProcessCommand(string cmdJson)
       {
          double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
          double execPrice = (price > 0.0) ? price : (bid + 2.0);
+
+         // Terminal-side duplicate pending order guard (proximity <= 0.50 pt)
+         bool isDuplicate = false;
+         for(int i = OrdersTotal() - 1; i >= 0; i--)
+         {
+            ulong ordTicket = OrderGetTicket(i);
+            if(ordTicket > 0 && OrderSelect(ordTicket))
+            {
+               if((ENUM_ORDER_TYPE)OrderGetInteger(ORDER_TYPE) == ORDER_TYPE_SELL_LIMIT)
+               {
+                  double oPrice = OrderGetDouble(ORDER_PRICE_OPEN);
+                  if(MathAbs(oPrice - execPrice) <= 0.50)
+                  {
+                     isDuplicate = true;
+                     break;
+                  }
+               }
+            }
+         }
+         if(isDuplicate)
+         {
+            PrintFormat("[LLM Bridge] ⚠️ DUPLICATE SELL_LIMIT REJECTED: Order at %.2f already exists on account %I64d!", execPrice, AccountInfoInteger(ACCOUNT_LOGIN));
+            return;
+         }
+
          // Fail-safe sanity check for Stop Loss & Take Profit logic
          if(sl > 0 && sl <= execPrice)
          {

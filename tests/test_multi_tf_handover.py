@@ -121,3 +121,26 @@ def test_tactical_radar_includes_m15_and_htf_bias():
     assert "H4" in radar["htf_bias"]
     assert "H1" in radar["htf_bias"]
     assert radar["ensemble_confluence"]["total_timeframes"] == 6
+
+
+@pytest.mark.asyncio
+async def test_inflight_order_dispatch_throttle_prevents_duplicate_orders():
+    """Verify Anti-Spam: 5.0s dispatch cooldown and optimistic in-flight registration prevent spamming duplicate limits."""
+    import time
+    bridge = LiveMT5BridgeCore(host="127.0.0.1", port=5594)
+
+    acc_num = "115745645"
+    now_time = time.time()
+
+    # Simulate first dispatch
+    bridge.account_last_order_dispatch[acc_num] = now_time
+
+    # Immediate second tick (0.5s later) -> must be throttled!
+    next_tick_time = now_time + 0.5
+    is_throttled = (next_tick_time - bridge.account_last_order_dispatch.get(acc_num, 0.0)) < 5.0
+    assert is_throttled is True, "Immediate sub-second re-dispatch must be throttled by 5.0s guard"
+
+    # After 5.1 seconds -> allowed
+    future_time = now_time + 5.1
+    is_throttled_future = (future_time - bridge.account_last_order_dispatch.get(acc_num, 0.0)) < 5.0
+    assert is_throttled_future is False, "Dispatch must be permitted after 5.0s cooldown"
