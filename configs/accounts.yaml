@@ -11,9 +11,9 @@ accounts:
     equity: 97010.04
     assigned_timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     updated_at: '2026-10-04T12:00:00'
   ACC-113137116:
     account_number: '113137116'
@@ -27,9 +27,9 @@ accounts:
     equity: 9643.09
     assigned_timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     updated_at: '2026-10-04T12:00:00'
   ACC-5056446504:
     account_number: '5056446504'
@@ -43,9 +43,9 @@ accounts:
     equity: 2737.64
     assigned_timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     updated_at: '2026-10-04T12:00:00'
   ACC-5056446633:
     account_number: '5056446633'
@@ -59,9 +59,9 @@ accounts:
     equity: 420.66
     assigned_timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     updated_at: '2026-10-04T12:00:00'
   ACC-33848251:
     account_number: '33848251'
@@ -75,9 +75,9 @@ accounts:
     equity: 1000.29
     assigned_timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     updated_at: '2026-10-04T12:00:00'
   ACC-36070354:
     account_number: '36070354'
@@ -91,9 +91,9 @@ accounts:
     equity: 1000.0
     assigned_timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     updated_at: '2026-10-04T12:00:00'
   ACC-33848220:
     account_number: '33848220'
@@ -107,9 +107,9 @@ accounts:
     equity: 1000.0
     assigned_timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     updated_at: '2026-10-04T12:00:00'
 auth:
   admin_email: trader@institution.local
@@ -118,7 +118,7 @@ auth:
 default_profile: prop_firm
 risk_profiles:
   prop_firm:
-    basket_mode: QUARTET_M1_M2_M3_M5
+    basket_mode: QUARTET_M1_M3_M5_M15
     label: Prop Firm (FTMO/MFF Ultra Safe)
     mode_type: HARD_LOCK_1PCT
     mode_badge: "LOCK 1% (ULTRA SAFE)"
@@ -131,14 +131,14 @@ risk_profiles:
     target_rr: 2.0
     timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     behavior_at_1pct: "STOP TOTAL & GEMBOK MATI: Begitu net profit mencapai +1.0%, bot langsung mencabut semua pending order dan berhenti trading hari itu sampai 00:00 UTC."
     philosophy_desc: "Prioritas mutlak adalah keselamatan modal institusi besar ($94K+). Menghindari overtrading dan menjamin zero-violation pada batas drawdown FTMO/MFF."
     recommended_for: "Akun modal raksasa ($50K - $100K+) & Evaluasi Prop Firm."
   sweet_spot:
-    basket_mode: QUARTET_M1_M2_M3_M5
+    basket_mode: QUARTET_M1_M3_M5_M15
     label: Sweet Spot (Balanced Growth)
     mode_type: GREEDY_TRAILING
     mode_badge: "GREEDY RUNNER (STEPPED)"
@@ -151,14 +151,14 @@ risk_profiles:
     target_rr: 2.5
     timeframes:
     - M1
-    - M2
     - M3
     - M5
+    - M15
     behavior_at_1pct: "KUNCI PENGAMAN & LANJUT GAS: Saat tembus +1.0%, bot mengunci lantai aman di +0.5% (hari dipastikan hijau), lalu trading lanjut berburu cuan hingga target +2.5%."
     philosophy_desc: "Keseimbangan sempurna antara pertumbuhan modal dan proteksi. Memberi ruang napas bagi tren sehat untuk menghasilkan profit berlipat tanpa membuang hasil awal."
     recommended_for: "Akun $1,000 - $10,000 & Akun Cent PU Prime."
   aggressive:
-    basket_mode: TRIO_M1_M2_M3
+    basket_mode: QUARTET_M1_M3_M5_M15
     label: Aggressive (High Velocity Compounding)
     mode_type: GREEDY_TRAILING
     mode_badge: "GREEDY COMPOUNDING"
@@ -171,13 +171,14 @@ risk_profiles:
     target_rr: 3.0
     timeframes:
     - M1
-    - M2
     - M3
+    - M5
+    - M15
     behavior_at_1pct: "HOUSE MONEY ACCELERATION: Menggunakan profit sesi pagi untuk melipatgandakan ukuran lot di sesi New York. Mengejar target profit harian +4.0%."
     philosophy_desc: "Akselerasi cepat untuk menumbuhkan modal menengah menjadi modal besar dalam waktu singkat."
     recommended_for: "Akun menengah ($2,000 - $5,000)."
   yolo:
-    basket_mode: TRIO_M1_M2_M3
+    basket_mode: QUARTET_M1_M3_M5_M15
     label: YOLO (Apex Scalper / Max Compounding)
     mode_type: GREEDY_TRAILING
     mode_badge: "APEX MAX GREED"
@@ -190,8 +191,9 @@ risk_profiles:
     target_rr: 3.5
     timeframes:
     - M1
-    - M2
     - M3
+    - M5
+    - M15
     behavior_at_1pct: "UNLEASHED APEX GREED: Tidak ada rem di 1%. Posisi dibiarkan mengejar estafet target HTF M15 hingga mencapai puncak gelombang (+8.0% per hari)."
     philosophy_desc: "Eksploitasi momentum ekstrem untuk akun 'uang dingin' yang siap dilipatgandakan secara masif."
     recommended_for: "Akun mikro ($300 - $500)."

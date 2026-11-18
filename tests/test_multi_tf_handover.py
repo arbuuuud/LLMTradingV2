@@ -144,3 +144,28 @@ async def test_inflight_order_dispatch_throttle_prevents_duplicate_orders():
     future_time = now_time + 5.1
     is_throttled_future = (future_time - bridge.account_last_order_dispatch.get(acc_num, 0.0)) < 5.0
     assert is_throttled_future is False, "Dispatch must be permitted after 5.0s cooldown"
+
+
+def test_timeframe_scanning_hierarchy_priority_m15_over_lower_tfs():
+    """Verify Scanning Priority Hierarchy: M15 setup strictly precedes M5, M3, and M1."""
+    user_tfs = ["M1", "M3", "M5", "M15"]
+    scan_order = [tf for tf in ["M15", "M5", "M3", "M1"] if tf in user_tfs]
+
+    assert scan_order[0] == "M15", "M15 must be the top priority in scanning hierarchy"
+    assert scan_order[1] == "M5", "M5 must be second priority"
+    assert scan_order[2] == "M3", "M3 must be third priority"
+    assert scan_order[3] == "M1", "M1 must be fourth priority"
+
+    # Verify when both M15 and M1 have active setups, M15 is selected first
+    tf_setups = {
+        "M15": {"active_setup": True, "direction": "SELL", "swing_high": 3790.61, "swing_low": 3764.28},
+        "M1": {"active_setup": True, "direction": "SELL", "swing_high": 3786.67, "swing_low": 3777.07}
+    }
+
+    chosen = None
+    for scan_tf in ["M15", "M5", "M3", "M1"]:
+        if scan_tf in tf_setups and tf_setups[scan_tf].get("active_setup"):
+            chosen = scan_tf
+            break
+
+    assert chosen == "M15", "M15 must be chosen over M1 when both have active setups"

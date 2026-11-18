@@ -187,7 +187,7 @@ class LiveMT5BridgeCore:
                     "status": "CONNECTED",
                     "balance": balance,
                     "equity": equity,
-                    "assigned_timeframes": ["M1", "M2", "M3", "M5"],
+                    "assigned_timeframes": ["M1", "M3", "M5", "M15"],
                     "updated_at": datetime.now().isoformat()
                 }
                 logger.info(f"✨ [AUTO-REGISTER] New Live MT5 Account #{acc_id} detected! Profile='none', Active=False. Configure in Dashboard!")
@@ -1272,7 +1272,7 @@ class LiveMT5BridgeCore:
                         continue
 
                     # 3. Multi-Timeframe Setup Scanning (Priority: M15 -> M5 -> M3 -> M1)
-                    user_tfs = acc_info.get("assigned_timeframes", ["M1", "M2", "M3", "M5", "M15"])
+                    user_tfs = acc_info.get("assigned_timeframes", ["M1", "M3", "M5", "M15"])
                     chosen_setup = None
                     chosen_tf = None
 
