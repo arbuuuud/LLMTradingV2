@@ -164,15 +164,20 @@ if "%EDITOR_EXE%"=="" (
 
 echo [OK] Ditemukan MetaEditor: "%EDITOR_EXE%"
 
-REM Cari include directory dari terminal Roaming jika ada
-set "INC_DIR="
+REM Cari path kompilasi melalui struktur MQL5\Experts instance terminal
+set "COMPILE_FILE=%SOURCE_FILE%"
 set "TERMINAL_ROOT=%APPDATA%\MetaQuotes\Terminal"
 if exist "%TERMINAL_ROOT%" (
     for /d %%D in ("%TERMINAL_ROOT%\*") do (
         if exist "%%D\MQL5\Include\Trade\Trade.mqh" (
-            set "INC_DIR=%%D\MQL5"
-            echo [OK] Ditemukan Standard MQL5 Include: "!INC_DIR!"
-            goto :START_COMPILE
+            if not exist "%%D\MQL5\Experts\LLMTradingV2" (
+                mklink /J "%%D\MQL5\Experts\LLMTradingV2" "%CD%\bridge\mt5" >nul 2>&1
+            )
+            if exist "%%D\MQL5\Experts\LLMTradingV2\LLMTradingBridge.mq5" (
+                set "COMPILE_FILE=%%D\MQL5\Experts\LLMTradingV2\LLMTradingBridge.mq5"
+                echo [OK] Target Kompilasi MQL5: "!COMPILE_FILE!"
+                goto :START_COMPILE
+            )
         )
     )
 )
@@ -184,11 +189,7 @@ if exist "%TARGET_EX5%" del "%TARGET_EX5%" >nul 2>&1
 
 echo.
 echo Sedang meng-compile... Mohon tunggu beberapa detik...
-if not "%INC_DIR%"=="" (
-    "%EDITOR_EXE%" /compile:"%SOURCE_FILE%" /log:"%LOG_FILE%" "/inc:%INC_DIR%"
-) else (
-    "%EDITOR_EXE%" /compile:"%SOURCE_FILE%" /log:"%LOG_FILE%"
-)
+"%EDITOR_EXE%" /compile:"!COMPILE_FILE!" /log:"%LOG_FILE%"
 
 REM Tunggu compiler selesai menulis hasil log (maksimal 10 detik)
 set /a WAIT_COUNT=0
