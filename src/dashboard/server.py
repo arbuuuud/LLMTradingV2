@@ -640,10 +640,19 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
+            try:
+                from src.analytics.performance_ledger import get_performance_ledger
+                ledger = get_performance_ledger()
+                ledg_accs = ledger.data.get("accounts", {})
+            except Exception:
+                ledg_accs = {}
+
             for acc_id, acc_data in acc_dict.items():
                 acc_num = str(acc_data.get("account_number", acc_id))
                 if acc_num in daily_guard:
                     acc_data["daily_guard"] = daily_guard[acc_num]
+                if acc_num in ledg_accs:
+                    acc_data["performance_live"] = ledg_accs[acc_num].get("live", {})
 
             self._set_json_headers(200)
             self.wfile.write(json.dumps({
@@ -652,6 +661,20 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
                 "default_profile": cfg.get("default_profile", "prop_firm"),
                 "admin_email": cfg.get("auth", {}).get("admin_email", "trader@institution.local")
             }, indent=2).encode("utf-8"))
+            return
+
+        elif path == "/api/performance-ledger":
+            query = parse_qs(parsed.query)
+            acc_id = query.get("account", [None])[0]
+            try:
+                from src.analytics.performance_ledger import get_performance_ledger
+                ledger = get_performance_ledger()
+                summary = ledger.get_summary_payload(acc_id=acc_id)
+                self._set_json_headers(200)
+                self.wfile.write(json.dumps(summary, indent=2).encode("utf-8"))
+            except Exception as e:
+                self._set_json_headers(500)
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
             return
 
         # 4. Project State & Forward Trades API

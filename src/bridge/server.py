@@ -283,6 +283,14 @@ class LiveMT5BridgeCore:
             os.replace(tmp_path, target_path)
             logger.info(f"💾 [FORWARD STORAGE] Saved Closed Trade #{trade_id} (PnL: ${record['pnl']:.2f}) -> {target_filename} (Total: {len(existing)}) [ATOMIC]")
 
+            # Update Performance & Objective Ledger (DEC-040)
+            try:
+                from src.analytics.performance_ledger import get_performance_ledger
+                get_performance_ledger().reconstruct_from_trades([record])
+                get_performance_ledger().save()
+            except Exception as e:
+                logger.debug(f"Performance ledger trade update error: {e}")
+
             # Update Directional Loss Streak & Cooldown (DEC-031 Champion)
             trade_pnl = float(data.get("pnl", 0.0))
             trade_dir = str(data.get("direction", "BUY")).upper()
@@ -666,6 +674,33 @@ class LiveMT5BridgeCore:
                         o["account_number"] = acc_id
                     self.accounts_pending_orders[acc_id] = msg["orders"]
                 self.synced_accounts.add(acc_id)
+
+                # Ingest Daily & Weekly Performance Metrics from Broker Telemetry (DEC-040)
+                try:
+                    from src.analytics.performance_ledger import get_performance_ledger
+                    get_performance_ledger().update_live_telemetry(acc_id, msg)
+                except Exception as e:
+                    logger.debug(f"Performance ledger tick update error: {e}")
+
+                if "daily_start_balance" in msg and float(msg["daily_start_balance"]) > 0:
+                    d_start = float(msg["daily_start_balance"])
+                    acc_daily = self.account_daily_guard.setdefault(acc_id, {
+                        "daily_start_equity": d_start,
+                        "peak_daily_pnl": 0.0,
+                        "daily_halted": False,
+                        "reason": ""
+                    })
+                    acc_daily["daily_start_equity"] = d_start
+                    if "daily_pnl" in msg:
+                        acc_daily["daily_pnl"] = float(msg["daily_pnl"])
+                    if "daily_pnl_pct" in msg:
+                        acc_daily["daily_pnl_pct"] = float(msg["daily_pnl_pct"])
+                    if "weekly_start_balance" in msg:
+                        acc_daily["weekly_start_balance"] = float(msg["weekly_start_balance"])
+                    if "weekly_pnl" in msg:
+                        acc_daily["weekly_pnl"] = float(msg["weekly_pnl"])
+                    if "weekly_pnl_pct" in msg:
+                        acc_daily["weekly_pnl_pct"] = float(msg["weekly_pnl_pct"])
 
             # Flatten all active accounts positions & orders for global evaluation
             all_open = []
@@ -1650,7 +1685,13 @@ class LiveMT5BridgeCore:
         for acc_id_k, g_info in self.account_daily_guard.items():
             daily_guard_snapshot[acc_id_k] = {
                 "daily_start_equity": g_info.get("daily_start_equity", 0.0),
+                "daily_start_balance": g_info.get("daily_start_equity", 0.0),
                 "peak_daily_pnl": g_info.get("peak_daily_pnl", 0.0),
+                "daily_pnl": g_info.get("daily_pnl", 0.0),
+                "daily_pnl_pct": g_info.get("daily_pnl_pct", 0.0),
+                "weekly_start_balance": g_info.get("weekly_start_balance", 0.0),
+                "weekly_pnl": g_info.get("weekly_pnl", 0.0),
+                "weekly_pnl_pct": g_info.get("weekly_pnl_pct", 0.0),
                 "daily_halted": g_info.get("daily_halted", False),
                 "reason": g_info.get("reason", "")
             }

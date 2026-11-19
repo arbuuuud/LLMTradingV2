@@ -307,6 +307,13 @@
           "status": "COMPLETED",
           "branch": "feat/ea-chart-build-hud-and-sync-bat",
           "notes": "Verified (bridge/mt5/LLMTradingBridge.mq5 & auto_link_mt5_terminals.bat): Menampilkan HUD live operational di pojok kiri atas chart via Comment(...) yang memuat Unique Build ID compile (__DATE__ __TIME__), status koneksi Python brain, live exposure (posisi & pending limit), serta panduan refresh subfolder LLMTradingV2 pada terminal multi-instance."
+        },
+        {
+          "id": "T5-3K",
+          "title": "Subtask 5-3K: Auto Daily & Weekly Performance Ledger & Starting Balance Tracking",
+          "status": "COMPLETED",
+          "branch": "feat/daily-weekly-pnl-ledger-and-hud",
+          "notes": "Verified (src/analytics/performance_ledger.py & tests/test_performance_ledger.py): Menghitung otomatis saldo awal sebelum trading, realisasi PnL hari ini & minggu ini via MT5 broker deal history (HistorySelect), menampilkan di chart comment MT5 baris ke-3 & 4, serta menyajikan tab dedicated 'Target & Riwayat PnL' dengan hero cards progress bar target 1% & 5% dan tabel riwayat harian serta mingguan di Web Dashboard."
         }
       ]
     }
@@ -436,6 +443,13 @@
       "date": "2026-11-19",
       "topic": "MT5 Chart Operational HUD & Subfolder Single-Link Architecture",
       "summary": "EA LLMTradingBridge.mq5 wajib menampilkan HUD live via Comment(...) di chart dengan macro compile __DATE__ dan __TIME__ sebagai Unique Build ID. Semua instance terminal MT5 dihubungkan ke 1 source folder via junction subfolder MQL5/Experts/LLMTradingV2 tanpa mengubah root Experts.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-040",
+      "date": "2026-11-19",
+      "topic": "Automated Daily (1%) and Weekly (5%) Profit Objective Ledger & Starting Balance Tracking",
+      "summary": "Menghilangkan pencatatan manual saldo awal. MT5 EA menghitung otomatis saldo awal hari ini & minggu ini dari deal history broker, lalu menampilkannya di chart comment dan memancarkannya ke Python Brain via TICK telemetry. Python menyimpannya ke data/performance_ledger.json dan Web Dashboard menyajikan tab dedicated Target & Riwayat PnL dengan progress bar target 1% harian & 5% mingguan serta tabel riwayat harian dan mingguan lengkap.",
       "status": "CONFIRMED"
     }
   ]

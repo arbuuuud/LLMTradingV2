@@ -53,6 +53,14 @@ def test_dashboard_api(tmp_path):
             kb_data = json.loads(resp_kb.read().decode("utf-8"))
             assert "tournaments" in kb_data
             assert len(kb_data["tournaments"]) >= 1
+
+        # 4. Test GET /api/performance-ledger (DEC-040)
+        req_ledger = urllib.request.Request(f"http://127.0.0.1:{port}/api/performance-ledger")
+        with urllib.request.urlopen(req_ledger) as resp_led:
+            assert resp_led.status == 200
+            ledger_data = json.loads(resp_led.read().decode("utf-8"))
+            assert "summary" in ledger_data
+            assert "accounts" in ledger_data
     finally:
         server.shutdown()
         server.server_close()
