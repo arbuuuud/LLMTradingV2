@@ -15,7 +15,7 @@ import asyncio
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 import numpy as np
 
 from src.data.adapter import BrokerAdapter, BrokerSpec
@@ -75,6 +75,7 @@ class LiveMT5BridgeCore:
         self.accounts_pending_orders: Dict[str, List[Dict[str, Any]]] = {}
         self.live_open_positions: List[Dict[str, Any]] = []
         self.live_pending_orders: List[Dict[str, Any]] = []
+        self.synced_accounts: Set[str] = set()
         self.unrealized_pnl: float = 0.0
 
         # Callbacks for backward compatibility with test suites
@@ -528,6 +529,7 @@ class LiveMT5BridgeCore:
         client_addr = writer.get_extra_info("peername")
         logger.info(f"🟢 MT5 EA Client connected from {client_addr}")
         self.active_writers.append(writer)
+        connected_acc_id: Optional[str] = None
 
         buffer = ""
         try:
@@ -544,6 +546,9 @@ class LiveMT5BridgeCore:
                         continue
                     try:
                         msg = json.loads(line)
+                        acc_msg = msg.get("account_id") or (msg.get("data", {}).get("account_number") if isinstance(msg.get("data"), dict) else None)
+                        if acc_msg:
+                            connected_acc_id = str(acc_msg)
                         await self._dispatch_message(msg, writer)
                     except Exception as err:
                         logger.error(f"Error parsing incoming JSON: {err} | Raw: {line[:120]}")
@@ -555,6 +560,8 @@ class LiveMT5BridgeCore:
             logger.info(f"🔴 MT5 Client disconnected: {client_addr}")
             if writer in self.active_writers:
                 self.active_writers.remove(writer)
+            if connected_acc_id:
+                self.synced_accounts.discard(connected_acc_id)
             self._save_radar_state()
 
     async def _dispatch_message(self, msg: Dict[str, Any], writer: asyncio.StreamWriter):
@@ -573,6 +580,8 @@ class LiveMT5BridgeCore:
             self.account_company = company
             self.balance = balance
             self.equity = equity
+            # Require full TICK telemetry sync before allowing order dispatch
+            self.synced_accounts.discard(acc_id)
 
             if self.on_handshake_callback:
                 self.on_handshake_callback(data_dict or msg)
@@ -656,6 +665,7 @@ class LiveMT5BridgeCore:
                     for o in msg["orders"]:
                         o["account_number"] = acc_id
                     self.accounts_pending_orders[acc_id] = msg["orders"]
+                self.synced_accounts.add(acc_id)
 
             # Flatten all active accounts positions & orders for global evaluation
             all_open = []
@@ -1261,11 +1271,24 @@ class LiveMT5BridgeCore:
                     if acc_sess["halted"]:
                         continue
 
+                    # 0. Cold-Start Telemetry Sync Gate: Wait for first TICK telemetry from MT5
+                    if acc_num not in self.synced_accounts:
+                        continue
+
                     acc_pending = [o for o in self.live_pending_orders if str(o.get("account_number")) == acc_num]
                     acc_open = [p for p in self.live_open_positions if str(p.get("account_number")) == acc_num]
 
-                    # 1. Hard Pending Orders Cap: Max 3 pending orders per account
-                    if len(acc_pending) >= 3:
+                    # 1. Auto-Reconciliation: If account somehow accumulated excess pending orders (> 3),
+                    # purge outdated ones to prevent over-exposure
+                    if len(acc_pending) > 3:
+                        logger.warning(f"⚠️ [ORDER RECONCILIATION] Account #{acc_num} has {len(acc_pending)} pending orders (max 3). Purging excess stale pending orders.")
+                        asyncio.create_task(self.broadcast({
+                            "action": "CANCEL_PENDING",
+                            "symbol": "XAUUSD",
+                            "account_number": acc_num,
+                            "magic": 1001
+                        }))
+                        self.accounts_pending_orders[acc_num] = []
                         continue
 
                     # 2. In-Flight Order Throttle: Min 5.0s between new LIMIT order batches for this specific account
@@ -1443,6 +1466,10 @@ class LiveMT5BridgeCore:
                                 "magic": 1001
                             }))
                             acc_matching_pending = []
+
+                    # If account already has 3 pending orders matching current TF/direction, skip
+                    if len(acc_matching_pending) >= 3:
+                        continue
 
                     # Pure Geometric S&D Levels
                     if dir_cmd == "BUY":

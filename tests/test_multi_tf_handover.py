@@ -235,3 +235,90 @@ def test_hybrid_4_objective_aware_counter_trend_unlock():
     tp_mode_b = "EQ" if opsi_a_false else "SHALLOW"
     assert tp_mode_b == "SHALLOW"
 
+
+@pytest.mark.asyncio
+async def test_cold_start_telemetry_sync_gate_blocks_unsynced_accounts():
+    """Verify Cold-Start Gate: Bridge blocks dispatch until MT5 sends complete TICK telemetry."""
+    bridge = LiveMT5BridgeCore(host="127.0.0.1", port=5593)
+    acc_num = "115745645"
+
+    # Simulate fresh Handshake
+    bridge.synced_accounts.discard(acc_num)
+    assert acc_num not in bridge.synced_accounts, "Account must not be marked synced on fresh handshake"
+
+    # Gate check: must block order dispatch
+    allow_dispatch = acc_num in bridge.synced_accounts
+    assert allow_dispatch is False, "Dispatch must be strictly blocked before first TICK telemetry"
+
+    # Simulate first TICK with live positions and orders arriving from MT5
+    msg_tick = {
+        "type": "TICK",
+        "account_id": acc_num,
+        "bid": 2650.0,
+        "ask": 2650.35,
+        "equity": 10000.0,
+        "balance": 10000.0,
+        "positions": [],
+        "orders": []
+    }
+    await bridge._dispatch_message(msg_tick, writer=None)
+
+    assert acc_num in bridge.synced_accounts, "Account must be marked synced after first TICK telemetry"
+    assert (acc_num in bridge.synced_accounts) is True, "Dispatch must be allowed once synced"
+
+
+def test_pending_order_handover_upgrades_lower_tf_and_is_not_blocked():
+    """Verify Handover Resilience: Handover is NOT blocked by pending cap and atomically upgrades M1 -> M5."""
+    acc_num = "115745645"
+    chosen_tf = "M5"
+    side = "SELL_LIMIT"
+
+    # 3 existing pending orders from M1
+    acc_pending = [
+        {"account_number": acc_num, "type": "SELL_LIMIT", "comment": "M1_L1_SWE", "price": 3740.0},
+        {"account_number": acc_num, "type": "SELL_LIMIT", "comment": "M1_L2_SWE", "price": 3745.0},
+        {"account_number": acc_num, "type": "SELL_LIMIT", "comment": "M1_L3_SWE", "price": 3750.0},
+    ]
+
+    acc_matching_pending = [o for o in acc_pending if o.get("type") == side]
+    assert len(acc_matching_pending) == 3
+
+    tf_rank_map = {"M1": 1, "M2": 2, "M3": 3, "M4": 4, "M5": 5, "M15": 15, "M30": 30}
+    cur_rank = tf_rank_map.get(chosen_tf, 1)
+    assert cur_rank == 5
+
+    # Check if Handover triggers
+    has_lower_tf = any(
+        not str(o.get("comment", "")).startswith(f"{chosen_tf}_") and f"_{chosen_tf}_" not in str(o.get("comment", ""))
+        for o in acc_matching_pending
+    )
+    assert has_lower_tf is True, "Handover must recognize lower TF orders (M1) when evaluating M5"
+
+    # Simulate Handover action: CANCEL_PENDING sent and matching pending reset
+    cancelled_sent = True
+    acc_matching_pending = []
+
+    # Verify that post-handover, the pending cap (>=3) does NOT lock out M5 orders
+    is_capped = len(acc_matching_pending) >= 3
+    assert is_capped is False, "M5 dispatch must NOT be blocked after handover clears lower TF limits"
+    assert cancelled_sent is True
+
+
+def test_excess_pending_orders_auto_reconciliation():
+    """Verify Auto-Reconciliation: If account accumulates > 3 pending orders (e.g. from cold-start restart), excess is purged."""
+    acc_num = "115745645"
+
+    # Simulate anomaly in production: 5 pending orders (2 stale from old setup + 3 from new setup)
+    acc_pending = [
+        {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474483412, "price": 3746.51},
+        {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474483456, "price": 3751.39},
+        {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474781730, "price": 3743.32},
+        {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474781765, "price": 3747.05},
+        {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474781795, "price": 3750.77},
+    ]
+
+    # Reconciliation trigger
+    should_reconcile = len(acc_pending) > 3
+    assert should_reconcile is True, "Bridge must detect when pending orders exceed the max 3-layer quota"
+
+

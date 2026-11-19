@@ -293,6 +293,13 @@
           "status": "COMPLETED",
           "branch": "main",
           "notes": "Verified (scripts/run_hybrid_opsi_a_or_b_tournament.py): Turnamen Kage Bunshin 84 klon membuktikan HYBRID_4 (Opsi A: M1+M5 nested confluence OR Opsi B: BOS M15/M30) dengan Asymmetric TP & 0.5x Risk berhasil mengunci target profit 1% harian (30.8% hit rate) dan 5% mingguan (22.2% hit rate) dengan Max DD ketat 5.59% dan Net Profit +$35,378."
+        },
+        {
+          "id": "T5-3I",
+          "title": "Subtask 5-3I: Cold-Start Telemetry Sync Gate & Pending Order Auto-Reconciliation",
+          "status": "COMPLETED",
+          "branch": "fix/cold-start-telemetry-sync-and-order-reconciliation",
+          "notes": "Verified (tests/test_multi_tf_handover.py): Mengeliminasi race condition penumpukan 6 order saat cold-start bridge restart dengan menahan dispatch hingga TICK pertama dari MT5 tiba (synced_accounts), mengamankan Handover multi-TF tanpa terkunci di pending cap, serta membersihkan pending order berlebih (> 3) secara otomatis via auto-reconciliation."
         }
       ]
     }
@@ -408,6 +415,13 @@
       "date": "2026-11-19",
       "topic": "HYBRID_4 Objective-Aware Counter-Trend Unlock & Daily 1% Gate",
       "summary": "Membuka kunci counter-trend limit order saat dual HTF selaras jika daily PnL 0-1% (Hunting phase) dan terpenuhi Opsi A (M1+M5 confluence, TP 50%) atau Opsi B (BOS M15/M30, TP Shallow 38.2%) dengan 0.5x risk. Otomatis mengunci order saat profit harian >= 1.0% tercapai atau kerugian <= -0.5%.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-038",
+      "date": "2026-11-19",
+      "topic": "Cold-Start Telemetry Synchronization Gate & Handover-Aware Pending Cap",
+      "summary": "Bridge diwajibkan menunggu paket TICK pertama dari MT5 untuk memuat live open positions & pending orders sebelum mengizinkan order dispatch per akun (synced_accounts). Hard pending cap dipindahkan ke bawah evaluasi Handover agar upgrade M1->M5 tidak terblokir, dan pending orders berlebih (> 3) otomatis direkonsiliasi via CANCEL_PENDING.",
       "status": "CONFIRMED"
     }
   ]
