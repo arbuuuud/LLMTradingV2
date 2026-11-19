@@ -216,17 +216,29 @@ if exist "%LOG_FILE%" (
 
 if not exist "%TARGET_EX5%" goto :COMPILE_FAILED
 
+REM Distribusikan .ex5 ke seluruh terminal untuk jaminan 100%
+if exist "%TERMINAL_ROOT%" (
+    for /d %%D in ("%TERMINAL_ROOT%\*") do (
+        if exist "%%D\MQL5\Experts" (
+            copy /y "%TARGET_EX5%" "%%D\MQL5\Experts\LLMTradingBridge.ex5" >nul 2>&1
+            if exist "%%D\MQL5\Experts\LLMTradingV2" (
+                copy /y "%TARGET_EX5%" "%%D\MQL5\Experts\LLMTradingV2\LLMTradingBridge.ex5" >nul 2>&1
+            )
+        )
+    )
+)
+
 echo.
 echo ============================================================
 echo ✅ SUKSES! File binary ter-generate:
 echo    %TARGET_EX5%
 echo.
-echo Karena semua instance MT5 terhubung via subfolder junction,
-echo file baru ini otomatis terdistribusi ke seluruh terminal!
+echo Binary baru otomatis didistribusikan ke seluruh instance terminal MT5!
 echo.
 echo 💡 LANGKAH TERAKHIR DI MT5:
-echo 1. Di setiap layar MT5, ganti timeframe chart [M1 -^> M5 -^> M1]
-echo    agar terminal me-reload binary baru dari memori RAM.
+echo 1. Di setiap layar MT5, pasang ulang (attach ulang) EA ke chart:
+echo    [Klik kanan chart -> Expert List -> Remove, lalu drag lagi EA dari Navigator]
+echo    agar MT5 membuang binary lama dari memori RAM.
 echo 2. Periksa baris '🔨 Unique Build ID' di pojok kiri atas chart.
 echo    Pastikan jam compile di semua terminal sudah sama persis!
 echo ============================================================
