@@ -140,6 +140,10 @@
                     <i class="fa-solid fa-check text-rose-400 mt-0.5"></i>
                     <span><strong>3-Session Budgeting & Stepped Greed Trailing (CLONE-08):</strong> Pembagian 3 sesi mandiri (Asian, London, NY) dengan trailing lock undak +0.5% dan 25% house money carryover.</span>
                   </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-unlock-keyhole text-amber-400 mt-0.5"></i>
+                    <span><strong>HYBRID_4 Counter-Trend Unlock:</strong> Order counter-trend diizinkan jika PnL harian 0-1% (Fase Hunting) & terpenuhi Opsi A (M1+M5 Confluence, TP 50%) atau Opsi B (BOS M15/M30, TP Shallow 38.2%). Risiko dipotong ke 0.5x, dan terkunci otomatis jika profit harian &ge; 1.0% tercapai.</span>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -148,7 +152,7 @@
               Active Session
             </span>
 
-            <!-- Top 2 HTF Trend Bias Badges (Pilar 1 Gatekeeper) -->
+            <!-- Top 2 HTF Trend Bias Badges (Pilar 1 Gatekeeper) & HYBRID_4 CT Unlock -->
             <div class="flex items-center gap-1.5 flex-wrap ml-1">
               <span id="badge-d1-bias" class="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
                 D1: NEUTRAL
@@ -159,9 +163,12 @@
               <span id="badge-h1-bias" class="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
                 H1: NEUTRAL
               </span>
+              <span id="badge-ct-unlock" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                <i class="fa-solid fa-shield-halved mr-1"></i> CT: STANDBY
+              </span>
             </div>
           </div>
-          <p class="text-xs text-slate-400 mt-1">Multi-Timeframe Fractal Alignment: M1, M2, M3, M4, M5, and M15 with Top 2 HTF Bias Gates (D1, H4, H1).</p>
+          <p class="text-xs text-slate-400 mt-1">Multi-Timeframe Fractal Alignment: M1, M2, M3, M4, M5, M15, and M30 with Top 2 HTF Bias & HYBRID_4 Adaptive Unlock.</p>
         </div>
 
         <div class="flex items-center gap-6">
@@ -180,8 +187,8 @@
         </div>
       </div>
 
-      <!-- Timeframe Grid: M1, M2, M3, M4, M5, M15 -->
-      <div id="radar-timeframes-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <!-- Timeframe Grid: M1, M2, M3, M4, M5, M15, M30 -->
+      <div id="radar-timeframes-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <!-- Rendered dynamically by JS -->
       </div>
 
@@ -810,6 +817,11 @@
               </th>
               <th class="p-4 text-center">AUTO DISPATCH</th>
               <th class="p-4">BALANCE / EQUITY</th>
+              <th class="p-4">
+                <div class="flex items-center gap-1.5 text-emerald-400">
+                  <i class="fa-solid fa-bullseye"></i> DAILY 1% GOAL
+                </div>
+              </th>
               <th class="p-4">CONNECTION</th>
               <th class="p-4 text-right">AKSI</th>
             </tr>
@@ -2251,6 +2263,34 @@
         updateBiasBadge('badge-h4-bias', 'H4', h4Val);
         updateBiasBadge('badge-h1-bias', 'H1', h1Val);
 
+        // Render HYBRID_4 Counter-Trend Unlock Status Badge
+        const ct = data.counter_trend_unlock || {};
+        const ctEl = document.getElementById('badge-ct-unlock');
+        if (ctEl) {
+          const ctStatus = ct.status || 'STANDBY';
+          const isUnlocked = ctStatus.includes('UNLOCKED');
+          const isHunting = ctStatus.includes('HUNTING');
+          const isSecured = ctStatus.includes('SECURED');
+          const isHalted = ctStatus.includes('DEFENSIVE') || ctStatus.includes('HALTED');
+          let ctColor = 'bg-slate-800 text-slate-300 border-slate-700';
+          let ctIcon = 'fa-shield-halved';
+          if (isUnlocked) {
+            ctColor = 'bg-amber-500/20 text-amber-300 border-amber-500/50';
+            ctIcon = 'fa-lock-open text-amber-400';
+          } else if (isSecured) {
+            ctColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50';
+            ctIcon = 'fa-trophy text-emerald-400';
+          } else if (isHunting) {
+            ctColor = 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+            ctIcon = 'fa-crosshairs text-blue-400';
+          } else if (isHalted) {
+            ctColor = 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+            ctIcon = 'fa-hand text-rose-400';
+          }
+          ctEl.className = `px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border transition ${ctColor}`;
+          ctEl.innerHTML = `<i class="fa-solid ${ctIcon} mr-1"></i> CT: ${ctStatus}`;
+        }
+
         renderRadarTimeframes(data.timeframes);
         renderChecklist(selectedRadarTf);
         renderPoiReasoning(selectedRadarTf);
@@ -2274,14 +2314,15 @@
       const container = document.getElementById('radar-timeframes-grid');
       container.innerHTML = '';
 
-      const tfs = ['M1', 'M2', 'M3', 'M4', 'M5', 'M15'];
+      const tfs = ['M1', 'M2', 'M3', 'M4', 'M5', 'M15', 'M30'];
       const guardMap = {
-        'M1': 'D1 || H4',
+        'M1': 'D1 || H4 (CT Unlock)',
         'M2': 'D1 || H4',
         'M3': 'D1 || H4',
         'M4': 'D1 || H4',
         'M5': 'D1 || H4',
-        'M15': 'H1 || H4'
+        'M15': 'H1 || H4',
+        'M30': 'H1 || H4 (Macro)'
       };
 
       tfs.forEach(tf => {
@@ -2486,7 +2527,7 @@
       if (accEntries.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" class="p-6 text-center text-slate-500 font-mono">
+            <td colspan="8" class="p-6 text-center text-slate-500 font-mono">
               <i class="fa-solid fa-plug-circle-xmark text-amber-500 mr-2"></i> Belum ada akun MT5 terdeteksi. Jalankan MT5 Bridge untuk auto-register.
             </td>
           </tr>
@@ -2560,6 +2601,32 @@
           <td class="p-4 font-mono">
             <div class="text-emerald-400 font-bold">$${(acc.equity || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
             <div class="text-slate-400 text-[10px]">Bal: $${(acc.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+          </td>
+          <td class="p-4 font-mono">
+            ${(() => {
+              const dg = acc.daily_guard || {};
+              const startEq = dg.daily_start_equity || acc.equity || 10000.0;
+              const curEq = acc.equity || startEq;
+              const dPnL = curEq - startEq;
+              const dPnLPct = (dPnL / Math.max(1.0, startEq)) * 100.0;
+              const isGoalSecured = dPnLPct >= 1.0;
+              const isHalted = dg.daily_halted === true || dPnLPct <= -0.5;
+              const pColor = dPnL >= 0 ? 'text-emerald-400' : 'text-rose-400';
+
+              let badge = '';
+              if (isGoalSecured) {
+                badge = '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-trophy text-emerald-400"></i> +1% SECURED</span>';
+              } else if (isHalted) {
+                badge = '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30"><i class="fa-solid fa-hand text-rose-400"></i> HALTED</span>';
+              } else {
+                badge = '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30"><i class="fa-solid fa-crosshairs text-blue-400"></i> HUNTING</span>';
+              }
+
+              return `
+                <div class="${pColor} font-bold text-xs">${dPnL >= 0 ? '+' : ''}$${dPnL.toFixed(2)} (${dPnLPct >= 0 ? '+' : ''}${dPnLPct.toFixed(2)}%)</div>
+                <div class="mt-1">${badge}</div>
+              `;
+            })()}
           </td>
           <td class="p-4">
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${

@@ -110,17 +110,19 @@ async def test_top2_permissive_or_gatekeeper_logic():
 
 
 def test_tactical_radar_includes_m15_and_htf_bias():
-    """Verify Dashboard Tactical Radar state includes M15 and HTF Bias metadata."""
+    """Verify Dashboard Tactical Radar state includes M15, M30, Counter-Trend Unlock, and HTF Bias metadata."""
     from src.dashboard.server import build_tactical_radar_pac
     radar = build_tactical_radar_pac()
 
     assert "timeframes" in radar
     assert "M15" in radar["timeframes"], "Tactical radar must include M15"
+    assert "M30" in radar["timeframes"], "Tactical radar must include M30"
     assert "htf_bias" in radar, "Tactical radar must include htf_bias"
+    assert "counter_trend_unlock" in radar, "Tactical radar must include counter_trend_unlock metadata"
     assert "D1" in radar["htf_bias"]
     assert "H4" in radar["htf_bias"]
     assert "H1" in radar["htf_bias"]
-    assert radar["ensemble_confluence"]["total_timeframes"] == 6
+    assert radar["ensemble_confluence"]["total_timeframes"] == 7
 
 
 @pytest.mark.asyncio
