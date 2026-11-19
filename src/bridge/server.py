@@ -727,7 +727,7 @@ class LiveMT5BridgeCore:
         tf_dict = {}
         tf_candles = {}
 
-        for tf, mult in [("M1", 1), ("M2", 2), ("M3", 3), ("M4", 4), ("M5", 5), ("M15", 15)]:
+        for tf, mult in [("M1", 1), ("M2", 2), ("M3", 3), ("M4", 4), ("M5", 5), ("M15", 15), ("M30", 30)]:
             # Aggregate M1 bars into TF bars
             aggregated = []
             m1_len = len(self.history_m1)
@@ -972,6 +972,7 @@ class LiveMT5BridgeCore:
 
             # Deterministic Fractal Market Structure Detection (HH, HL, LH, LL, BOS, CHoCH)
             market_structure_points = []
+            struct_state = None
             if len(aggregated) >= 9:
                 try:
                     c_highs = np.array([x["high"] for x in aggregated], dtype=float)
@@ -1013,6 +1014,7 @@ class LiveMT5BridgeCore:
                 "status": status_label,
                 "quadrant": quad_label,
                 "structure": "BULLISH_BOS" if dir_label == "BUY" else ("BEARISH_BOS" if dir_label == "SELL" else "CONSOLIDATION"),
+                "structure_event": struct_state.last_event.value if (struct_state and struct_state.last_event) else "NONE",
                 "swing_high": sw_high,
                 "swing_low": sw_low,
                 "equilibrium": equilibrium,
@@ -1275,6 +1277,8 @@ class LiveMT5BridgeCore:
                     user_tfs = acc_info.get("assigned_timeframes", ["M1", "M3", "M5", "M15"])
                     chosen_setup = None
                     chosen_tf = None
+                    cand_is_counter = False
+                    cand_tp_mode = "NORMAL"
 
                     for scan_tf in ["M15", "M5", "M3", "M1"]:
                         if scan_tf not in user_tfs:
@@ -1300,12 +1304,74 @@ class LiveMT5BridgeCore:
                         b2_bear = bias2 in ("STRONG_BEARISH", "WEAK_BEARISH")
                         b2_bull = bias2 in ("STRONG_BULLISH", "WEAK_BULLISH")
 
-                        # Permissive OR: Gembok BUY HANYA JIKA KEDUA HTF SEPAKAT BEARISH!
-                        if c_dir == "BUY" and (b1_bear and b2_bear):
-                            continue
-                        # Permissive OR: Gembok SELL HANYA JIKA KEDUA HTF SEPAKAT BULLISH!
-                        if c_dir == "SELL" and (b1_bull and b2_bull):
-                            continue
+                        both_bear = (b1_bear and b2_bear)
+                        both_bull = (b1_bull and b2_bull)
+                        is_counter = (c_dir == "BUY" and both_bear) or (c_dir == "SELL" and both_bull)
+                        tp_mode = "NORMAL"
+
+                        if is_counter:
+                            # Objective-Aware Adaptive Unlock (HYBRID_4 Champion: Opsi A OR Opsi B)
+                            # 1. Check Daily Goal / Protective Cut
+                            daily_pnl_pct = (daily_pnl / max(100.0, acc_daily["daily_start_equity"])) * 100.0
+                            if daily_pnl_pct >= 1.0 or daily_pnl_pct <= -0.5:
+                                # Target harian 1% aman atau batas rugi harian tercapai -> Gembok rapat!
+                                continue
+
+                            # 2. Opsi A: M1 + M5 Confluence
+                            m1_s = tf_dict.get("M1", {})
+                            m5_s = tf_dict.get("M5", {})
+                            if c_dir == "BUY":
+                                m1_ok = m1_s.get("direction") == "BUY" or m1_s.get("buy_zone", {}).get("active", False) or m1_s.get("quadrant") == "DISCOUNT"
+                                m5_ok = m5_s.get("direction") == "BUY" or m5_s.get("buy_zone", {}).get("active", False) or m5_s.get("quadrant") == "DISCOUNT"
+                            else:
+                                m1_ok = m1_s.get("direction") == "SELL" or m1_s.get("sell_zone", {}).get("active", False) or m1_s.get("quadrant") == "PREMIUM"
+                                m5_ok = m5_s.get("direction") == "SELL" or m5_s.get("sell_zone", {}).get("active", False) or m5_s.get("quadrant") == "PREMIUM"
+                            opsi_a = bool(m1_ok and m5_ok)
+
+                            # 3. Opsi B: Micro (M1..M3) + Inter (M5/M15) Confluence OR M15/M30 BOS
+                            micro_tfs = ["M1", "M2", "M3"]
+                            inter_tfs = ["M5", "M15"]
+                            if c_dir == "BUY":
+                                micro_ok = any(
+                                    tf_dict.get(t, {}).get("direction") == "BUY" or
+                                    tf_dict.get(t, {}).get("buy_zone", {}).get("active", False) or
+                                    tf_dict.get(t, {}).get("quadrant") == "DISCOUNT"
+                                    for t in micro_tfs
+                                )
+                                inter_ok = any(
+                                    tf_dict.get(t, {}).get("direction") == "BUY" or
+                                    tf_dict.get(t, {}).get("buy_zone", {}).get("active", False) or
+                                    tf_dict.get(t, {}).get("quadrant") == "DISCOUNT"
+                                    for t in inter_tfs
+                                )
+                                m15_event = str(tf_dict.get("M15", {}).get("structure_event", ""))
+                                m30_event = str(tf_dict.get("M30", {}).get("structure_event", ""))
+                                bos_ok = "BULLISH" in m15_event or "BULLISH" in m30_event
+                            else:
+                                micro_ok = any(
+                                    tf_dict.get(t, {}).get("direction") == "SELL" or
+                                    tf_dict.get(t, {}).get("sell_zone", {}).get("active", False) or
+                                    tf_dict.get(t, {}).get("quadrant") == "PREMIUM"
+                                    for t in micro_tfs
+                                )
+                                inter_ok = any(
+                                    tf_dict.get(t, {}).get("direction") == "SELL" or
+                                    tf_dict.get(t, {}).get("sell_zone", {}).get("active", False) or
+                                    tf_dict.get(t, {}).get("quadrant") == "PREMIUM"
+                                    for t in inter_tfs
+                                )
+                                m15_event = str(tf_dict.get("M15", {}).get("structure_event", ""))
+                                m30_event = str(tf_dict.get("M30", {}).get("structure_event", ""))
+                                bos_ok = "BEARISH" in m15_event or "BEARISH" in m30_event
+
+                            opsi_b = bool((micro_ok and inter_ok) or bos_ok)
+
+                            # FORMULA HYBRID_4: Opsi A OR Opsi B
+                            if not (opsi_a or opsi_b):
+                                continue
+
+                            tp_mode = "EQ" if opsi_a else "SHALLOW"
+                            logger.info(f"🔓 [HTF COUNTER UNLOCK] Account #{acc_num} unlocked {c_dir} on {scan_tf}! OpsiA={opsi_a}, OpsiB={opsi_b}, TP={tp_mode}, DayPnL={daily_pnl_pct:+.2f}%")
 
                         # B. Directional Cooldown (Anti-Falling-Knife DEC-031)
                         if c_dir == "BUY" and now_time < self.buy_cooldown_until:
@@ -1333,6 +1399,8 @@ class LiveMT5BridgeCore:
 
                         chosen_setup = cand_setup
                         chosen_tf = scan_tf
+                        cand_is_counter = is_counter
+                        cand_tp_mode = tp_mode
                         break
 
                     if not chosen_setup or not chosen_tf:
@@ -1385,12 +1453,17 @@ class LiveMT5BridgeCore:
                         ]
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl - spread_val, 2)
-                        # Handover TP: check if nested in M15
-                        m15_s = tf_dict.get("M15", {})
-                        if m15_s.get("active_setup") and m15_s.get("direction") == "BUY":
-                            tp = round(max(chosen_setup["tp_midpoint"] + 2.0, m15_s["tp_midpoint"]), 2)
+                        
+                        # Asymmetric TP Assignment (HYBRID_4 Champion)
+                        if cand_is_counter and cand_tp_mode == "SHALLOW":
+                            tp = round(sw_low + (span * 0.382), 2)
                         else:
-                            tp = round(chosen_setup["tp_midpoint"], 2)
+                            # Handover TP: check if nested in M15
+                            m15_s = tf_dict.get("M15", {})
+                            if m15_s.get("active_setup") and m15_s.get("direction") == "BUY":
+                                tp = round(max(chosen_setup["tp_midpoint"] + 2.0, m15_s["tp_midpoint"]), 2)
+                            else:
+                                tp = round(chosen_setup["tp_midpoint"], 2)
                     else:
                         raw_levels = [
                             round(sw_low + span * 0.75, 2),  # L1: 75% Bibir
@@ -1399,11 +1472,16 @@ class LiveMT5BridgeCore:
                         ]
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl + spread_val, 2)
-                        m15_s = tf_dict.get("M15", {})
-                        if m15_s.get("active_setup") and m15_s.get("direction") == "SELL":
-                            tp = round(min(chosen_setup["tp_midpoint"] - 2.0, m15_s["tp_midpoint"]) + spread_val, 2)
+                        
+                        # Asymmetric TP Assignment (HYBRID_4 Champion)
+                        if cand_is_counter and cand_tp_mode == "SHALLOW":
+                            tp = round(sw_low + (span * 0.618) + spread_val, 2)
                         else:
-                            tp = round(chosen_setup["tp_midpoint"] + spread_val, 2)
+                            m15_s = tf_dict.get("M15", {})
+                            if m15_s.get("active_setup") and m15_s.get("direction") == "SELL":
+                                tp = round(min(chosen_setup["tp_midpoint"] - 2.0, m15_s["tp_midpoint"]) + spread_val, 2)
+                            else:
+                                tp = round(chosen_setup["tp_midpoint"] + spread_val, 2)
 
                     # Filter valid layers:
                     # 1. Micro level depletion (skip spent layers)
@@ -1434,9 +1512,12 @@ class LiveMT5BridgeCore:
                     self.account_last_order_dispatch[acc_num] = now_time
                     active_adapter = self.cent_adapter if acc_info.get("is_cent") else self.adapter
 
+                    # Asymmetric Counter-Trend Risk Sizing (0.50x Risk scaling)
+                    effective_risk_pct = acc_risk_tot * (0.50 if cand_is_counter else 1.0)
+
                     for lay_idx, limit_p in valid_layers:
                         layer_weight = pyramid_weights[lay_idx] if lay_idx < len(pyramid_weights) else 0.33
-                        risk_per_layer = acc_risk_tot * layer_weight
+                        risk_per_layer = effective_risk_pct * layer_weight
 
                         sl_dist = max(1.0, abs(limit_p - sl))
                         sl_dist_points = sl_dist / active_adapter.spec.point
@@ -1450,6 +1531,7 @@ class LiveMT5BridgeCore:
                         if layer_lot <= 0.0:
                             layer_lot = active_adapter.spec.min_lot
 
+                        ct_suffix = f"_CT_{'A' if cand_tp_mode=='EQ' else 'B'}" if cand_is_counter else ""
                         order_cmd = {
                             "action": "ORDER",
                             "account_number": acc_num,
@@ -1460,7 +1542,7 @@ class LiveMT5BridgeCore:
                             "sl": sl,
                             "tp": tp,
                             "magic": 1001,
-                            "comment": f"{chosen_tf}_L{lay_idx+1}_{acc_prof.upper()[:4]}"
+                            "comment": f"{chosen_tf}{ct_suffix}_L{lay_idx+1}_{acc_prof.upper()[:3]}"
                         }
 
                         asyncio.create_task(self.broadcast(order_cmd))

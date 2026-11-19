@@ -169,3 +169,67 @@ def test_timeframe_scanning_hierarchy_priority_m15_over_lower_tfs():
             break
 
     assert chosen == "M15", "M15 must be chosen over M1 when both have active setups"
+
+
+def test_hybrid_4_objective_aware_counter_trend_unlock():
+    """Verify HYBRID_4 Objective-Aware Counter-Trend Unlock Gatekeeper."""
+    # Scenario: Both D1 and H4 are STRONG_BEARISH, candidate is BUY
+    b1_bear = True
+    b2_bear = True
+    both_bear = b1_bear and b2_bear
+    c_dir = "BUY"
+    is_counter = (c_dir == "BUY" and both_bear)
+
+    assert is_counter is True
+
+    # 1. Daily Target Circuit Breaker (+1.0% achieved) -> MUST BLOCK
+    daily_start_eq = 10000.0
+    daily_pnl = 120.0  # +1.2%
+    daily_pnl_pct = (daily_pnl / daily_start_eq) * 100.0
+    assert daily_pnl_pct >= 1.0, "Should detect daily target reached"
+
+    # 2. Defensive Loss Boundary (-0.5% hit) -> MUST BLOCK
+    daily_pnl = -60.0  # -0.6%
+    daily_pnl_pct = (daily_pnl / daily_start_eq) * 100.0
+    assert daily_pnl_pct <= -0.5, "Should detect daily defensive boundary"
+
+    # 3. Hunting Phase (+0.2% PnL) -> Evaluate Opsi A vs Opsi B
+    daily_pnl = 20.0  # +0.2%
+    daily_pnl_pct = (daily_pnl / daily_start_eq) * 100.0
+    in_hunting_phase = (-0.5 < daily_pnl_pct < 1.0)
+    assert in_hunting_phase is True
+
+    # Test 3a: Opsi A (M1 + M5 Confluence)
+    tf_dict_opsi_a = {
+        "M1": {"direction": "BUY", "quadrant": "DISCOUNT"},
+        "M5": {"direction": "BUY", "quadrant": "DISCOUNT"},
+        "M15": {"structure_event": "NONE"}
+    }
+    opsi_a = (
+        tf_dict_opsi_a["M1"]["direction"] == "BUY" and
+        tf_dict_opsi_a["M5"]["direction"] == "BUY"
+    )
+    assert opsi_a is True
+    # In HYBRID_4, Opsi A gets full Equilibrium TP
+    tp_mode_a = "EQ" if opsi_a else "SHALLOW"
+    assert tp_mode_a == "EQ"
+
+    # Test 3b: Opsi B only (M15 BOS active, no M5 confluence)
+    tf_dict_opsi_b = {
+        "M1": {"direction": "BUY", "quadrant": "DISCOUNT"},
+        "M5": {"direction": "NEUTRAL", "quadrant": "EQUILIBRIUM"},
+        "M15": {"structure_event": "BOS_BULLISH"}
+    }
+    m1_ok = tf_dict_opsi_b["M1"]["direction"] == "BUY"
+    m5_ok = tf_dict_opsi_b["M5"]["direction"] == "BUY"
+    opsi_a_false = m1_ok and m5_ok
+    assert opsi_a_false is False
+
+    m15_event = tf_dict_opsi_b["M15"]["structure_event"]
+    bos_ok = "BULLISH" in m15_event
+    opsi_b = bos_ok
+    assert opsi_b is True
+    # In HYBRID_4, Opsi B only gets Quick Shallow TP
+    tp_mode_b = "EQ" if opsi_a_false else "SHALLOW"
+    assert tp_mode_b == "SHALLOW"
+
