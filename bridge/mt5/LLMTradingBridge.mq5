@@ -24,7 +24,6 @@ input int      InpTimeoutMs      = 3000;         // Socket Timeout (ms)
 input ulong    InpDeviationPoints= 20;           // Max Slippage Deviation (points)
 input ulong    InpMagicNumber    = 1001;         // Default Expert Magic Number
 input int      InpSyncBars       = 360;          // Historical Bars to Sync on Reconnect (Default: 360 = 6 hours)
-input bool     InpCompactHUD     = true;         // Compact HUD Mode (Optimized for 4-Split Screen)
 input group "=== Note: Risk Management is 100% Handled via Dashboard ==="
 
 //--- GLOBAL VARIABLES
@@ -711,40 +710,18 @@ void UpdateChartHUD(int openCount = -1, int pendingCount = -1, double unrealized
       }
    }
 
-   string connStatus = m_connected ? "🟢 CONNECTED (" + InpServerHost + ":" + IntegerToString(InpServerPort) + ")"
-                                   : "🔴 DISCONNECTED (Reconnecting...)";
-
-   if(InpCompactHUD)
-   {
-      string connStatusShort = m_connected ? "🟢 Brain OK" : "🔴 Offline";
-      string floatStr = (unrealized >= 0 ? "+$" : "-$") + DoubleToString(MathAbs(unrealized), 2);
-      string compactHud = "";
-      StringConcatenate(compactHud,
-         "🤖 v", EA_VERSION, " [Build: ", TimeToString(EA_BUILD_DATETIME, TIME_DATE|TIME_SECONDS), "] | ", connStatusShort, "\n",
-         "📌 ", IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)),
-         " | Pos: ", IntegerToString(openCount),
-         " | Pend: ", IntegerToString(pendingCount),
-         " | Float: ", floatStr,
-         " | Eq: $", DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2)
-      );
-      Comment(compactHud);
-      return;
-   }
-
-   string hud = "";
-   StringConcatenate(hud,
-      "==========================================================\n",
-      "🤖 LLMTradingBridge EA [v", EA_VERSION, "]\n",
-      "🔨 Unique Build ID : ", TimeToString(EA_BUILD_DATETIME, TIME_DATE|TIME_SECONDS), " (Compile F7 Timestamp)\n",
-      "📌 Account         : ", IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)), " (", AccountInfoString(ACCOUNT_COMPANY), ") | Magic: ", IntegerToString(InpMagicNumber), "\n",
-      "📡 Python Brain    : ", connStatus, "\n",
-      "⏱️ Chart Attached  : ", TimeToString(g_chart_attached_time, TIME_DATE|TIME_SECONDS), " | Local: ", TimeToString(TimeLocal(), TIME_DATE|TIME_SECONDS), "\n",
-      "💰 Balance / Equity: $", DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE), 2), " / $", DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2), " (Float: $", DoubleToString(unrealized, 2), ")\n",
-      "📊 Live Exposure   : ", IntegerToString(openCount), " Open Positions | ", IntegerToString(pendingCount), " Pending Limit Orders\n",
-      "=========================================================="
+   string connStatusShort = m_connected ? "🟢 Brain OK" : "🔴 Offline";
+   string floatStr = (unrealized >= 0 ? "+$" : "-$") + DoubleToString(MathAbs(unrealized), 2);
+   string compactHud = "";
+   StringConcatenate(compactHud,
+      "🤖 v", EA_VERSION, " [Build: ", TimeToString(EA_BUILD_DATETIME, TIME_DATE|TIME_SECONDS), "] | ", connStatusShort, "\n",
+      "📌 ", IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)),
+      " | Pos: ", IntegerToString(openCount),
+      " | Pend: ", IntegerToString(pendingCount),
+      " | Float: ", floatStr,
+      " | Eq: $", DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2)
    );
-
-   Comment(hud);
+   Comment(compactHud);
 }
 
 //+------------------------------------------------------------------+
