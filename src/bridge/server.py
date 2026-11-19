@@ -1578,6 +1578,56 @@ class LiveMT5BridgeCore:
         curr_h = now_utc.hour
         session_label = "Asian Session" if 0 <= curr_h < 8 else ("London Open" if 8 <= curr_h < 13 else ("NY Session" if 13 <= curr_h < 21 else "Off-Hours"))
 
+        # Global Counter-Trend Unlock evaluation for Radar UI (HYBRID_4)
+        d1_b = getattr(self, "d1_trend", "NEUTRAL")
+        h4_b = getattr(self, "h4_trend", "NEUTRAL")
+        both_bear = d1_b in ("STRONG_BEARISH", "WEAK_BEARISH") and h4_b in ("STRONG_BEARISH", "WEAK_BEARISH")
+        both_bull = d1_b in ("STRONG_BULLISH", "WEAK_BULLISH") and h4_b in ("STRONG_BULLISH", "WEAK_BULLISH")
+
+        ct_bias_active = both_bear or both_bull
+        ct_direction = "BUY" if both_bear else ("SELL" if both_bull else "NONE")
+
+        ct_opsi_a = False
+        ct_opsi_b = False
+        ct_status = "STANDBY"
+
+        if ct_bias_active:
+            m1_dir = tf_dict.get("M1", {}).get("direction")
+            m5_dir = tf_dict.get("M5", {}).get("direction")
+            if ct_direction == "BUY":
+                ct_opsi_a = bool(m1_dir == "BUY" and m5_dir == "BUY")
+                micro_ok = any(tf_dict.get(t, {}).get("direction") == "BUY" for t in ["M1", "M2", "M3"])
+                inter_ok = any(tf_dict.get(t, {}).get("direction") == "BUY" for t in ["M5", "M15"])
+                m15_ev = str(tf_dict.get("M15", {}).get("structure_event", ""))
+                m30_ev = str(tf_dict.get("M30", {}).get("structure_event", ""))
+                bos_ok = "BULLISH" in m15_ev or "BULLISH" in m30_ev
+                ct_opsi_b = bool((micro_ok and inter_ok) or bos_ok)
+            else:
+                ct_opsi_a = bool(m1_dir == "SELL" and m5_dir == "SELL")
+                micro_ok = any(tf_dict.get(t, {}).get("direction") == "SELL" for t in ["M1", "M2", "M3"])
+                inter_ok = any(tf_dict.get(t, {}).get("direction") == "SELL" for t in ["M5", "M15"])
+                m15_ev = str(tf_dict.get("M15", {}).get("structure_event", ""))
+                m30_ev = str(tf_dict.get("M30", {}).get("structure_event", ""))
+                bos_ok = "BEARISH" in m15_ev or "BEARISH" in m30_ev
+                ct_opsi_b = bool((micro_ok and inter_ok) or bos_ok)
+
+            if ct_opsi_a:
+                ct_status = "UNLOCKED (Option A: M1+M5)"
+            elif ct_opsi_b:
+                ct_status = "UNLOCKED (Option B: BOS/Micro)"
+            else:
+                ct_status = "HUNTING (Waiting Confluence)"
+
+        # Check if any active account reached goal or is halted
+        daily_guard_snapshot = {}
+        for acc_id_k, g_info in self.account_daily_guard.items():
+            daily_guard_snapshot[acc_id_k] = {
+                "daily_start_equity": g_info.get("daily_start_equity", 0.0),
+                "peak_daily_pnl": g_info.get("peak_daily_pnl", 0.0),
+                "daily_halted": g_info.get("daily_halted", False),
+                "reason": g_info.get("reason", "")
+            }
+
         payload = {
             "source": "LIVE_MT5_TERMINAL",
             "symbol": "XAUUSD",
@@ -1610,6 +1660,15 @@ class LiveMT5BridgeCore:
                 "H4": getattr(self, "h4_trend", "NEUTRAL"),
                 "H1": getattr(self, "h1_trend", "NEUTRAL")
             },
+            "counter_trend_unlock": {
+                "active_bias": ct_bias_active,
+                "counter_direction": ct_direction,
+                "status": ct_status,
+                "option_a": ct_opsi_a,
+                "option_b": ct_opsi_b,
+                "mode": "HYBRID_4"
+            },
+            "account_daily_guard": daily_guard_snapshot,
             "d1_trend": getattr(self, "d1_trend", "NEUTRAL"),
             "h4_trend": getattr(self, "h4_trend", "NEUTRAL"),
             "h1_trend": getattr(self, "h1_trend", "NEUTRAL"),

@@ -4,8 +4,8 @@
   "last_updated": "2026-09-24T18:00:00",
   "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
-    "total_tasks": 31,
-    "completed_tasks": 22,
+    "total_tasks": 32,
+    "completed_tasks": 23,
     "in_progress_tasks": 1,
     "pending_tasks": 8
   },
@@ -286,6 +286,13 @@
           "status": "COMPLETED",
           "branch": "main",
           "notes": "Verified (scripts/run_htf_pillars_tournament.py): Uji 30 klon di 300.440 bar M1. VWAP, RVOL, dan ADX ditolak karena over-filtering dan degradasi performa. Dynamic SL Buffer 0.25x (CLONE-HTF-BUFFER-0.25x) lolos sebagai Juara Mutlak, mendongkrak Profit Factor ke 136.17, memangkas Max Drawdown 22%, dan mengeliminasi false SL wick-hunting seperti kasus $4295."
+        },
+        {
+          "id": "T5-3H",
+          "title": "Subtask 5-3H: HTF Counter-Trend Unlock Matrix & Objective-Aware Adaptive Gate (HYBRID_4)",
+          "status": "COMPLETED",
+          "branch": "main",
+          "notes": "Verified (scripts/run_hybrid_opsi_a_or_b_tournament.py): Turnamen Kage Bunshin 84 klon membuktikan HYBRID_4 (Opsi A: M1+M5 nested confluence OR Opsi B: BOS M15/M30) dengan Asymmetric TP & 0.5x Risk berhasil mengunci target profit 1% harian (30.8% hit rate) dan 5% mingguan (22.2% hit rate) dengan Max DD ketat 5.59% dan Net Profit +$35,378."
         }
       ]
     }
@@ -394,6 +401,13 @@
       "date": "2026-09-24",
       "topic": "Two-Tier Separation: Master Platform vs Plug-in Strategy Engines",
       "summary": "Core Platform (Data Lake, MT5 Bridge, 4 Master Inspectors, Vectorized Engine, Disparity Auditor) bersifat universal & abadi. Setiap Strategy Engine (diawali PAC Scalper di src/engines/pac/) adalah plug-in mandiri. Naruto & Sasuke dikonfigurasi spesifik per engine tanpa mencemari platform saat engine #2 dibuat.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-037",
+      "date": "2026-11-19",
+      "topic": "HYBRID_4 Objective-Aware Counter-Trend Unlock & Daily 1% Gate",
+      "summary": "Membuka kunci counter-trend limit order saat dual HTF selaras jika daily PnL 0-1% (Hunting phase) dan terpenuhi Opsi A (M1+M5 confluence, TP 50%) atau Opsi B (BOS M15/M30, TP Shallow 38.2%) dengan 0.5x risk. Otomatis mengunci order saat profit harian >= 1.0% tercapai atau kerugian <= -0.5%.",
       "status": "CONFIRMED"
     }
   ]

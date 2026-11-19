@@ -107,7 +107,7 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                 curr_h = now_utc.hour
                 session_label = "Asian Session" if 0 <= curr_h < 8 else ("London Open" if 8 <= curr_h < 13 else ("NY Session" if 13 <= curr_h < 21 else "Off-Hours"))
                 tf_specs = live_data["timeframes"]
-                total_tfs = len(tf_specs) if tf_specs else 6
+                total_tfs = len(tf_specs) if tf_specs else 7
                 bull_count = sum(1 for tf, data in tf_specs.items() if data.get("direction") == "BUY" and data.get("active_setup"))
                 return {
                     "engine": "PAC (Price Action Channel) Scalper",
@@ -117,6 +117,13 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                     "updated_at": live_data.get("updated_at", now_utc.isoformat()),
                     "session_budget": live_data.get("session_budget"),
                     "account": live_data.get("account"),
+                    "account_daily_guard": live_data.get("account_daily_guard", {}),
+                    "counter_trend_unlock": live_data.get("counter_trend_unlock", {
+                        "active_bias": False,
+                        "counter_direction": "NONE",
+                        "status": "STANDBY",
+                        "mode": "HYBRID_4"
+                    }),
                     "notifications": live_data.get("notifications", []),
                     "htf_bias": live_data.get("htf_bias", {
                         "D1": live_data.get("d1_trend", "NEUTRAL"),
@@ -298,6 +305,31 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                 {"label": "Midpoint Hard TP Target", "ok": True, "val": "Target $2653.50"},
                 {"label": "Soft SL Protective Close", "ok": True, "val": "Protected"}
             ]
+        },
+        "M30": {
+            "timeframe": "M30",
+            "active_setup": False,
+            "direction": "NEUTRAL",
+            "status": "MACRO_ANCHOR_WATCH",
+            "quadrant": "50% (Equilibrium)",
+            "structure": "MACRO_STRUCTURE_STABLE",
+            "swing_high": 2680.00,
+            "swing_low": 2630.00,
+            "equilibrium": 2655.00,
+            "pac_channel_high": 2678.00,
+            "pac_channel_low": 2632.00,
+            "current_price": 2650.60,
+            "sl_hard": 2627.50,
+            "tp_midpoint": 2655.00,
+            "retest_mode": "MULTI_RETEST_DEEPER",
+            "checklist_score": 8.5,
+            "checklist": [
+                {"label": "Valid PAC Demand Zone (0-25%)", "ok": False, "val": "Macro channel holding"},
+                {"label": "Structural Alignment (BOS / CHoCH)", "ok": True, "val": "M30 BOS tracking enabled"},
+                {"label": "Retest Quality (Deeper Penetration)", "ok": False, "val": "Awaiting macro touch"},
+                {"label": "Midpoint Hard TP Target", "ok": True, "val": "Macro Eq 2655.00"},
+                {"label": "Soft SL Protective Close", "ok": True, "val": "Protected"}
+            ]
         }
     }
 
@@ -317,6 +349,13 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
             "H4": "STRONG_BULLISH",
             "H1": "WEAK_BULLISH"
         },
+        "counter_trend_unlock": {
+            "active_bias": False,
+            "counter_direction": "NONE",
+            "status": "STANDBY",
+            "mode": "HYBRID_4"
+        },
+        "account_daily_guard": {},
         "d1_trend": "STRONG_BULLISH",
         "h4_trend": "STRONG_BULLISH",
         "h1_trend": "WEAK_BULLISH",
@@ -590,9 +629,25 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
         # 3. User & MT5 Accounts Management API
         elif path == "/api/accounts":
             cfg = load_accounts_config()
+            acc_dict = cfg.get("accounts", {})
+
+            # Inject real-time daily guard telemetry from radar_state if available
+            daily_guard = {}
+            if RADAR_STATE_PATH.exists():
+                try:
+                    rd = json.loads(RADAR_STATE_PATH.read_text(encoding="utf-8"))
+                    daily_guard = rd.get("account_daily_guard", {})
+                except Exception:
+                    pass
+
+            for acc_id, acc_data in acc_dict.items():
+                acc_num = str(acc_data.get("account_number", acc_id))
+                if acc_num in daily_guard:
+                    acc_data["daily_guard"] = daily_guard[acc_num]
+
             self._set_json_headers(200)
             self.wfile.write(json.dumps({
-                "accounts": cfg.get("accounts", {}),
+                "accounts": acc_dict,
                 "risk_profiles": cfg.get("risk_profiles", {}),
                 "default_profile": cfg.get("default_profile", "prop_firm"),
                 "admin_email": cfg.get("auth", {}).get("admin_email", "trader@institution.local")
