@@ -5,8 +5,12 @@
 //+------------------------------------------------------------------+
 #property copyright   "LLMTrading Core"
 #property link        "https://github.com/alami/LLMTrading"
-#property version     "1.01"
+#property version     "2.50"
 #property description "Lightweight TCP Bridge connecting MetaTrader 5 to Python Multi-Agent Brain"
+
+#define EA_VERSION        "2.5.0-DEC038"
+#define EA_BUILD_DATE     __DATE__
+#define EA_BUILD_TIME     __TIME__
 
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
@@ -33,9 +37,13 @@ ulong          m_last_connect_ms = 0;
 datetime       m_last_heartbeat  = 0;
 ulong          m_last_timer_ms   = 0;
 string         m_incoming_buffer = "";
+datetime       g_chart_attached_time = 0;
 int            g_hD1             = INVALID_HANDLE;
 int            g_hH4             = INVALID_HANDLE;
 int            g_hH1             = INVALID_HANDLE;
+
+// Forward Prototype
+void UpdateChartHUD(int openCount = -1, int pendingCount = -1, double unrealized = 0.0);
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -62,6 +70,9 @@ int OnInit()
    g_hH4 = iMA(_Symbol, PERIOD_H4, 50, 0, MODE_EMA, PRICE_CLOSE);
    g_hH1 = iMA(_Symbol, PERIOD_H1, 50, 0, MODE_EMA, PRICE_CLOSE);
 
+   g_chart_attached_time = TimeLocal();
+   UpdateChartHUD(0, 0, 0.0);
+
    ConnectToServer();
    EventSetTimer(1); // 1-second timer
    return(INIT_SUCCEEDED);
@@ -72,6 +83,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   Comment(""); // Clear chart comment HUD cleanly
    EventKillTimer();
    DisconnectServer();
    if(g_hD1 != INVALID_HANDLE) { IndicatorRelease(g_hD1); g_hD1 = INVALID_HANDLE; }
@@ -664,6 +676,61 @@ void ProcessCommand(string cmdJson)
 }
 
 //+------------------------------------------------------------------+
+//| Render Live Operational HUD Comment on Chart Top-Left Corner     |
+//+------------------------------------------------------------------+
+void UpdateChartHUD(int openCount = -1, int pendingCount = -1, double unrealized = 0.0)
+{
+   if(openCount < 0 || pendingCount < 0)
+   {
+      openCount = 0;
+      unrealized = 0.0;
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+      {
+         if(m_position.SelectByIndex(i))
+         {
+            ulong posMagic = m_position.Magic();
+            if((posMagic == 1001 || posMagic == 2001 || posMagic == InpMagicNumber) && m_position.Symbol() == _Symbol)
+            {
+               openCount++;
+               unrealized += m_position.Profit();
+            }
+         }
+      }
+
+      pendingCount = 0;
+      for(int i = OrdersTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = OrderGetTicket(i);
+         if(ticket > 0)
+         {
+            long ordMagic = OrderGetInteger(ORDER_MAGIC);
+            string ordSym = OrderGetString(ORDER_SYMBOL);
+            if((ordMagic == 1001 || ordMagic == 2001 || ordMagic == (long)InpMagicNumber) && ordSym == _Symbol)
+               pendingCount++;
+         }
+      }
+   }
+
+   string connStatus = m_connected ? "🟢 CONNECTED (" + InpServerHost + ":" + IntegerToString(InpServerPort) + ")"
+                                   : "🔴 DISCONNECTED (Reconnecting...)";
+
+   string hud = "";
+   StringConcatenate(hud,
+      "==========================================================\n",
+      "🤖 LLMTradingBridge EA [v", EA_VERSION, "]\n",
+      "🔨 Unique Build ID : ", EA_BUILD_DATE, " ", EA_BUILD_TIME, " (Compile F7 Timestamp)\n",
+      "📌 Account         : ", IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)), " (", AccountInfoString(ACCOUNT_COMPANY), ") | Magic: ", IntegerToString(InpMagicNumber), "\n",
+      "📡 Python Brain    : ", connStatus, "\n",
+      "⏱️ Chart Attached  : ", TimeToString(g_chart_attached_time, TIME_DATE|TIME_SECONDS), " | Local: ", TimeToString(TimeLocal(), TIME_DATE|TIME_SECONDS), "\n",
+      "💰 Balance / Equity: $", DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE), 2), " / $", DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2), " (Float: $", DoubleToString(unrealized, 2), ")\n",
+      "📊 Live Exposure   : ", IntegerToString(openCount), " Open Positions | ", IntegerToString(pendingCount), " Pending Limit Orders\n",
+      "=========================================================="
+   );
+
+   Comment(hud);
+}
+
+//+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick()
@@ -796,6 +863,9 @@ void OnTick()
 
    // Check if Python sent back commands
    PollIncomingCommands();
+
+   // Update chart HUD with live counts from this tick
+   UpdateChartHUD(openCount, pendingCount, totalUnrealized);
 }
 
 //+------------------------------------------------------------------+
@@ -944,5 +1014,8 @@ void OnTimer()
       // Check for incoming commands during quiet periods
       PollIncomingCommands();
    }
+
+   // Always keep chart HUD time, clock, and connection status fresh every second
+   UpdateChartHUD();
 }
 //+------------------------------------------------------------------+
