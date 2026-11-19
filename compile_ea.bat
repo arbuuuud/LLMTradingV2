@@ -24,8 +24,51 @@ if not "%~1"=="" (
     )
 )
 
-REM 2. Cari di lokasi standar Program Files
-for /d %%D in (
+REM 2. Cari otomatis via origin.txt pada semua instance MetaQuotes Terminal
+set "TERMINAL_ROOT=%APPDATA%\MetaQuotes\Terminal"
+if exist "%TERMINAL_ROOT%" (
+    for /d %%D in ("%TERMINAL_ROOT%\*") do (
+        if exist "%%D\origin.txt" (
+            set /p ORIGIN_DIR=<"%%D\origin.txt"
+            if defined ORIGIN_DIR (
+                if "!ORIGIN_DIR:~-1!"=="\" set "ORIGIN_DIR=!ORIGIN_DIR:~0,-1!"
+                if exist "!ORIGIN_DIR!\metaeditor64.exe" (
+                    set "EDITOR_EXE=!ORIGIN_DIR!\metaeditor64.exe"
+                    goto :FOUND_EDITOR
+                )
+                if exist "!ORIGIN_DIR!\metaeditor.exe" (
+                    set "EDITOR_EXE=!ORIGIN_DIR!\metaeditor.exe"
+                    goto :FOUND_EDITOR
+                )
+            )
+        )
+    )
+)
+
+REM 3. Cari dari Windows Registry Uninstall keys
+for /f "tokens=2*" %%A in ('reg query "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall" /s /f "MetaTrader 5" 2^>nul ^| findstr /i "InstallLocation"') do (
+    if exist "%%B\metaeditor64.exe" (
+        set "EDITOR_EXE=%%B\metaeditor64.exe"
+        goto :FOUND_EDITOR
+    )
+    if exist "%%B\metaeditor.exe" (
+        set "EDITOR_EXE=%%B\metaeditor.exe"
+        goto :FOUND_EDITOR
+    )
+)
+for /f "tokens=2*" %%A in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall" /s /f "MetaTrader 5" 2^>nul ^| findstr /i "InstallLocation"') do (
+    if exist "%%B\metaeditor64.exe" (
+        set "EDITOR_EXE=%%B\metaeditor64.exe"
+        goto :FOUND_EDITOR
+    )
+    if exist "%%B\metaeditor.exe" (
+        set "EDITOR_EXE=%%B\metaeditor.exe"
+        goto :FOUND_EDITOR
+    )
+)
+
+REM 4. Cari di berbagai folder program & drive lokal
+for %%D in (
     "C:\Program Files\MetaTrader 5"
     "C:\Program Files\PU Prime MetaTrader 5"
     "C:\Program Files\ICMarkets MetaTrader 5"
@@ -34,6 +77,12 @@ for /d %%D in (
     "C:\Program Files\FTMO MetaTrader 5"
     "C:\Program Files\Pepperstone MetaTrader 5"
     "C:\Program Files (x86)\MetaTrader 5"
+    "C:\MT5"
+    "C:\MetaTrader 5"
+    "C:\MetaTrader"
+    "D:\MT5"
+    "D:\MetaTrader 5"
+    "%LOCALAPPDATA%\Programs\MetaTrader 5"
 ) do (
     if exist "%%~fD\metaeditor64.exe" (
         set "EDITOR_EXE=%%~fD\metaeditor64.exe"
@@ -45,8 +94,8 @@ for /d %%D in (
     )
 )
 
-REM 3. Cari dengan wildcard di Program Files jika belum ketemu
-for /d %%D in ("C:\Program Files\*MetaTrader*" "C:\Program Files (x86)\*MetaTrader*" "C:\Program Files\*MT5*") do (
+REM 5. Wildcard search di root Program Files & C:
+for /d %%D in ("C:\Program Files\*MetaTrader*" "C:\Program Files (x86)\*MetaTrader*" "C:\Program Files\*MT5*" "C:\*MT5*" "C:\*MetaTrader*") do (
     if exist "%%~fD\metaeditor64.exe" (
         set "EDITOR_EXE=%%~fD\metaeditor64.exe"
         goto :FOUND_EDITOR
@@ -57,18 +106,36 @@ for /d %%D in ("C:\Program Files\*MetaTrader*" "C:\Program Files (x86)\*MetaTrad
     )
 )
 
+REM 6. Cek system PATH
+for /f "delims=" %%I in ('where metaeditor64.exe 2^>nul') do (
+    if exist "%%~fI" (
+        set "EDITOR_EXE=%%~fI"
+        goto :FOUND_EDITOR
+    )
+)
+for /f "delims=" %%I in ('where metaeditor.exe 2^>nul') do (
+    if exist "%%~fI" (
+        set "EDITOR_EXE=%%~fI"
+        goto :FOUND_EDITOR
+    )
+)
+
 :FOUND_EDITOR
 if "%EDITOR_EXE%"=="" (
-    echo [ERROR] metaeditor64.exe tidak ditemukan di folder Program Files standar.
+    echo [ERROR] metaeditor64.exe tidak ditemukan otomatis di VPS.
     echo.
-    echo Silakan jalankan script ini dengan menyebutkan path MetaEditor, contoh:
-    echo compile_ea.bat "C:\Program Files\NamaBroker MT5\metaeditor64.exe"
+    echo TIPS: Cari lokasi shortcut MT5 di Desktop Anda:
+    echo Klik kanan shortcut MT5 -^> Properties -^> 'Open File Location'.
+    echo Di folder tersebut terdapat file 'metaeditor64.exe'.
+    echo.
+    echo Jalankan script ini dengan path tersebut, contoh:
+    echo compile_ea.bat "C:\Lokasi\MT5\metaeditor64.exe"
     echo.
     pause
     exit /b 1
 )
 
-echo [OK] Menggunakan MetaEditor: "%EDITOR_EXE%"
+echo [OK] Ditemukan MetaEditor: "%EDITOR_EXE%"
 
 REM Cari include directory dari terminal Roaming jika ada
 set "INC_ARG="
