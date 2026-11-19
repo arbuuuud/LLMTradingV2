@@ -374,6 +374,48 @@ def simulate_adaptive_candidate(
                                 trigger_buy = True
                                 is_counter = True
 
+                    elif logic_mode == "M1M5_OR_M15M30BOS":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_buy = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_discount"][i] and tf_features["M5"]["in_discount"][i]
+                            has_bos = tf_features["M15"]["bos_bull"][i] or tf_features["M30"]["bos_bull"][i]
+                            if has_m1_m5 or has_bos:
+                                trigger_buy = True
+                                is_counter = True
+
+                    elif logic_mode == "M1M5_OR_M15BOS":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_buy = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_discount"][i] and tf_features["M5"]["in_discount"][i]
+                            has_bos = tf_features["M15"]["bos_bull"][i]
+                            if has_m1_m5 or has_bos:
+                                trigger_buy = True
+                                is_counter = True
+
+                    elif logic_mode == "M1M5_AND_M15BOS":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_buy = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_discount"][i] and tf_features["M5"]["in_discount"][i]
+                            has_bos = tf_features["M15"]["bos_bull"][i]
+                            if has_m1_m5 and has_bos:
+                                trigger_buy = True
+                                is_counter = True
+
+                    elif logic_mode == "TIERED_CONFIRMATION":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_buy = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_discount"][i] and tf_features["M5"]["in_discount"][i]
+                            has_bos = tf_features["M15"]["bos_bull"][i]
+                            if has_m1_m5 or has_bos:
+                                trigger_buy = True
+                                is_counter = True
+                                # If both confirm -> 0.5x risk, if only one -> 0.25x risk
+                                counter_risk_mult = 0.5 if (has_m1_m5 and has_bos) else 0.25
+
             elif is_prem and (t_sec >= sell_cooldown_until):
                 if not both_bull:
                     # Standard trend-aligned / neutral SELL
@@ -412,6 +454,47 @@ def simulate_adaptive_candidate(
                             if has_nested:
                                 trigger_sell = True
                                 is_counter = True
+
+                    elif logic_mode == "M1M5_OR_M15M30BOS":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_sell = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_premium"][i] and tf_features["M5"]["in_premium"][i]
+                            has_bos = tf_features["M15"]["bos_bear"][i] or tf_features["M30"]["bos_bear"][i]
+                            if has_m1_m5 or has_bos:
+                                trigger_sell = True
+                                is_counter = True
+
+                    elif logic_mode == "M1M5_OR_M15BOS":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_sell = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_premium"][i] and tf_features["M5"]["in_premium"][i]
+                            has_bos = tf_features["M15"]["bos_bear"][i]
+                            if has_m1_m5 or has_bos:
+                                trigger_sell = True
+                                is_counter = True
+
+                    elif logic_mode == "M1M5_AND_M15BOS":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_sell = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_premium"][i] and tf_features["M5"]["in_premium"][i]
+                            has_bos = tf_features["M15"]["bos_bear"][i]
+                            if has_m1_m5 and has_bos:
+                                trigger_sell = True
+                                is_counter = True
+
+                    elif logic_mode == "TIERED_CONFIRMATION":
+                        if daily_current_pnl_pct >= daily_lock_pct or daily_current_pnl_pct <= daily_defensive_cut_pct:
+                            trigger_sell = False
+                        else:
+                            has_m1_m5 = tf_features["M1"]["in_premium"][i] and tf_features["M5"]["in_premium"][i]
+                            has_bos = tf_features["M15"]["bos_bear"][i]
+                            if has_m1_m5 or has_bos:
+                                trigger_sell = True
+                                is_counter = True
+                                counter_risk_mult = 0.5 if (has_m1_m5 and has_bos) else 0.25
 
             sl_buffer = max(0.50, span * 0.0375)
             trade_risk = base_risk * (counter_risk_mult if is_counter else 1.0)
@@ -575,30 +658,8 @@ def main():
             "logic_mode": "BASELINE"
         },
         {
-            "id": "ADAPTIVE_M1_STANDARD_1PCT",
-            "desc": "Adaptive Unlock M1 (Kunci buka saat hunting < 1.0%, risk 0.5x, lock at +1.0% / -0.5%)",
-            "exec_tf": "M1",
-            "exec_step": 1,
-            "logic_mode": "OBJECTIVE_ADAPTIVE",
-            "daily_lock_pct": 1.0,
-            "daily_defensive_cut_pct": -0.5,
-            "counter_risk_mult": 0.5,
-            "counter_tp_mode": "EQ"
-        },
-        {
-            "id": "ADAPTIVE_M1_BOS_ONLY_GUARD",
-            "desc": "Adaptive Unlock M1 (Hanya buka jika M15/M30 BOS valid, lock at +1.0%, risk 0.5x)",
-            "exec_tf": "M1",
-            "exec_step": 1,
-            "logic_mode": "BOS_ONLY_ADAPTIVE",
-            "daily_lock_pct": 1.0,
-            "daily_defensive_cut_pct": -0.5,
-            "counter_risk_mult": 0.5,
-            "counter_tp_mode": "EQ"
-        },
-        {
-            "id": "ADAPTIVE_M1_M1_M5_NESTED_ONLY",
-            "desc": "Adaptive Unlock M1 (Hanya buka jika M1+M5 Nested Confluence, lock at +1.0%, risk 0.5x)",
+            "id": "ADAPTIVE_M1_M1_M5_ONLY",
+            "desc": "Opsi A Murni: (M1 + M5 Nested Confluence Saja, Risk 0.5x)",
             "exec_tf": "M1",
             "exec_step": 1,
             "logic_mode": "NESTED_M1_M5_ADAPTIVE",
@@ -608,36 +669,58 @@ def main():
             "counter_tp_mode": "EQ"
         },
         {
-            "id": "ADAPTIVE_M1_SHALLOW_TP",
-            "desc": "Adaptive Unlock M1 dengan Shallow TP (0.382 Mean Reversion Quick Escape)",
+            "id": "ADAPTIVE_M1_BOS_M15_ONLY",
+            "desc": "Opsi B Murni: (M15 BOS Saja, Risk 0.5x)",
             "exec_tf": "M1",
             "exec_step": 1,
-            "logic_mode": "OBJECTIVE_ADAPTIVE",
+            "logic_mode": "BOS_ONLY_ADAPTIVE",
             "daily_lock_pct": 1.0,
-            "daily_defensive_cut_pct": -0.5,
-            "counter_risk_mult": 0.5,
-            "counter_tp_mode": "SHALLOW"
-        },
-        {
-            "id": "ADAPTIVE_M1_GREED_1_5PCT",
-            "desc": "Adaptive Unlock M1 (Lock target di 1.5% profit harian)",
-            "exec_tf": "M1",
-            "exec_step": 1,
-            "logic_mode": "OBJECTIVE_ADAPTIVE",
-            "daily_lock_pct": 1.5,
             "daily_defensive_cut_pct": -0.5,
             "counter_risk_mult": 0.5,
             "counter_tp_mode": "EQ"
         },
         {
-            "id": "ADAPTIVE_M5_INTRADAY",
-            "desc": "Adaptive Unlock M5 (M5 Execution dengan Nested/BOS, lock at +1.0%)",
-            "exec_tf": "M5",
-            "exec_step": 5,
-            "logic_mode": "OBJECTIVE_ADAPTIVE",
+            "id": "ADAPTIVE_M1_M1M5_OR_M15BOS",
+            "desc": "Kombinasi OR: (M1+M5 Nested) OR (M15 BOS) - Risk 0.5x",
+            "exec_tf": "M1",
+            "exec_step": 1,
+            "logic_mode": "M1M5_OR_M15BOS",
             "daily_lock_pct": 1.0,
             "daily_defensive_cut_pct": -0.5,
             "counter_risk_mult": 0.5,
+            "counter_tp_mode": "EQ"
+        },
+        {
+            "id": "ADAPTIVE_M1_M1M5_OR_M15M30BOS",
+            "desc": "Kombinasi OR Lebar: (M1+M5 Nested) OR (M15/M30 BOS) - Risk 0.5x",
+            "exec_tf": "M1",
+            "exec_step": 1,
+            "logic_mode": "M1M5_OR_M15M30BOS",
+            "daily_lock_pct": 1.0,
+            "daily_defensive_cut_pct": -0.5,
+            "counter_risk_mult": 0.5,
+            "counter_tp_mode": "EQ"
+        },
+        {
+            "id": "ADAPTIVE_M1_M1M5_AND_M15BOS",
+            "desc": "Kombinasi AND (Strict): (M1+M5 Nested) AND (M15 BOS) - Risk 0.5x",
+            "exec_tf": "M1",
+            "exec_step": 1,
+            "logic_mode": "M1M5_AND_M15BOS",
+            "daily_lock_pct": 1.0,
+            "daily_defensive_cut_pct": -0.5,
+            "counter_risk_mult": 0.5,
+            "counter_tp_mode": "EQ"
+        },
+        {
+            "id": "ADAPTIVE_M1_TIERED_DYNAMIC_RISK",
+            "desc": "Tiered Dynamic: Jika Kedua Syarat = 0.5x, Jika Salah Satu = 0.25x Risk",
+            "exec_tf": "M1",
+            "exec_step": 1,
+            "logic_mode": "TIERED_CONFIRMATION",
+            "daily_lock_pct": 1.0,
+            "daily_defensive_cut_pct": -0.5,
+            "counter_risk_mult": 0.25,
             "counter_tp_mode": "EQ"
         }
     ]
