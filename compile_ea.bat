@@ -214,27 +214,31 @@ if exist "%LOG_FILE%" (
     echo [PERINGATAN] File log compile tidak ditemukan.
 )
 
-if exist "%TARGET_EX5%" (
-    echo.
-    echo ============================================================
-    echo ✅ SUKSES! File binary ter-generate:
-    echo    %TARGET_EX5%
-    echo.
-    echo Karena semua instance MT5 terhubung via subfolder junction,
-    echo file baru ini otomatis terdistribusi ke seluruh terminal!
-    echo.
-    echo 💡 LANGKAH TERAKHIR DI MT5:
-    echo 1. Di setiap layar MT5, ganti timeframe chart (M1 -^> M5 -^> M1)
-    echo    agar terminal me-reload binary baru dari memori RAM.
-    echo 2. Periksa baris '🔨 Unique Build ID' di pojok kiri atas chart.
-    echo    Pastikan jam compile di semua terminal sudah sama persis!
-    echo ============================================================
-) else (
-    echo.
-    echo ============================================================
-    echo ❌ GAGAL: File LLMTradingBridge.ex5 tidak berhasil dibuat.
-    echo Silakan periksa pesan error di atas atau buka via MetaEditor GUI.
-    echo ============================================================
-)
+if not exist "%TARGET_EX5%" goto :COMPILE_FAILED
+
+echo.
+echo ============================================================
+echo ✅ SUKSES! File binary ter-generate:
+echo    %TARGET_EX5%
+echo.
+echo Karena semua instance MT5 terhubung via subfolder junction,
+echo file baru ini otomatis terdistribusi ke seluruh terminal!
+echo.
+echo 💡 LANGKAH TERAKHIR DI MT5:
+echo 1. Di setiap layar MT5, ganti timeframe chart [M1 -^> M5 -^> M1]
+echo    agar terminal me-reload binary baru dari memori RAM.
+echo 2. Periksa baris '🔨 Unique Build ID' di pojok kiri atas chart.
+echo    Pastikan jam compile di semua terminal sudah sama persis!
+echo ============================================================
+goto :END_SCRIPT
+
+:COMPILE_FAILED
+echo.
+echo ============================================================
+echo ❌ GAGAL: File LLMTradingBridge.ex5 tidak berhasil dibuat.
+echo Silakan periksa pesan error di atas atau buka via MetaEditor GUI.
+echo ============================================================
+
+:END_SCRIPT
 
 pause
