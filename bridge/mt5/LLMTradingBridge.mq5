@@ -9,8 +9,7 @@
 #property description "Lightweight TCP Bridge connecting MetaTrader 5 to Python Multi-Agent Brain"
 
 #define EA_VERSION        "2.5.0-DEC038"
-#define EA_BUILD_DATE     __DATE__
-#define EA_BUILD_TIME     __TIME__
+#define EA_BUILD_DATETIME __DATETIME__
 
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
@@ -718,7 +717,7 @@ void UpdateChartHUD(int openCount = -1, int pendingCount = -1, double unrealized
    StringConcatenate(hud,
       "==========================================================\n",
       "🤖 LLMTradingBridge EA [v", EA_VERSION, "]\n",
-      "🔨 Unique Build ID : ", EA_BUILD_DATE, " ", EA_BUILD_TIME, " (Compile F7 Timestamp)\n",
+      "🔨 Unique Build ID : ", TimeToString(EA_BUILD_DATETIME, TIME_DATE|TIME_SECONDS), " (Compile F7 Timestamp)\n",
       "📌 Account         : ", IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)), " (", AccountInfoString(ACCOUNT_COMPANY), ") | Magic: ", IntegerToString(InpMagicNumber), "\n",
       "📡 Python Brain    : ", connStatus, "\n",
       "⏱️ Chart Attached  : ", TimeToString(g_chart_attached_time, TIME_DATE|TIME_SECONDS), " | Local: ", TimeToString(TimeLocal(), TIME_DATE|TIME_SECONDS), "\n",
