@@ -49,6 +49,9 @@
       <button onclick="switchTab('forward')" id="tab-btn-forward" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
         <i class="fa-solid fa-shield-halved"></i> Incubation Gate
       </button>
+      <button onclick="switchTab('ledger')" id="tab-btn-ledger" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
+        <i class="fa-solid fa-bullseye text-emerald-400"></i> Target & Riwayat PnL
+      </button>
       <button onclick="switchTab('roadmap')" id="tab-btn-roadmap" class="text-slate-400 hover:text-white py-2 px-1 flex items-center gap-2 transition">
         <i class="fa-solid fa-list-check"></i> Roadmap & Plan
       </button>
@@ -1361,6 +1364,181 @@
       </div>
     </section>
 
+    <!-- ========================================== -->
+    <!-- TAB 5: OBJECTIVE & PERFORMANCE LEDGER (DEC-040) -->
+    <!-- ========================================== -->
+    <section id="tab-ledger" class="hidden space-y-6">
+      <!-- Header Banner & Filter -->
+      <div class="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono text-xs font-bold border border-emerald-500/30">
+                <i class="fa-solid fa-bullseye mr-1"></i> MASTER OBJECTIVE
+              </span>
+              <h2 class="text-xl font-bold text-white tracking-wide">Target Profit Harian (1.0%) & Mingguan (5.0%)</h2>
+            </div>
+            <p class="text-slate-400 text-xs mt-1">
+              Pencatatan otomatis saldo awal sebelum market aktif, realisasi PnL hari ini & minggu ini, serta histori ledger per akun.
+            </p>
+          </div>
+          <!-- Account Selector Filter -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 font-mono"><i class="fa-solid fa-filter text-emerald-400 mr-1"></i> Akun:</span>
+            <select id="ledger-acc-filter" onchange="renderPerformanceLedgerUI()" class="bg-slate-900 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white font-mono focus:border-emerald-500 focus:outline-none">
+              <option value="ALL">Semua Akun (Fleet View)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2 Hero KPI Progress Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <!-- Card 1: Daily 1% Target -->
+          <div class="glass p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/10 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold border border-emerald-500/30">
+                  <i class="fa-solid fa-calendar-day"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-300">OBJEKTIF HARI INI (TARGET 1.0%)</div>
+                  <div class="text-[10px] text-slate-500 font-mono" id="ledger-today-date">Today</div>
+                </div>
+              </div>
+              <div id="ledger-daily-badge">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">🏹 HUNTING</span>
+              </div>
+            </div>
+
+            <div class="flex items-baseline justify-between">
+              <div>
+                <div class="text-2xl font-black font-mono text-emerald-400" id="ledger-daily-pnl">+$0.00</div>
+                <div class="text-[11px] font-mono text-slate-400" id="ledger-daily-pct">+0.00% dari saldo awal</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-slate-400">Target Nominal (1%)</div>
+                <div class="text-sm font-mono font-bold text-amber-400" id="ledger-daily-target">$100.00</div>
+              </div>
+            </div>
+
+            <!-- Visual Progress Bar -->
+            <div class="space-y-1">
+              <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                <div id="ledger-daily-bar" class="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500" style="width: 0%"></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                <span id="ledger-daily-start-bal">Saldo Awal: $0.00</span>
+                <span id="ledger-daily-progress-txt">0% Tercapai</span>
+                <span id="ledger-daily-end-bal">Live Eq: $0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Weekly 5% Target -->
+          <div class="glass p-5 rounded-2xl border border-blue-500/30 bg-blue-950/10 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm font-bold border border-blue-500/30">
+                  <i class="fa-solid fa-calendar-week"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-300">OBJEKTIF MINGGU INI (TARGET 5.0%)</div>
+                  <div class="text-[10px] text-slate-500 font-mono" id="ledger-week-id">Week Current</div>
+                </div>
+              </div>
+              <div id="ledger-weekly-badge">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">📈 IN PROGRESS</span>
+              </div>
+            </div>
+
+            <div class="flex items-baseline justify-between">
+              <div>
+                <div class="text-2xl font-black font-mono text-blue-400" id="ledger-weekly-pnl">+$0.00</div>
+                <div class="text-[11px] font-mono text-slate-400" id="ledger-weekly-pct">+0.00% dari saldo awal</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-slate-400">Target Nominal (5%)</div>
+                <div class="text-sm font-mono font-bold text-amber-400" id="ledger-weekly-target">$500.00</div>
+              </div>
+            </div>
+
+            <!-- Visual Progress Bar -->
+            <div class="space-y-1">
+              <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                <div id="ledger-weekly-bar" class="h-full bg-gradient-to-r from-blue-600 to-indigo-400 transition-all duration-500" style="width: 0%"></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                <span id="ledger-weekly-start-bal">Saldo Awal: $0.00</span>
+                <span id="ledger-weekly-progress-txt">0% Tercapai</span>
+                <span id="ledger-weekly-end-bal">Live Eq: $0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabel 1: Riwayat Pencapaian Harian (Daily Ledger) -->
+      <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden space-y-3 p-5">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-emerald-400"></i>
+            <h3 class="text-sm font-bold text-white tracking-wide">Riwayat Pencapaian Harian (Daily History Ledger)</h3>
+          </div>
+          <span class="text-[11px] text-slate-500 font-mono">Tercatat Otomatis per Sesi 00:00 UTC</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 font-mono uppercase bg-slate-900/50">
+                <th class="p-3">Tanggal / Hari</th>
+                <th class="p-3">Akun / Profil</th>
+                <th class="p-3 text-right">Saldo Awal (Sebelum)</th>
+                <th class="p-3 text-right">Realized PnL ($)</th>
+                <th class="p-3 text-right">Saldo Akhir (Sesudah)</th>
+                <th class="p-3 text-right">Gain (%)</th>
+                <th class="p-3 text-center">Status Target 1%</th>
+                <th class="p-3 text-center">Trades & Win Rate</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-daily-table-body" class="divide-y divide-slate-800/60 font-mono">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabel 2: Riwayat Pencapaian Mingguan (Weekly Ledger) -->
+      <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden space-y-3 p-5">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-chart-column text-blue-400"></i>
+            <h3 class="text-sm font-bold text-white tracking-wide">Riwayat Pencapaian Mingguan (Weekly History Ledger)</h3>
+          </div>
+          <span class="text-[11px] text-slate-500 font-mono">Konsistensi Target 5% per Minggu</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 font-mono uppercase bg-slate-900/50">
+                <th class="p-3">Minggu (Week #)</th>
+                <th class="p-3">Rentang Hari</th>
+                <th class="p-3">Akun / Profil</th>
+                <th class="p-3 text-right">Saldo Awal Minggu</th>
+                <th class="p-3 text-right">Realized PnL ($)</th>
+                <th class="p-3 text-right">Saldo Akhir Minggu</th>
+                <th class="p-3 text-right">Gain (%)</th>
+                <th class="p-3 text-center">Status Target 5%</th>
+                <th class="p-3 text-center">Hari Capai 1%</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-weekly-table-body" class="divide-y divide-slate-800/60 font-mono">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Modal Tambah Akun MT5 -->
@@ -2032,7 +2210,7 @@
 
     function switchTab(tabId) {
       activeTab = tabId;
-      ['radar', 'engine-spec', 'accounts', 'forward', 'roadmap'].forEach(t => {
+      ['radar', 'engine-spec', 'accounts', 'forward', 'roadmap', 'ledger'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
         const btn = document.getElementById(`tab-btn-${t}`);
         if (el) el.classList.add('hidden');
@@ -2053,6 +2231,7 @@
       if (tabId === 'accounts') fetchAccountsData();
       if (tabId === 'forward') fetchForwardData();
       if (tabId === 'roadmap') fetchRoadmapData();
+      if (tabId === 'ledger') fetchPerformanceLedger();
     }
 
     // Forward Telemetry State
@@ -2602,16 +2781,22 @@
             <div class="text-emerald-400 font-bold">$${(acc.equity || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
             <div class="text-slate-400 text-[10px]">Bal: $${(acc.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
           </td>
-          <td class="p-4 font-mono">
+          <td class="p-4 font-mono text-xs">
             ${(() => {
+              const live = acc.performance_live || {};
               const dg = acc.daily_guard || {};
-              const startEq = dg.daily_start_equity || acc.equity || 10000.0;
-              const curEq = acc.equity || startEq;
-              const dPnL = curEq - startEq;
-              const dPnLPct = (dPnL / Math.max(1.0, startEq)) * 100.0;
+              const startBal = live.daily_start_balance || dg.daily_start_equity || acc.equity || 10000.0;
+              const dPnL = (live.daily_pnl !== undefined) ? live.daily_pnl : ((acc.equity || startBal) - startBal);
+              const dPnLPct = (live.daily_pnl_pct !== undefined) ? live.daily_pnl_pct : ((dPnL / Math.max(1.0, startBal)) * 100.0);
+
+              const wStartBal = live.weekly_start_balance || dg.weekly_start_balance || startBal;
+              const wPnL = (live.weekly_pnl !== undefined) ? live.weekly_pnl : dPnL;
+              const wPnLPct = (live.weekly_pnl_pct !== undefined) ? live.weekly_pnl_pct : ((wPnL / Math.max(1.0, wStartBal)) * 100.0);
+
               const isGoalSecured = dPnLPct >= 1.0;
               const isHalted = dg.daily_halted === true || dPnLPct <= -0.5;
               const pColor = dPnL >= 0 ? 'text-emerald-400' : 'text-rose-400';
+              const wColor = wPnL >= 0 ? 'text-blue-400' : 'text-rose-400';
 
               let badge = '';
               if (isGoalSecured) {
@@ -2623,8 +2808,17 @@
               }
 
               return `
-                <div class="${pColor} font-bold text-xs">${dPnL >= 0 ? '+' : ''}$${dPnL.toFixed(2)} (${dPnLPct >= 0 ? '+' : ''}${dPnLPct.toFixed(2)}%)</div>
-                <div class="mt-1">${badge}</div>
+                <div class="space-y-1">
+                  <div>
+                    <div class="text-[10px] text-slate-400">Hari (Awal: $${startBal.toLocaleString('en-US', {minimumFractionDigits: 2})})</div>
+                    <div class="${pColor} font-bold">${dPnL >= 0 ? '+' : ''}$${dPnL.toFixed(2)} (${dPnLPct >= 0 ? '+' : ''}${dPnLPct.toFixed(2)}%)</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] text-slate-400">Mgg (Awal: $${wStartBal.toLocaleString('en-US', {minimumFractionDigits: 2})})</div>
+                    <div class="${wColor} font-bold">${wPnL >= 0 ? '+' : ''}$${wPnL.toFixed(2)} (${wPnLPct >= 0 ? '+' : ''}${wPnLPct.toFixed(2)}%)</div>
+                  </div>
+                  <div class="pt-0.5">${badge}</div>
+                </div>
               `;
             })()}
           </td>
@@ -3117,6 +3311,237 @@
       }
     }
 
+    // ==========================================
+    // OBJECTIVE & PERFORMANCE LEDGER (DEC-040)
+    // ==========================================
+    let cachedLedgerData = null;
+
+    async function fetchPerformanceLedger() {
+      try {
+        const res = await fetch('/api/performance-ledger');
+        const data = await res.json();
+        cachedLedgerData = data;
+
+        // Populate Account Selector Dropdown if not yet populated
+        const sel = document.getElementById('ledger-acc-filter');
+        if (sel && sel.options.length <= 1) {
+          const currentVal = sel.value;
+          const accounts = Object.keys(data.accounts || {});
+          accounts.forEach(accId => {
+            const accInfo = data.accounts[accId];
+            const opt = document.createElement('option');
+            opt.value = accId;
+            opt.innerText = `Akun #${accId} (${accInfo.risk_profile || 'Standard'})`;
+            sel.appendChild(opt);
+          });
+          sel.value = currentVal;
+        }
+
+        renderPerformanceLedgerUI();
+      } catch (err) {
+        console.error("Failed to load performance ledger:", err);
+      }
+    }
+
+    function renderPerformanceLedgerUI() {
+      if (!cachedLedgerData || !cachedLedgerData.accounts) return;
+
+      const sel = document.getElementById('ledger-acc-filter');
+      const selectedAccId = sel ? sel.value : 'ALL';
+
+      const accountsObj = cachedLedgerData.accounts;
+      let activeAccounts = [];
+      if (selectedAccId === 'ALL') {
+        activeAccounts = Object.values(accountsObj);
+      } else if (accountsObj[selectedAccId]) {
+        activeAccounts = [accountsObj[selectedAccId]];
+      }
+
+      // 1. Calculate Aggregate Hero Metrics
+      let totalDailyStart = 0.0;
+      let totalDailyPnl = 0.0;
+      let totalLiveEquity = 0.0;
+      let totalWeeklyStart = 0.0;
+      let totalWeeklyPnl = 0.0;
+
+      activeAccounts.forEach(acc => {
+        const live = acc.live || {};
+        const dStart = live.daily_start_balance || live.balance || 10000.0;
+        const dPnl = live.daily_pnl || 0.0;
+        const eq = live.equity || live.balance || dStart;
+        const wStart = live.weekly_start_balance || live.balance || 10000.0;
+        const wPnl = live.weekly_pnl || 0.0;
+
+        totalDailyStart += dStart;
+        totalDailyPnl += dPnl;
+        totalLiveEquity += eq;
+        totalWeeklyStart += wStart;
+        totalWeeklyPnl += wPnl;
+      });
+
+      if (totalDailyStart <= 0) totalDailyStart = 10000.0;
+      if (totalWeeklyStart <= 0) totalWeeklyStart = 10000.0;
+
+      const dailyPct = (totalDailyPnl / totalDailyStart) * 100.0;
+      const weeklyPct = (totalWeeklyPnl / totalWeeklyStart) * 100.0;
+      const dailyTargetDollar = totalDailyStart * 0.01; // 1%
+      const weeklyTargetDollar = totalWeeklyStart * 0.05; // 5%
+
+      const dailyProgress = Math.min(100.0, Math.max(0.0, (totalDailyPnl / Math.max(0.01, dailyTargetDollar)) * 100.0));
+      const weeklyProgress = Math.min(100.0, Math.max(0.0, (totalWeeklyPnl / Math.max(0.01, weeklyTargetDollar)) * 100.0));
+
+      // Update Card 1: Daily Target
+      const dPnlEl = document.getElementById('ledger-daily-pnl');
+      const dPctEl = document.getElementById('ledger-daily-pct');
+      const dTgtEl = document.getElementById('ledger-daily-target');
+      const dBarEl = document.getElementById('ledger-daily-bar');
+      const dStartEl = document.getElementById('ledger-daily-start-bal');
+      const dProgEl = document.getElementById('ledger-daily-progress-txt');
+      const dEndEl = document.getElementById('ledger-daily-end-bal');
+      const dBadgeEl = document.getElementById('ledger-daily-badge');
+      const dDateEl = document.getElementById('ledger-today-date');
+
+      if (dDateEl) dDateEl.innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+      if (dPnlEl) {
+        dPnlEl.innerText = `${totalDailyPnl >= 0 ? '+' : ''}$${totalDailyPnl.toFixed(2)}`;
+        dPnlEl.className = `text-2xl font-black font-mono ${totalDailyPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      }
+      if (dPctEl) dPctEl.innerText = `${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}% dari saldo awal (Target +1.0%)`;
+      if (dTgtEl) dTgtEl.innerText = `$${dailyTargetDollar.toFixed(2)}`;
+      if (dBarEl) dBarEl.style.width = `${dailyProgress.toFixed(1)}%`;
+      if (dStartEl) dStartEl.innerText = `Saldo Awal: $${totalDailyStart.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      if (dProgEl) dProgEl.innerText = `${dailyProgress.toFixed(1)}% Tercapai`;
+      if (dEndEl) dEndEl.innerText = `Live Eq: $${totalLiveEquity.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      if (dBadgeEl) {
+        if (dailyPct >= 1.0) {
+          dBadgeEl.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🎯 1% SECURED</span>';
+        } else if (dailyPct <= -0.5) {
+          dBadgeEl.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">🛑 HALTED</span>';
+        } else {
+          dBadgeEl.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">🏹 HUNTING</span>';
+        }
+      }
+
+      // Update Card 2: Weekly Target
+      const wPnlEl = document.getElementById('ledger-weekly-pnl');
+      const wPctEl = document.getElementById('ledger-weekly-pct');
+      const wTgtEl = document.getElementById('ledger-weekly-target');
+      const wBarEl = document.getElementById('ledger-weekly-bar');
+      const wStartEl = document.getElementById('ledger-weekly-start-bal');
+      const wProgEl = document.getElementById('ledger-weekly-progress-txt');
+      const wEndEl = document.getElementById('ledger-weekly-end-bal');
+      const wBadgeEl = document.getElementById('ledger-weekly-badge');
+
+      if (wPnlEl) {
+        wPnlEl.innerText = `${totalWeeklyPnl >= 0 ? '+' : ''}$${totalWeeklyPnl.toFixed(2)}`;
+        wPnlEl.className = `text-2xl font-black font-mono ${totalWeeklyPnl >= 0 ? 'text-blue-400' : 'text-rose-400'}`;
+      }
+      if (wPctEl) wPctEl.innerText = `${weeklyPct >= 0 ? '+' : ''}${weeklyPct.toFixed(2)}% dari saldo awal (Target +5.0%)`;
+      if (wTgtEl) wTgtEl.innerText = `$${weeklyTargetDollar.toFixed(2)}`;
+      if (wBarEl) wBarEl.style.width = `${weeklyProgress.toFixed(1)}%`;
+      if (wStartEl) wStartEl.innerText = `Saldo Awal: $${totalWeeklyStart.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      if (wProgEl) wProgEl.innerText = `${weeklyProgress.toFixed(1)}% Tercapai`;
+      if (wEndEl) wEndEl.innerText = `Live Eq: $${totalLiveEquity.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      if (wBadgeEl) {
+        if (weeklyPct >= 5.0) {
+          wBadgeEl.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🏆 5% SECURED</span>';
+        } else {
+          wBadgeEl.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">📈 IN PROGRESS</span>';
+        }
+      }
+
+      // 2. Render Daily History Table
+      const dailyTbody = document.getElementById('ledger-daily-table-body');
+      if (dailyTbody) {
+        dailyTbody.innerHTML = '';
+        const allDailyRows = [];
+        activeAccounts.forEach(acc => {
+          (acc.daily_history || []).forEach(dh => {
+            allDailyRows.push({ ...dh, account_number: acc.account_number, risk_profile: acc.risk_profile });
+          });
+        });
+
+        // Sort descending by date
+        allDailyRows.sort((a, b) => b.date.localeCompare(a.date));
+
+        if (allDailyRows.length === 0) {
+          dailyTbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-500">Belum ada catatan riwayat harian.</td></tr>';
+        } else {
+          allDailyRows.slice(0, 50).forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-800/40 transition';
+            const isHit = r.target_hit || (r.pnl_pct >= 1.0);
+            const pColor = r.realized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400';
+            const badge = isHit
+              ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-check text-emerald-400 mr-1"></i> 🎯 1% HIT</span>'
+              : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700">IN PROGRESS</span>';
+
+            tr.innerHTML = `
+              <td class="p-3">
+                <div class="text-white font-bold">${r.date}</div>
+                <div class="text-[10px] text-slate-500">${r.day_name || ''}</div>
+              </td>
+              <td class="p-3">
+                <div class="text-slate-300 font-bold">#${r.account_number}</div>
+                <div class="text-[10px] text-slate-500 uppercase">${r.risk_profile || 'Standard'}</div>
+              </td>
+              <td class="p-3 text-right text-slate-300">$${(r.start_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+              <td class="p-3 text-right ${pColor} font-bold">${r.realized_pnl >= 0 ? '+' : ''}$${(r.realized_pnl || 0).toFixed(2)}</td>
+              <td class="p-3 text-right text-white font-bold">$${(r.end_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+              <td class="p-3 text-right ${pColor} font-bold">${r.pnl_pct >= 0 ? '+' : ''}${(r.pnl_pct || 0).toFixed(2)}%</td>
+              <td class="p-3 text-center">${badge}</td>
+              <td class="p-3 text-center text-slate-300">${r.trades || 0} deals <span class="text-[10px] text-slate-500">(${r.win_rate || 0}% WR)</span></td>
+            `;
+            dailyTbody.appendChild(tr);
+          });
+        }
+      }
+
+      // 3. Render Weekly History Table
+      const weeklyTbody = document.getElementById('ledger-weekly-table-body');
+      if (weeklyTbody) {
+        weeklyTbody.innerHTML = '';
+        const allWeeklyRows = [];
+        activeAccounts.forEach(acc => {
+          (acc.weekly_history || []).forEach(wh => {
+            allWeeklyRows.push({ ...wh, account_number: acc.account_number, risk_profile: acc.risk_profile });
+          });
+        });
+
+        allWeeklyRows.sort((a, b) => b.week_id.localeCompare(a.week_id));
+
+        if (allWeeklyRows.length === 0) {
+          weeklyTbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-slate-500">Belum ada catatan riwayat mingguan.</td></tr>';
+        } else {
+          allWeeklyRows.slice(0, 30).forEach(w => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-800/40 transition';
+            const isHit = w.target_hit || (w.pnl_pct >= 5.0);
+            const pColor = w.realized_pnl >= 0 ? 'text-blue-400' : 'text-rose-400';
+            const badge = isHit
+              ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-trophy text-emerald-400 mr-1"></i> 🏆 5% HIT</span>'
+              : '<span class="px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">PROGRESS</span>';
+
+            tr.innerHTML = `
+              <td class="p-3 font-bold text-white">${w.week_id}</td>
+              <td class="p-3 text-[11px] text-slate-400">${w.start_date || ''} s/d ${w.end_date || ''}</td>
+              <td class="p-3">
+                <div class="text-slate-300 font-bold">#${w.account_number}</div>
+                <div class="text-[10px] text-slate-500 uppercase">${w.risk_profile || 'Standard'}</div>
+              </td>
+              <td class="p-3 text-right text-slate-300">$${(w.start_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+              <td class="p-3 text-right ${pColor} font-bold">${w.realized_pnl >= 0 ? '+' : ''}$${(w.realized_pnl || 0).toFixed(2)}</td>
+              <td class="p-3 text-right text-white font-bold">$${(w.end_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+              <td class="p-3 text-right ${pColor} font-bold">${w.pnl_pct >= 0 ? '+' : ''}${(w.pnl_pct || 0).toFixed(2)}%</td>
+              <td class="p-3 text-center">${badge}</td>
+              <td class="p-3 text-center text-slate-300">${w.days_target_hit || 0} dari ${w.total_days_active || 0} hari</td>
+            `;
+            weeklyTbody.appendChild(tr);
+          });
+        }
+      }
+    }
+
     // Initial Load
     fetchRadarData().then(() => fetchChartData(selectedRadarTf));
     setInterval(() => {
@@ -3124,6 +3549,7 @@
       fetchChartData(selectedRadarTf);
       if (activeTab === 'accounts') fetchAccountsData();
       if (activeTab === 'forward') fetchForwardData();
+      if (activeTab === 'ledger') fetchPerformanceLedger();
     }, 3000); // Polling radar & active tab every 3s
   </script>
 </body>

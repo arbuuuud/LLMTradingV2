@@ -675,6 +675,65 @@ void ProcessCommand(string cmdJson)
 }
 
 //+------------------------------------------------------------------+
+//| Date & Performance Calculation Helpers                           |
+//+------------------------------------------------------------------+
+datetime GetServerStartOfDay()
+{
+   MqlDateTime dt;
+   TimeCurrent(dt);
+   dt.hour = 0;
+   dt.min  = 0;
+   dt.sec  = 0;
+   return StructToTime(dt);
+}
+
+datetime GetServerStartOfWeek()
+{
+   MqlDateTime dt;
+   TimeCurrent(dt);
+   dt.hour = 0;
+   dt.min  = 0;
+   dt.sec  = 0;
+   datetime startToday = StructToTime(dt);
+   // Forex week starts Sunday (day_of_week == 0) or Monday (1)
+   return (startToday - (dt.day_of_week * 86400));
+}
+
+void CalculatePeriodPerformance(datetime fromTime, double &outRealizedPnl, double &outStartBal, double &outPct)
+{
+   outRealizedPnl = 0.0;
+   double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
+
+   if(HistorySelect(fromTime, TimeCurrent() + 86400))
+   {
+      int deals = HistoryDealsTotal();
+      for(int i = 0; i < deals; i++)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket > 0)
+         {
+            long entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+            if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_INOUT || entry == DEAL_ENTRY_OUT_BY)
+            {
+               long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+               string sym = HistoryDealGetString(ticket, DEAL_SYMBOL);
+               if(sym == _Symbol || magic == 1001 || magic == 2001 || magic == (long)InpMagicNumber)
+               {
+                  outRealizedPnl += (HistoryDealGetDouble(ticket, DEAL_PROFIT)
+                                   + HistoryDealGetDouble(ticket, DEAL_SWAP)
+                                   + HistoryDealGetDouble(ticket, DEAL_COMMISSION));
+               }
+            }
+         }
+      }
+   }
+
+   outStartBal = currentBal - outRealizedPnl;
+   if(outStartBal <= 1.0) outStartBal = currentBal;
+   outPct = (outRealizedPnl / outStartBal) * 100.0;
+}
+
+//+------------------------------------------------------------------+
 //| Render Live Operational HUD Comment on Chart Top-Left Corner     |
 //+------------------------------------------------------------------+
 void UpdateChartHUD(int openCount = -1, int pendingCount = -1, double unrealized = 0.0)
@@ -710,8 +769,17 @@ void UpdateChartHUD(int openCount = -1, int pendingCount = -1, double unrealized
       }
    }
 
+   double dailyPnl = 0.0, dailyStartBal = 0.0, dailyPct = 0.0;
+   CalculatePeriodPerformance(GetServerStartOfDay(), dailyPnl, dailyStartBal, dailyPct);
+
+   double weeklyPnl = 0.0, weeklyStartBal = 0.0, weeklyPct = 0.0;
+   CalculatePeriodPerformance(GetServerStartOfWeek(), weeklyPnl, weeklyStartBal, weeklyPct);
+
    string connStatusShort = m_connected ? "🟢 Brain OK" : "🔴 Offline";
    string floatStr = (unrealized >= 0 ? "+$" : "-$") + DoubleToString(MathAbs(unrealized), 2);
+   string dailyHitBadge = (dailyPct >= 1.0) ? " 🎯 1% SECURED" : "";
+   string weeklyHitBadge = (weeklyPct >= 5.0) ? " 🏆 5% SECURED" : "";
+
    string compactHud = "";
    StringConcatenate(compactHud,
       "🤖 v", EA_VERSION, " [Build: ", TimeToString(EA_BUILD_DATETIME, TIME_DATE|TIME_SECONDS), "] | ", connStatusShort, "\n",
@@ -719,7 +787,13 @@ void UpdateChartHUD(int openCount = -1, int pendingCount = -1, double unrealized
       " | Pos: ", IntegerToString(openCount),
       " | Pend: ", IntegerToString(pendingCount),
       " | Float: ", floatStr,
-      " | Eq: $", DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2)
+      " | Eq: $", DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2), "\n",
+      "🎯 Hari   : ", (dailyPnl >= 0 ? "+$" : "-$"), DoubleToString(MathAbs(dailyPnl), 2),
+      " (", (dailyPct >= 0 ? "+" : ""), DoubleToString(dailyPct, 2), "%", dailyHitBadge, ")",
+      " | Saldo Awal: $", DoubleToString(dailyStartBal, 2), " [Tgt 1.0%]\n",
+      "📅 Minggu : ", (weeklyPnl >= 0 ? "+$" : "-$"), DoubleToString(MathAbs(weeklyPnl), 2),
+      " (", (weeklyPct >= 0 ? "+" : ""), DoubleToString(weeklyPct, 2), "%", weeklyHitBadge, ")",
+      " | Saldo Awal: $", DoubleToString(weeklyStartBal, 2), " [Tgt 5.0%]"
    );
    Comment(compactHud);
 }
@@ -845,10 +919,17 @@ void OnTick()
    }
 
    // 3. Format complete JSON telemetry packet to Python Brain
+   double dPnl = 0.0, dStartBal = 0.0, dPct = 0.0;
+   CalculatePeriodPerformance(GetServerStartOfDay(), dPnl, dStartBal, dPct);
+
+   double wPnl = 0.0, wStartBal = 0.0, wPct = 0.0;
+   CalculatePeriodPerformance(GetServerStartOfWeek(), wPnl, wStartBal, wPct);
+
    string tickJson = StringFormat(
-      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"d1_trend\":\"%s\",\"h4_trend\":\"%s\",\"h1_trend\":\"%s\",\"positions\":[%s],\"orders\":[%s]}\n",
+      "{\"type\":\"TICK\",\"account_id\":\"%I64d\",\"symbol\":\"%s\",\"bid\":%.2f,\"ask\":%.2f,\"spread\":%.2f,\"time\":%I64d,\"equity\":%.2f,\"balance\":%.2f,\"open_positions\":%d,\"pending_orders\":%d,\"unrealized\":%.2f,\"daily_pnl\":%.2f,\"daily_pnl_pct\":%.2f,\"daily_start_balance\":%.2f,\"weekly_pnl\":%.2f,\"weekly_pnl_pct\":%.2f,\"weekly_start_balance\":%.2f,\"d1_trend\":\"%s\",\"h4_trend\":\"%s\",\"h1_trend\":\"%s\",\"positions\":[%s],\"orders\":[%s]}\n",
       AccountInfoInteger(ACCOUNT_LOGIN), _Symbol, bid, ask, spread, timeMs,
       m_account.Equity(), m_account.Balance(), openCount, pendingCount, totalUnrealized,
+      dPnl, dPct, dStartBal, wPnl, wPct, wStartBal,
       d1Trend, h4Trend, h1Trend,
       positionsJson, pendingOrdersJson
    );
