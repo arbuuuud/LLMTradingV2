@@ -165,13 +165,13 @@ if "%EDITOR_EXE%"=="" (
 echo [OK] Ditemukan MetaEditor: "%EDITOR_EXE%"
 
 REM Cari include directory dari terminal Roaming jika ada
-set "INC_ARG="
+set "INC_DIR="
 set "TERMINAL_ROOT=%APPDATA%\MetaQuotes\Terminal"
 if exist "%TERMINAL_ROOT%" (
     for /d %%D in ("%TERMINAL_ROOT%\*") do (
         if exist "%%D\MQL5\Include\Trade\Trade.mqh" (
-            set "INC_ARG=/inc:\"%%D\MQL5\""
-            echo [OK] Ditemukan Standard MQL5 Include: "%%D\MQL5"
+            set "INC_DIR=%%D\MQL5"
+            echo [OK] Ditemukan Standard MQL5 Include: "!INC_DIR!"
             goto :START_COMPILE
         )
     )
@@ -184,14 +184,24 @@ if exist "%TARGET_EX5%" del "%TARGET_EX5%" >nul 2>&1
 
 echo.
 echo Sedang meng-compile... Mohon tunggu beberapa detik...
-if not "%INC_ARG%"=="" (
-    "%EDITOR_EXE%" /compile:"%SOURCE_FILE%" /log:"%LOG_FILE%" %INC_ARG%
+if not "%INC_DIR%"=="" (
+    "%EDITOR_EXE%" /compile:"%SOURCE_FILE%" /log:"%LOG_FILE%" "/inc:%INC_DIR%"
 ) else (
     "%EDITOR_EXE%" /compile:"%SOURCE_FILE%" /log:"%LOG_FILE%"
 )
 
-REM Tunggu beberapa detik agar compiler selesai menulis file
-timeout /t 3 /nobreak >nul 2>&1
+REM Tunggu compiler selesai menulis hasil log (maksimal 10 detik)
+set /a WAIT_COUNT=0
+:WAIT_COMPILE_LOOP
+if exist "%LOG_FILE%" (
+    findstr /i "Result:" "%LOG_FILE%" >nul 2>&1
+    if not errorlevel 1 goto :AFTER_COMPILE
+)
+timeout /t 1 /nobreak >nul 2>&1
+set /a WAIT_COUNT+=1
+if !WAIT_COUNT! lss 10 goto :WAIT_COMPILE_LOOP
+
+:AFTER_COMPILE
 
 echo.
 echo ============================================================
