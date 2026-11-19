@@ -50,8 +50,19 @@ for /d %%P in ("C:\Program Files\MetaTrader 5*" "C:\Program Files (x86)\MetaTrad
 )
 
 echo ============================================================
-echo ✅ SELESAI! Sebanyak %COUNT% instance MT5 kini memakai 1 folder yang sama.
-echo Cukup compile 1 kali di MetaEditor, semua MT5 otomatis terupdate!
-echo Di setiap MT5: Klik kanan 'Experts' -^> 'Refresh' di Navigator.
+echo ✅ SELESAI! Sebanyak %COUNT% instance MT5 kini memakai 1 subfolder LLMTradingV2 yang sama.
+echo.
+echo 💡 PANDUAN REFRESH PASCA-COMPILE DI METAEDITOR:
+echo 1. Anda cukup tekan F7 (Compile) 1 kali di MetaEditor.
+echo 2. File binary LLMTradingBridge.ex5 otomatis ter-update untuk semua terminal.
+echo 3. Karena MT5 me-load EA ke memori RAM saat berjalan:
+echo    - Di terminal MT5 yang tidak otomatis reload:
+echo      Cukup ganti timeframe chart (misal: M1 -> M5 -> M1),
+echo      ATAU klik kanan chart -> Expert Advisors -> Properties -> OK,
+echo      ATAU klik kanan Navigator 'Experts' -> Refresh.
+echo 4. PERIKSA POJOK KIRI ATAS CHART:
+echo    Lihat baris '🔨 Unique Build ID' (tanggal dan jam compile).
+echo    Jika jam compile di semua terminal sudah sama, artinya seluruh
+echo    terminal sudah 100%% menjalankan versi terbaru yang identik!
 echo ============================================================
 pause
