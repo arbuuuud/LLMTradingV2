@@ -24,7 +24,26 @@ if not "%~1"=="" (
     )
 )
 
-REM 2. Cari otomatis via origin.txt pada semua instance MetaQuotes Terminal
+REM 2. Cari dari proses MT5 (terminal64.exe) yang SEDANG BERJALAN di RAM!
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "Get-Process -Name '*terminal*' -ErrorAction SilentlyContinue | ForEach-Object { $_.Path } | Select-Object -Unique"`) do (
+    if exist "%%~dpPmetaeditor64.exe" (
+        set "EDITOR_EXE=%%~dpPmetaeditor64.exe"
+        echo [OK] Ditemukan dari proses MT5 yang aktif: "!EDITOR_EXE!"
+        goto :FOUND_EDITOR
+    )
+    if exist "%%~dpPMetaEditor64.exe" (
+        set "EDITOR_EXE=%%~dpPMetaEditor64.exe"
+        echo [OK] Ditemukan dari proses MT5 yang aktif: "!EDITOR_EXE!"
+        goto :FOUND_EDITOR
+    )
+    if exist "%%~dpPmetaeditor.exe" (
+        set "EDITOR_EXE=%%~dpPmetaeditor.exe"
+        echo [OK] Ditemukan dari proses MT5 yang aktif: "!EDITOR_EXE!"
+        goto :FOUND_EDITOR
+    )
+)
+
+REM 3. Cari otomatis via origin.txt pada semua instance MetaQuotes Terminal
 set "TERMINAL_ROOT=%APPDATA%\MetaQuotes\Terminal"
 if exist "%TERMINAL_ROOT%" (
     for /d %%D in ("%TERMINAL_ROOT%\*") do (
@@ -116,6 +135,14 @@ for /f "delims=" %%I in ('where metaeditor64.exe 2^>nul') do (
 for /f "delims=" %%I in ('where metaeditor.exe 2^>nul') do (
     if exist "%%~fI" (
         set "EDITOR_EXE=%%~fI"
+        goto :FOUND_EDITOR
+    )
+)
+
+REM 7. Quick search via PowerShell di folder Program Files & Users
+for /f "usebackq delims=" %%F in (`powershell -NoProfile -Command "Get-ChildItem -Path 'C:\Program Files*', 'C:\Users', 'C:\' -Filter 'metaeditor*.exe' -Recurse -Depth 4 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1"`) do (
+    if exist "%%F" (
+        set "EDITOR_EXE=%%F"
         goto :FOUND_EDITOR
     )
 )
