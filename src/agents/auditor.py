@@ -148,3 +148,75 @@ class AuditorAgent:
         )
 
         return report
+
+    def audit_benchmark_milestone(
+        self,
+        candidate_metrics: Dict[str, Any],
+        baseline_metrics: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Audits a new strategy candidate against the institutional baseline (DEC-043).
+        Checks improvement across the Golden Triangle KPIs:
+        1. Weekly 5% Target Hit Rate (primary consistency engine)
+        2. Daily 1% Target Hit Rate (daily compounding velocity)
+        3. Max Drawdown & Daily Loss Breach (capital preservation)
+        """
+        if baseline_metrics is None:
+            from src.analytics.benchmark_matrix import DEFAULT_BASELINE
+            baseline_metrics = DEFAULT_BASELINE
+
+        cand_pnl = float(candidate_metrics.get("net_pnl", 0.0))
+        base_pnl = float(baseline_metrics.get("net_pnl", 1.0))
+        delta_pnl = cand_pnl - base_pnl
+
+        cand_dd = float(candidate_metrics.get("max_drawdown_pct", 0.0))
+        base_dd = float(baseline_metrics.get("max_drawdown_pct", 0.0))
+        delta_dd = cand_dd - base_dd
+
+        cand_daily = float(candidate_metrics.get("daily_1pct_target_hit_rate", 0.0))
+        base_daily = float(baseline_metrics.get("daily_1pct_target_hit_rate", 0.0))
+        delta_daily = cand_daily - base_daily
+
+        cand_weekly = float(candidate_metrics.get("weekly_5pct_target_hit_rate", 0.0))
+        base_weekly = float(baseline_metrics.get("weekly_5pct_target_hit_rate", 0.0))
+        delta_weekly = cand_weekly - base_weekly
+
+        cand_breach = float(candidate_metrics.get("daily_loss_breach_rate", 0.0))
+        base_breach = float(baseline_metrics.get("daily_loss_breach_rate", 0.0))
+        delta_breach = cand_breach - base_breach
+
+        passes_weekly = cand_weekly >= base_weekly
+        passes_dd = cand_dd <= (base_dd * 1.10) # Max 10% allowance if profit jumps significantly
+        passes_pnl = cand_pnl >= base_pnl
+
+        is_approved = passes_weekly and passes_dd and passes_pnl
+
+        # Quant Composite Score
+        score = (
+            (cand_weekly * 2.0) +
+            (cand_daily * 1.5) +
+            (candidate_metrics.get("profit_factor", 1.0) * 20.0) -
+            (cand_dd * 3.0) -
+            (cand_breach * 4.0)
+        )
+
+        return {
+            "is_approved_upgrade": is_approved,
+            "quant_score": round(score, 2),
+            "weekly_5pct_improved": passes_weekly,
+            "drawdown_contained": passes_dd,
+            "profit_improved": passes_pnl,
+            "deltas": {
+                "net_pnl": round(delta_pnl, 2),
+                "max_drawdown_pct": round(delta_dd, 2),
+                "daily_1pct_rate": round(delta_daily, 1),
+                "weekly_5pct_rate": round(delta_weekly, 1),
+                "daily_loss_breach_rate": round(delta_breach, 1)
+            },
+            "recommendation": (
+                "PROMOTE TO CHAMPION MILESTONE: Superior weekly consistency and tighter drawdown."
+                if is_approved else
+                "REVISE CANDIDATE: Does not beat baseline across weekly/drawdown hurdles."
+            )
+        }
+

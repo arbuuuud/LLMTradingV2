@@ -306,10 +306,10 @@ def test_pending_order_handover_upgrades_lower_tf_and_is_not_blocked():
 
 
 def test_excess_pending_orders_auto_reconciliation():
-    """Verify Auto-Reconciliation: If account accumulates > 3 pending orders (e.g. from cold-start restart), excess is purged."""
+    """Verify Auto-Reconciliation: If account accumulates > 4 pending orders (DEC-043: 4-layer quota), excess is purged."""
     acc_num = "115745645"
 
-    # Simulate anomaly in production: 5 pending orders (2 stale from old setup + 3 from new setup)
+    # Simulate anomaly in production: 5 pending orders (e.g. from cold-start restart or duplicate grid)
     acc_pending = [
         {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474483412, "price": 3746.51},
         {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474483456, "price": 3751.39},
@@ -318,8 +318,51 @@ def test_excess_pending_orders_auto_reconciliation():
         {"account_number": acc_num, "type": "SELL_LIMIT", "ticket": 11474781795, "price": 3750.77},
     ]
 
-    # Reconciliation trigger
-    should_reconcile = len(acc_pending) > 3
-    assert should_reconcile is True, "Bridge must detect when pending orders exceed the max 3-layer quota"
+    # Reconciliation trigger (DEC-043: cap is 4)
+    should_reconcile = len(acc_pending) > 4
+    assert should_reconcile is True, "Bridge must detect when pending orders exceed the max 4-layer quota"
+
+
+def test_smart_judas_fortress_sl_and_4_layer_grid():
+    """Verify DEC-043: 4-Layer Judas Grid & Smart Judas Fortress Stop Loss anchoring."""
+    sw_low = 3700.0
+    sw_high = 3720.0
+    span = sw_high - sw_low # 20.0 pts
+
+    # 1. 4-Layer BUY Grid Verification
+    buy_zone_top = round(sw_low + (span * 0.25), 2)
+    buy_levels = [
+        round(buy_zone_top, 2),                  # L1: 25% = 3705.00
+        round(sw_low + (span * 0.125), 2),       # L2: 12.5% = 3702.50
+        round(sw_low, 2),                         # L3: 0% = 3700.00
+        round(sw_low - (span * 0.272), 2)        # L4: -27.2% = 3694.56 (Judas Catch)
+    ]
+    assert len(buy_levels) == 4
+    assert buy_levels[0] == 3705.0
+    assert buy_levels[2] == 3700.0
+    assert buy_levels[3] == 3694.56
+
+    # 2. 4-Layer SELL Grid Verification
+    sell_zone_bottom = round(sw_low + (span * 0.75), 2)
+    sell_levels = [
+        round(sell_zone_bottom, 2),              # L1: 75% = 3715.00
+        round(sw_low + (span * 0.875), 2),       # L2: 87.5% = 3717.50
+        round(sw_high, 2),                        # L3: 100% = 3720.00
+        round(sw_high + (span * 0.272), 2)       # L4: +27.2% = 3725.44 (Judas Catch)
+    ]
+    assert len(sell_levels) == 4
+    assert sell_levels[0] == 3715.0
+    assert sell_levels[2] == 3720.0
+    assert sell_levels[3] == 3725.44
+
+    # 3. Smart Judas Fortress SL: OB Fallback to Fibo -13%
+    fibo_sl_buy = round(sw_low - (span * 0.130) - 0.25, 2)
+    assert fibo_sl_buy == round(3700.0 - 2.60 - 0.25, 2) # 3697.15
+
+    # If OB bottom at 3695.00 is within 0.5x span (10 pts from 3700)
+    ob_bot = 3695.00
+    ob_sl_buy = round(ob_bot - 0.25, 2)
+    assert ob_sl_buy == 3694.75
+
 
 

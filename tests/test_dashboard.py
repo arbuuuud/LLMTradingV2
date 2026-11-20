@@ -61,6 +61,16 @@ def test_dashboard_api(tmp_path):
             ledger_data = json.loads(resp_led.read().decode("utf-8"))
             assert "summary" in ledger_data
             assert "accounts" in ledger_data
+
+        # 5. Test GET /api/benchmark-matrix (DEC-043)
+        req_matrix = urllib.request.Request(f"http://127.0.0.1:{port}/api/benchmark-matrix")
+        with urllib.request.urlopen(req_matrix) as resp_mat:
+            assert resp_mat.status == 200
+            matrix_data = json.loads(resp_mat.read().decode("utf-8"))
+            assert "baseline" in matrix_data
+            assert "candidate" in matrix_data
+            assert "rows" in matrix_data
+            assert "all_milestones" in matrix_data
     finally:
         server.shutdown()
         server.server_close()

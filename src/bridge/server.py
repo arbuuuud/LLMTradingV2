@@ -163,6 +163,9 @@ class LiveMT5BridgeCore:
         # tf -> {"spent_layers": set(), "roof": float, "floor": float, "direction": str}
         self.tf_depletion: Dict[str, Dict[str, Any]] = {}
 
+        # Pending Order Birth Times (DEC-043: Order TTL Auto-Purge 30m)
+        self.pending_order_birth_times: Dict[str, float] = {}
+
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
 
@@ -837,53 +840,6 @@ class LiveMT5BridgeCore:
             in_discount = mid <= buy_zone_top
             in_premium = mid >= sell_zone_bottom
 
-            # Calculate Untouched / Fresh Depth Boundary for Visual Chart (>50% Penetration)
-            # An area is untouched if current/recent bar wicks haven't consumed that depth
-            untouched_buy_top = round(sw_low + (total_range * 0.125), 2)  # >50% depth of discount (0-12.5%)
-            untouched_sell_bottom = round(sw_low + (total_range * 0.875), 2)  # >50% depth of premium (87.5-100%)
-
-            # 3-Layer Grid Target Levels for this TF
-            buy_grid_levels = [
-                round(buy_zone_top, 2),                  # L1: 25% Lantai Atas Buy
-                round(sw_low + (total_range * 0.125), 2),# L2: 12.5% Kedalaman Murni
-                round(sw_low, 2)                         # L3: 0% Dasar Lantai
-            ]
-            sell_grid_levels = [
-                round(sell_zone_bottom, 2),              # L1: 75% Lantai Bawah Sell
-                round(sw_low + (total_range * 0.875), 2),# L2: 87.5% Kedalaman Murni
-                round(sw_high, 2)                        # L3: 100% Pucuk Atap
-            ]
-
-            # Dynamic ATR / Range SL Buffer (Subtask 5-3G / DEC-029 Champion: CLONE-HTF-BUFFER-0.25x)
-            # Menambahkan bantalan 0.25x span di luar level swing untuk memproteksi posisi dari wick hunts (seperti $4295)
-            # Hasil Kage Bunshin 300.440 bar: PF melonjak ke 136.17 dan Max DD terpangkas dari 2.70% ke 2.10%
-            sl_buffer = max(0.50, round(total_range * 0.0375, 2)) # 0.25x dari 15% range = ~0.0375 span, min 0.50pt buffer
-
-            if in_discount:
-                dir_label = "BUY"
-                status_label = "IN_BUY_ZONE"
-                quad_label = "0% - 25% (Buy Discount)"
-                hard_sl = round(sw_low - 2.5 - sl_buffer, 2)
-                soft_sl = round(sw_low - 0.5, 2)
-                is_active = True
-                score = 9.2
-            elif in_premium:
-                dir_label = "SELL"
-                status_label = "IN_SELL_ZONE"
-                quad_label = "75% - 100% (Sell Premium)"
-                hard_sl = round(sw_high + 2.5 + sl_buffer, 2)
-                soft_sl = round(sw_high + 0.5, 2)
-                is_active = True
-                score = 9.0
-            else:
-                dir_label = "NEUTRAL"
-                status_label = "EQUILIBRIUM_WAIT"
-                quad_label = "40% - 60% (Equilibrium)"
-                hard_sl = 0.0
-                soft_sl = 0.0
-                is_active = False
-                score = 5.4
-
             # Format candles with PAC bands for this TF
             tf_bar_list = []
             for idx, b in enumerate(aggregated):
@@ -933,27 +889,72 @@ class LiveMT5BridgeCore:
                 buy_zone_top = selected_floor.top
                 buy_zone_bottom = selected_floor.bottom
 
-            # Re-calculate SL boundaries & Grid levels if RBR/DBD modified sw_high or sw_low (DEC-032 / DEC-036)
-            if roof_is_dbd or floor_is_rbr:
-                total_range = max(1.0, sw_high - sw_low)
-                equilibrium = round((sw_high + sw_low) / 2.0, 2)
-                sl_buffer = max(0.50, round(total_range * 0.0375, 2))
-                if in_discount or dir_label == "BUY":
-                    hard_sl = round(sw_low - 2.5 - sl_buffer, 2)
-                    soft_sl = round(sw_low - 0.5, 2)
-                elif in_premium or dir_label == "SELL":
-                    hard_sl = round(sw_high + 2.5 + sl_buffer, 2)
-                    soft_sl = round(sw_high + 0.5, 2)
-                buy_grid_levels = [
-                    round(buy_zone_top, 2),
-                    round(sw_low + (total_range * 0.125), 2),
-                    round(sw_low, 2)
-                ]
-                sell_grid_levels = [
-                    round(sell_zone_bottom, 2),
-                    round(sw_low + (total_range * 0.875), 2),
-                    round(sw_high, 2)
-                ]
+            total_range = max(1.0, sw_high - sw_low)
+            equilibrium = round((sw_high + sw_low) / 2.0, 2)
+
+            # Institutional PAC Quadrants
+            buy_zone_top = round(sw_low + (total_range * 0.25), 2)
+            buy_zone_bottom = sw_low
+            sell_zone_bottom = round(sw_low + (total_range * 0.75), 2)
+            sell_zone_top = sw_high
+
+            in_discount = mid <= buy_zone_top
+            in_premium = mid >= sell_zone_bottom
+
+            # Calculate Untouched / Fresh Depth Boundary for Visual Chart (>50% Penetration)
+            untouched_buy_top = round(sw_low + (total_range * 0.125), 2)
+            untouched_sell_bottom = round(sw_low + (total_range * 0.875), 2)
+
+            # 4-Layer Judas Grid Target Levels for this TF (DEC-043 Champion: Judas Catch at -27.2%)
+            buy_grid_levels = [
+                round(buy_zone_top, 2),                   # L1: 25% Lantai Atas Buy
+                round(sw_low + (total_range * 0.125), 2), # L2: 12.5% Kedalaman Murni
+                round(sw_low, 2),                          # L3: 0% Dasar Lantai
+                round(sw_low - (total_range * 0.272), 2)  # L4: -27.2% Judas Catch
+            ]
+            sell_grid_levels = [
+                round(sell_zone_bottom, 2),               # L1: 75% Lantai Bawah Sell
+                round(sw_low + (total_range * 0.875), 2), # L2: 87.5% Kedalaman Murni
+                round(sw_high, 2),                         # L3: 100% Pucuk Atap
+                round(sw_high + (total_range * 0.272), 2) # L4: +27.2% Judas Catch
+            ]
+
+            # Smart Judas Fortress SL (DEC-043: Hierarki OR_1 Unmitigated OB -> Fibo Judas -13%)
+            valid_bull_ob = [ob for ob in active_obs if ob.ob_type in ("DBR", "RBR") and ob.bottom < sw_low and (sw_low - ob.bottom) <= (0.50 * total_range)]
+            valid_bear_ob = [ob for ob in active_obs if ob.ob_type in ("RBD", "DBD") and ob.top > sw_high and (ob.top - sw_high) <= (0.50 * total_range)]
+
+            if in_discount:
+                dir_label = "BUY"
+                status_label = "IN_BUY_ZONE"
+                quad_label = "0% - 25% (Buy Discount)"
+                if valid_bull_ob:
+                    ob_bot = max(ob.bottom for ob in valid_bull_ob)
+                    hard_sl = round(ob_bot - 0.25, 2)
+                else:
+                    hard_sl = round(sw_low - (total_range * 0.130) - 0.25, 2)
+                soft_sl = round(sw_low - 0.5, 2)
+                is_active = True
+                score = 9.2
+            elif in_premium:
+                dir_label = "SELL"
+                status_label = "IN_SELL_ZONE"
+                quad_label = "75% - 100% (Sell Premium)"
+                if valid_bear_ob:
+                    ob_top = min(ob.top for ob in valid_bear_ob)
+                    hard_sl = round(ob_top + 0.25, 2)
+                else:
+                    hard_sl = round(sw_high + (total_range * 0.130) + 0.25, 2)
+                soft_sl = round(sw_high + 0.5, 2)
+                is_active = True
+                score = 9.0
+            else:
+                dir_label = "NEUTRAL"
+                status_label = "EQUILIBRIUM_WAIT"
+                quad_label = "40% - 60% (Equilibrium)"
+                hard_sl = 0.0
+                soft_sl = 0.0
+                is_active = False
+                score = 5.4
 
             # Find specific anchor/base candles for Roof (Swing High) and Floor (Swing Low)
             roof_idx = max(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["high"]) if lookback_sw else None
@@ -1015,7 +1016,7 @@ class LiveMT5BridgeCore:
                         f"{'★ PRIORITIZED DBD SUPPLY BASE' if roof_is_dbd else 'Liquidity Sweep Peak'} at ${sw_high:.2f} ({roof_time_str})",
                         f"Touch Lifecycle: {'✨ 100% VIRGIN BASE (Untouched)' if selected_roof.is_virgin else f'Retested ({selected_roof.touch_count} touches)'}",
                         f"Consolidated Zone: ${sell_zone_bottom:.2f} - ${sw_high:.2f}",
-                        f"3-Layer Sell Grid: L1=${sell_grid_levels[0]:.2f}, L2=${sell_grid_levels[1]:.2f}, L3=${sell_grid_levels[2]:.2f}",
+                        f"4-Layer Sell Grid: L1=${sell_grid_levels[0]:.2f}, L2=${sell_grid_levels[1]:.2f}, L3=${sell_grid_levels[2]:.2f}, L4=${sell_grid_levels[3]:.2f}",
                         f"Virgin Depth >50% Untouched above ${untouched_sell_bottom:.2f}"
                     ]
                 },
@@ -1036,7 +1037,7 @@ class LiveMT5BridgeCore:
                         f"{'★ PRIORITIZED RBR DEMAND BASE' if floor_is_rbr else 'Demand Absorption Low'} at ${sw_low:.2f} ({floor_time_str})",
                         f"Touch Lifecycle: {'✨ 100% VIRGIN BASE (Untouched)' if selected_floor.is_virgin else f'Retested ({selected_floor.touch_count} touches)'}",
                         f"Consolidated Zone: ${sw_low:.2f} - ${buy_zone_top:.2f}",
-                        f"3-Layer Buy Grid: L1=${buy_grid_levels[0]:.2f}, L2=${buy_grid_levels[1]:.2f}, L3=${buy_grid_levels[2]:.2f}",
+                        f"4-Layer Buy Grid: L1=${buy_grid_levels[0]:.2f}, L2=${buy_grid_levels[1]:.2f}, L3=${buy_grid_levels[2]:.2f}, L4=${buy_grid_levels[3]:.2f}",
                         f"Virgin Depth >50% Untouched below ${untouched_buy_top:.2f}"
                     ]
                 }
@@ -1245,9 +1246,48 @@ class LiveMT5BridgeCore:
 
             if target_accounts:
                 dispatched_orders_summary = []
-                pyramid_weights = [0.25, 0.35, 0.40]
+                pyramid_weights = [0.15, 0.25, 0.30, 0.30]
                 spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
                 d1_bias = getattr(self, "d1_trend", "NEUTRAL")
+
+                # DEC-043 Reflex Active Guard: Velocity Gate & Volatility Ratio
+                is_freight_train = False
+                is_volatile_spike = False
+                current_atr14 = 0.50
+                last_bar_range = 0.0
+
+                if len(self.history_m1) >= 15:
+                    recent_tr = [
+                        max(
+                            self.history_m1[k]["high"] - self.history_m1[k]["low"],
+                            abs(self.history_m1[k]["high"] - self.history_m1[k-1]["close"]),
+                            abs(self.history_m1[k]["low"] - self.history_m1[k-1]["close"])
+                        )
+                        for k in range(len(self.history_m1) - 14, len(self.history_m1))
+                    ]
+                    current_atr14 = float(np.mean(recent_tr)) if recent_tr else 0.50
+                    last_bar_range = abs(self.history_m1[-1]["high"] - self.history_m1[-1]["low"])
+                    if last_bar_range > (1.80 * current_atr14):
+                        is_freight_train = True
+
+                if len(self.history_m1) >= 100:
+                    long_tr = [
+                        max(
+                            self.history_m1[k]["high"] - self.history_m1[k]["low"],
+                            abs(self.history_m1[k]["high"] - self.history_m1[k-1]["close"]),
+                            abs(self.history_m1[k]["low"] - self.history_m1[k-1]["close"])
+                        )
+                        for k in range(len(self.history_m1) - 100, len(self.history_m1))
+                    ]
+                    base_atr100 = float(np.mean(long_tr)) if long_tr else current_atr14
+                    if (current_atr14 / max(base_atr100, 0.20)) >= 1.30:
+                        is_volatile_spike = True
+
+                if is_freight_train:
+                    if not hasattr(self, "_last_train_warn") or (now_time - getattr(self, "_last_train_warn", 0) > 60.0):
+                        self._last_train_warn = now_time
+                        logger.warning(f"⚡ [ANTI-FREIGHT-TRAIN GATE] Suppressing limit order dispatch! Recent bar range ${last_bar_range:.2f} > 1.8x ATR14 (${current_atr14:.2f}). Standing clear of runaway news/breakout!")
+                    return
 
                 for acc_k, acc_info in target_accounts.items():
                     acc_num = acc_info["account_number"]
@@ -1340,10 +1380,10 @@ class LiveMT5BridgeCore:
                     acc_pending = [o for o in self.live_pending_orders if str(o.get("account_number")) == acc_num]
                     acc_open = [p for p in self.live_open_positions if str(p.get("account_number")) == acc_num]
 
-                    # 1. Auto-Reconciliation: If account somehow accumulated excess pending orders (> 3),
+                    # 1. Auto-Reconciliation: If account somehow accumulated excess pending orders (> 4),
                     # purge outdated ones to prevent over-exposure
-                    if len(acc_pending) > 3:
-                        logger.warning(f"⚠️ [ORDER RECONCILIATION] Account #{acc_num} has {len(acc_pending)} pending orders (max 3). Purging excess stale pending orders.")
+                    if len(acc_pending) > 4:
+                        logger.warning(f"⚠️ [ORDER RECONCILIATION] Account #{acc_num} has {len(acc_pending)} pending orders (max 4). Purging excess stale pending orders.")
                         asyncio.create_task(self.broadcast({
                             "action": "CANCEL_PENDING",
                             "symbol": "XAUUSD",
@@ -1352,6 +1392,21 @@ class LiveMT5BridgeCore:
                         }))
                         self.accounts_pending_orders[acc_num] = []
                         continue
+
+                    # 1B. Pending Order Lifespan (TTL 30m Auto-Purge DEC-043)
+                    for o in list(acc_pending):
+                        t_key = f"{acc_num}_{o.get('ticket')}"
+                        b_time = self.pending_order_birth_times.setdefault(t_key, now_time)
+                        if (now_time - b_time) > 1800.0:
+                            logger.info(f"⌛ [ORDER TTL EXPIRED] Canceling stale pending order #{o.get('ticket')} on #{acc_num} (> 30m idle).")
+                            asyncio.create_task(self.broadcast({
+                                "action": "CANCEL_PENDING",
+                                "symbol": "XAUUSD",
+                                "account_number": acc_num,
+                                "magic": 1001
+                            }))
+                            self.pending_order_birth_times.pop(t_key, None)
+                            break
 
                     # 2. In-Flight Order Throttle: Min 5.0s between new LIMIT order batches for this specific account
                     # (Prevents duplicate order dispatch during MT5 network round-trip; zero effect on Sasuke trailing)
@@ -1396,6 +1451,11 @@ class LiveMT5BridgeCore:
 
                         if is_counter:
                             # Objective-Aware Adaptive Unlock (HYBRID_4 Champion: Opsi A OR Opsi B)
+                            # 0. Volatility Stand-Aside (DEC-043: Stand clear during volatility expansion)
+                            if is_volatile_spike:
+                                logger.info(f"🛡️ [VOLATILITY STAND-ASIDE] Counter-trend suppressed for #{acc_num} due to high volatility expansion (ATR ratio >= 1.30).")
+                                continue
+
                             # 1. Check Daily Goal / Protective Cut
                             daily_pnl_pct = (daily_pnl / max(100.0, acc_daily["daily_start_equity"])) * 100.0
                             if daily_pnl_pct >= 1.0 or daily_pnl_pct <= -0.5:
@@ -1479,7 +1539,7 @@ class LiveMT5BridgeCore:
                             dep_info["direction"] = c_dir
                             logger.info(f"🔄 [{scan_tf} NEW STRUCTURE] Reset micro-depletion! New Zone: ${cand_setup['swing_low']:.2f} - ${cand_setup['swing_high']:.2f}")
 
-                        if len(dep_info["spent_layers"]) >= 3:
+                        if len(dep_info["spent_layers"]) >= 4:
                             continue
 
                         chosen_setup = cand_setup
@@ -1529,16 +1589,17 @@ class LiveMT5BridgeCore:
                             }))
                             acc_matching_pending = []
 
-                    # If account already has 3 pending orders matching current TF/direction, skip
-                    if len(acc_matching_pending) >= 3:
+                    # If account already has 4 pending orders matching current TF/direction, skip
+                    if len(acc_matching_pending) >= 4:
                         continue
 
-                    # Pure Geometric S&D Levels
+                    # Pure Geometric S&D Levels (DEC-043 4-Layer Judas Grid)
                     if dir_cmd == "BUY":
                         raw_levels = [
                             round(sw_low + span * 0.25, 2),  # L1: 25% Bibir
                             round(sw_low + span * 0.125, 2), # L2: 12.5% Tengah
-                            round(sw_low, 2)                 # L3: 0% Dasar
+                            round(sw_low, 2),                 # L3: 0% Dasar
+                            round(sw_low - (span * 0.272), 2) # L4: -27.2% Judas Catch
                         ]
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl - spread_val, 2)
@@ -1557,7 +1618,8 @@ class LiveMT5BridgeCore:
                         raw_levels = [
                             round(sw_low + span * 0.75, 2),  # L1: 75% Bibir
                             round(sw_low + span * 0.875, 2), # L2: 87.5% Tengah
-                            round(sw_high, 2)                # L3: 100% Pucuk
+                            round(sw_high, 2),                # L3: 100% Pucuk
+                            round(sw_high + (span * 0.272), 2) # L4: +27.2% Judas Catch
                         ]
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl + spread_val, 2)
@@ -1590,7 +1652,7 @@ class LiveMT5BridgeCore:
                         if any(abs(limit_p - ep) <= 1.50 for ep in existing_p_prices):
                             continue # Proximity collision prevented
 
-                        if len(acc_matching_pending) + len(valid_layers) >= 3:
+                        if len(acc_matching_pending) + len(valid_layers) >= 4:
                             break
 
                         valid_layers.append((lay_i, limit_p))
@@ -1605,7 +1667,7 @@ class LiveMT5BridgeCore:
                     effective_risk_pct = acc_risk_tot * (0.50 if cand_is_counter else 1.0)
 
                     for lay_idx, limit_p in valid_layers:
-                        layer_weight = pyramid_weights[lay_idx] if lay_idx < len(pyramid_weights) else 0.33
+                        layer_weight = pyramid_weights[lay_idx] if lay_idx < len(pyramid_weights) else 0.25
                         risk_per_layer = effective_risk_pct * layer_weight
 
                         sl_dist = max(1.0, abs(limit_p - sl))

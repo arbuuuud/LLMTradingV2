@@ -1537,6 +1537,64 @@
           </table>
         </div>
       </div>
+
+      <!-- ========================================================================= -->
+      <!-- TABEL 3: BENCHMARK EVOLUTION & BEFORE VS AFTER MATRIX (DEC-043) -->
+      <!-- ========================================================================= -->
+      <div class="glass-card rounded-2xl border border-indigo-500/30 overflow-hidden space-y-4 p-5 bg-gradient-to-b from-slate-900/90 to-slate-950/90 shadow-2xl">
+        <div class="flex items-center justify-between flex-wrap gap-3 border-b border-slate-800 pb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 uppercase">
+                <i class="fa-solid fa-code-compare mr-1"></i> STRATEGY EVOLUTION LEDGER
+              </span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                DEC-043 BENCHMARK MATRIX
+              </span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-1 flex items-center gap-2">
+              📊 Komparasi Head-to-Head: Before vs After & Target Rate Evolution
+            </h3>
+            <p class="text-xs text-slate-400">
+              Evaluasi empiris komparatif pada dataset 300,440 M1 XAUUSD bars (Starting Equity $10,000) untuk memantau kenaikan target harian 1% & mingguan 5%.
+            </p>
+          </div>
+          <!-- Milestone Selector -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 font-mono"><i class="fa-solid fa-layer-group text-indigo-400 mr-1"></i> Milestone:</span>
+            <select id="benchmark-milestone-filter" onchange="fetchBenchmarkMatrix(this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-xl px-3 py-2 text-white font-mono focus:border-indigo-500 focus:outline-none">
+              <option value="">Latest Champion Milestone</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Before vs After Comparison Table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 font-mono uppercase bg-slate-950/80">
+                <th class="p-3 w-1/4">Parameter / Metrik Finansial</th>
+                <th class="p-3 text-center w-1/4 text-slate-300 bg-slate-900/50">BEFORE (Baseline Produksi)</th>
+                <th class="p-3 text-center w-1/4 text-emerald-400 bg-emerald-950/20 border-x border-emerald-500/20">AFTER (Smart Judas Fortress)</th>
+                <th class="p-3 text-left w-1/4">Peningkatan / Delta</th>
+              </tr>
+            </thead>
+            <tbody id="benchmark-matrix-tbody" class="divide-y divide-slate-800/60 font-sans">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Milestone Evolution Timeline Strip -->
+        <div class="pt-2">
+          <div class="text-[11px] font-mono text-slate-400 mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-timeline text-indigo-400"></i> RIWAYAT MILESTONE STRATEGI & TARGET HIT RATE EVOLUTION:
+          </div>
+          <div id="benchmark-milestones-timeline" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -2231,7 +2289,10 @@
       if (tabId === 'accounts') fetchAccountsData();
       if (tabId === 'forward') fetchForwardData();
       if (tabId === 'roadmap') fetchRoadmapData();
-      if (tabId === 'ledger') fetchPerformanceLedger();
+      if (tabId === 'ledger') {
+        fetchPerformanceLedger();
+        fetchBenchmarkMatrix();
+      }
     }
 
     // Forward Telemetry State
@@ -3542,6 +3603,98 @@
       }
     }
 
+    // ==========================================
+    // BENCHMARK EVOLUTION & BEFORE VS AFTER (DEC-043)
+    // ==========================================
+    async function fetchBenchmarkMatrix(milestoneId = '') {
+      const tbody = document.getElementById('benchmark-matrix-tbody');
+      const timelineContainer = document.getElementById('benchmark-milestones-timeline');
+      const selector = document.getElementById('benchmark-milestone-filter');
+      if (!tbody) return;
+
+      try {
+        const url = milestoneId ? `/api/benchmark-matrix?milestone=${encodeURIComponent(milestoneId)}` : '/api/benchmark-matrix';
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // Populate milestone selector if not populated
+        if (selector && selector.options.length <= 1) {
+          selector.innerHTML = '';
+          (data.all_milestones || []).forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.milestone_id;
+            opt.innerText = `${m.milestone_id} - ${m.name}`;
+            if (m.milestone_id === data.candidate.milestone_id) opt.selected = true;
+            selector.appendChild(opt);
+          });
+        }
+
+        // Render Head-to-Head Table Rows
+        tbody.innerHTML = '';
+        (data.rows || []).forEach(r => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/30 transition';
+
+          let deltaColor = 'text-slate-400';
+          let statusBadge = '';
+          if (r.status === 'IMPROVED') {
+            deltaColor = 'text-emerald-400 font-bold';
+            statusBadge = '<span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 font-mono ml-2">▲ LEBIH UNGGUL</span>';
+          } else if (r.status === 'REGRESSED') {
+            deltaColor = 'text-rose-400 font-bold';
+            statusBadge = '<span class="px-1.5 py-0.5 rounded text-[9px] bg-rose-500/20 text-rose-300 font-mono ml-2">▼ DEGRADASI</span>';
+          }
+
+          tr.innerHTML = `
+            <td class="p-3 font-semibold text-slate-200">${r.metric}</td>
+            <td class="p-3 text-center font-mono font-bold text-slate-300 bg-slate-900/30">${r.before}</td>
+            <td class="p-3 text-center font-mono font-bold text-emerald-400 bg-emerald-950/10 border-x border-emerald-500/20">${r.after}</td>
+            <td class="p-3 text-xs ${deltaColor}">${r.delta} ${statusBadge}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // Render Milestones Timeline Cards
+        if (timelineContainer) {
+          timelineContainer.innerHTML = '';
+          (data.all_milestones || []).forEach(m => {
+            const isChamp = m.milestone_id === data.candidate.milestone_id;
+            const card = document.createElement('div');
+            card.className = `p-3.5 rounded-xl border ${isChamp ? 'border-emerald-500/40 bg-emerald-950/10' : 'border-slate-800 bg-slate-900/50'} space-y-2 cursor-pointer hover:border-indigo-500/40 transition`;
+            card.onclick = () => {
+              if (selector) selector.value = m.milestone_id;
+              fetchBenchmarkMatrix(m.milestone_id);
+            };
+
+            card.innerHTML = `
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded ${isChamp ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}">
+                  ${m.milestone_id}
+                </span>
+                <span class="text-[10px] text-slate-500 font-mono">${new Date(m.timestamp).toLocaleDateString()}</span>
+              </div>
+              <div class="text-xs font-bold text-white leading-tight">${m.name}</div>
+              <div class="grid grid-cols-2 gap-2 pt-1 text-[11px] font-mono">
+                <div class="p-1.5 rounded bg-slate-900 border border-slate-800">
+                  <span class="text-[9px] text-slate-500 uppercase block">Daily 1% Hit</span>
+                  <strong class="text-emerald-400 font-bold">${m.daily_1pct_target_hit_rate}%</strong>
+                </div>
+                <div class="p-1.5 rounded bg-slate-900 border border-slate-800">
+                  <span class="text-[9px] text-slate-500 uppercase block">Weekly 5% Hit</span>
+                  <strong class="text-blue-400 font-bold">${m.weekly_5pct_target_hit_rate}%</strong>
+                </div>
+              </div>
+              <p class="text-[10px] text-slate-400 line-clamp-2">${m.description || ''}</p>
+            `;
+            timelineContainer.appendChild(card);
+          });
+        }
+
+      } catch (err) {
+        console.error("Failed to load benchmark matrix:", err);
+      }
+    }
+
     // Initial Load
     fetchRadarData().then(() => fetchChartData(selectedRadarTf));
     setInterval(() => {
@@ -3549,7 +3702,10 @@
       fetchChartData(selectedRadarTf);
       if (activeTab === 'accounts') fetchAccountsData();
       if (activeTab === 'forward') fetchForwardData();
-      if (activeTab === 'ledger') fetchPerformanceLedger();
+      if (activeTab === 'ledger') {
+        fetchPerformanceLedger();
+        fetchBenchmarkMatrix();
+      }
     }, 3000); // Polling radar & active tab every 3s
   </script>
 </body>

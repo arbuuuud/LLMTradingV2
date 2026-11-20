@@ -1,0 +1,42 @@
+{
+  "dataset_bars": 300440,
+  "starting_equity": 10000.0,
+  "before": {
+    "mode": "BEFORE_BASELINE",
+    "starting_equity": 10000.0,
+    "final_equity": 45368.96,
+    "net_pnl": 35368.96,
+    "return_pct": 353.7,
+    "profit_factor": 1.4,
+    "max_drawdown_pct": 5.6,
+    "win_rate_pct": 52.0,
+    "total_trades": 14120,
+    "days_evaluated": 221,
+    "daily_1pct_target_hit_rate": 30.8,
+    "daily_loss_breach_rate": 6.3,
+    "weeks_evaluated": 45,
+    "weekly_5pct_target_hit_rate": 22.2,
+    "wick_saved_count": 0,
+    "freight_train_avoided_count": 0,
+    "stand_aside_count": 0
+  },
+  "after": {
+    "mode": "AFTER_SMART_FORTRESS",
+    "starting_equity": 10000.0,
+    "final_equity": 70801.43,
+    "net_pnl": 60801.43,
+    "return_pct": 608.0,
+    "profit_factor": 1.73,
+    "max_drawdown_pct": 3.4,
+    "win_rate_pct": 41.2,
+    "total_trades": 16504,
+    "days_evaluated": 221,
+    "daily_1pct_target_hit_rate": 30.3,
+    "daily_loss_breach_rate": 1.4,
+    "weeks_evaluated": 45,
+    "weekly_5pct_target_hit_rate": 37.8,
+    "wick_saved_count": 167,
+    "freight_train_avoided_count": 9807,
+    "stand_aside_count": 4224
+  }
+}
