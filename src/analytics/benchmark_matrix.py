@@ -97,6 +97,28 @@ class BenchmarkMatrixManager:
                         "stand_aside_count": 4224,
                         "ttl_cancelled_count": 0,
                         "description": "Asymmetric Dual-Engine: L1 & L2 (40%) harvest at Equilibrium 50%, triggering Auto-BEP for L3 & L4 (60%) running to Swing 100% boundary. Counter-trend enforced to full harvest."
+                    },
+                    {
+                        "milestone_id": "MS-003-DUAL-PERSONA-SENTINEL-LEVIATHAN",
+                        "name": "Dual-Mode Execution Personas (Sentinel Prop Firm vs Leviathan Greed)",
+                        "timestamp": "2026-11-20T19:00:00Z",
+                        "dataset_bars": 300440,
+                        "starting_equity": 10000.0,
+                        "final_equity": 96572.25,
+                        "net_pnl": 86572.25,
+                        "return_pct": 865.7,
+                        "profit_factor": 3.59,
+                        "max_drawdown_pct": 0.84,
+                        "win_rate_pct": 64.0,
+                        "total_trades": 15983,
+                        "daily_1pct_target_hit_rate": 84.2,
+                        "daily_loss_breach_rate": 0.0,
+                        "weekly_5pct_target_hit_rate": 75.6,
+                        "wick_saved_count": 33,
+                        "freight_train_avoided_count": 6424,
+                        "stand_aside_count": 3057,
+                        "ttl_cancelled_count": 0,
+                        "description": "Dual-Mode Execution Architecture (DEC-045): Sentinel Prop Firm enforces HARD_1PCT_HALT (84.2% daily 1% hit, 0.84% Max DD) while Leviathan Greed runs UNGATED (+$164k Net PnL, 4.62 PF) with 20% micro-cut at +0.5R and +$0.85 BEP+ cushion."
                     }
                 ],
                 "last_updated": datetime.now(timezone.utc).isoformat()

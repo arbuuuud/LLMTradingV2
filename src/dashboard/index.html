@@ -1646,10 +1646,10 @@
           <label class="block text-slate-400 mb-1">PAC Scalper Profile</label>
           <select id="form-risk-profile" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
             <option value="none">None (Disabled for PAC)</option>
-            <option value="prop_firm">Prop Firm (FTMO Ultra Safe - Pentet M1/M2/M3/M5/M15)</option>
-            <option value="sweet_spot" selected>Sweet Spot (Balanced Growth - Pentet M1/M2/M3/M5/M15)</option>
-            <option value="aggressive">Aggressive (High Compounding - Pentet M1/M2/M3/M5/M15)</option>
-            <option value="yolo">YOLO (Apex Scalper - Pentet M1/M2/M3/M5/M15)</option>
+            <option value="prop_firm">🛡️ Sentinel Prop Firm (FTMO Ultra Safe - Lock 1%)</option>
+            <option value="sweet_spot" selected>📈 Balanced Sweet Spot (House Money DYN ACCEL)</option>
+            <option value="aggressive">⚡ Leviathan Aggressive (High Velocity Greed)</option>
+            <option value="yolo">🚀 Apex YOLO (Max Compounding Greed)</option>
           </select>
         </div>
         <div>
@@ -2841,10 +2841,10 @@
 
         const profileOptions = [
           { val: 'none', label: '⛔ None (Standby)' },
-          { val: 'prop_firm', label: '🛡️ Prop Firm (0.25%)' },
-          { val: 'sweet_spot', label: '📈 Sweet Spot (0.50%)' },
-          { val: 'aggressive', label: '⚡ Aggressive (1.00%)' },
-          { val: 'yolo', label: '🚀 YOLO (2.00%)' }
+          { val: 'prop_firm', label: '🛡️ Sentinel Prop Firm (0.25% - Lock 1%)' },
+          { val: 'sweet_spot', label: '📈 House Money Sweet Spot (0.50%)' },
+          { val: 'aggressive', label: '⚡ Leviathan Aggressive (1.00% - Greed)' },
+          { val: 'yolo', label: '🚀 Apex YOLO (2.00% - Max Greed)' }
         ];
 
         const selectPacHtml = `

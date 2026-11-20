@@ -4,8 +4,8 @@
   "last_updated": "2026-11-20T06:25:50.568667+00:00",
   "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
-    "total_tasks": 40,
-    "completed_tasks": 37,
+    "total_tasks": 41,
+    "completed_tasks": 38,
     "in_progress_tasks": 1,
     "pending_tasks": 2
   },
@@ -342,6 +342,13 @@
           "status": "COMPLETED",
           "branch": "feat/dual-engine-asymmetric-tp-and-auto-bep",
           "notes": "Verified (scripts/run_tournament_asymmetric_runner.py & src/bridge/server.py): Evaluasi 12 Shadow Clone di 300.440 M1 bar membuktikan CLONE_08 / CLONE_02 menjuarai turnamen. Divisi Harvester (L1 & L2, bobot 40%) mengamankan target profit harian di Equilibrium 50%, memicu Auto-BEP (681 penyelamatan) untuk sisa runner L3 & L4 (bobot 60%) yang berlari ke 100% Swing Boundary. Konsistensi Weekly 5% melesat dari 35.6% ke 40.0%, R:R naik ke 1:2.22, dan Net Profit naik ke +$61,578.67 dengan Max DD terpangkas ke 2.09%."
+        },
+        {
+          "id": "T5-3P",
+          "title": "Subtask 5-3P: Dual-Mode Execution Personas (Sentinel Prop Firm vs Leviathan Greed) & Dynamic Auto-BEP+ ($0.85 Cushion at +0.5R)",
+          "status": "COMPLETED",
+          "branch": "feat/dual-mode-sentinel-and-greed-personas",
+          "notes": "Verified (scripts/run_mega_partial_tournament.py, configs/accounts.yaml & src/bridge/server.py): Mengintegrasikan Dual-Mode Execution Persona ke dalam bridge daemon dan configs/accounts.yaml: Sentinel Prop Firm menerapkan HARD_1PCT_HALT (menghentikan trading seketika target 1% harian tercapai untuk menjamin zero DD breach dan 84.2% daily 1% hit rate), sementara Leviathan Greed pada akun Aggressive/YOLO berjalan UNGATED untuk compounding maksimal (+$164k Net PnL, 4.62 PF). Keduanya didukung Auto-BEP+ buffer $0.85 di +0.5R untuk mengeliminasi whipsaw XAUUSD."
         }
       ]
     }
@@ -506,6 +513,13 @@
       "date": "2026-11-20",
       "topic": "Dual-Engine Asymmetric Take Profit (Harvester 40% + Swing 100% Whale Runner 60%) & Auto-BEP Orchestration",
       "summary": "Memecahkan dilema R:R teoritis vs konsistensi profit harian. Posisi 4 lapis dibagi menjadi dua divisi: (1) Harvester (L1 15% & L2 25%) ditutup di Equilibrium 50% untuk mengunci profit harian dan win rate. (2) Whale Runner (L3 30% & L4 30%) berlari menuju 100% Swing High/Low lawan dengan perlindungan Auto-BEP otomatis yang digerakkan saat L1-L2 kena TP atau running >= 1.0R. Khusus counter-trend (HYBRID_4), seluruh layer tetap disiplin panen cepat di 50%/38.2%. Diuji pada 300.440 M1 bar, Net PnL melompat ke +$61,578.67, Weekly 5% hit rate melonjak ke 40.0%, Max DD terpangkas ke 2.09%, dan tercatat sebagai Milestone MS-002 pada Strategy Evolution Ledger.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-045",
+      "date": "2026-11-20",
+      "topic": "Dual-Mode Execution Personas: Sentinel Prop Firm vs Leviathan Greed & Dynamic Auto-BEP+ ($0.85 Cushion at +0.5R)",
+      "summary": "Memecahkan dikotomi antara proteksi ketat batas drawdown prop firm (FTMO/MFF) dan akselerasi pertumbuhan modal tinggi pada akun agresif/YOLO. Profil prop_firm mengadopsi persona Sentinel dengan HARD_1PCT_HALT (stop total hari itu seketika target 1% tercapai, menghasilkan 84.2% daily 1% hit rate dan 0.84% Max DD), sementara profil aggressive & yolo mengadopsi persona Leviathan Greed dengan status UNGATED (membiarkan runner mengejar Fibo 161.8% atau Swing 100%, menghasilkan +$164k net PnL). Keduanya diperkuat dengan Auto-BEP+ buffer $0.85 saat running gain >= +0.5R untuk mengeliminasi whipsaw emas.",
       "status": "CONFIRMED"
     }
   ]

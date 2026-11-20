@@ -406,16 +406,20 @@ class LiveMT5BridgeCore:
             if ticket <= 0 or open_p <= 0.0:
                 continue
 
-            # Check if SL is not yet at BEP
+            # DEC-045 Grand Champion Auto-BEP+ with $0.85 anti-whipsaw cushion
+            bep_buf = 0.85
             needs_bep = False
-            if pos_dir == "BUY" and (cur_sl < open_p - 0.10):
-                needs_bep = True
-            elif pos_dir == "SELL" and (cur_sl == 0.0 or cur_sl > open_p + 0.10):
-                needs_bep = True
+            if pos_dir == "BUY":
+                target_sl = round(open_p + bep_buf, 2)
+                if cur_sl < target_sl:
+                    needs_bep = True
+            elif pos_dir == "SELL":
+                target_sl = round(open_p - bep_buf, 2)
+                if cur_sl == 0.0 or cur_sl > target_sl:
+                    needs_bep = True
 
             if needs_bep:
-                target_sl = round(open_p, 2)
-                logger.info(f"🛡️ [DEC-044 AUTO-BEP] Account #{acc_num} Position #{ticket} ({pos_dir} @ ${open_p:.2f}) SL moved to BEP (${target_sl:.2f}) - Position is now 100% RISK-FREE!")
+                logger.info(f"🛡️ [DEC-045 AUTO-BEP+] Account #{acc_num} Position #{ticket} ({pos_dir} @ ${open_p:.2f}) SL moved to BEP+ (${target_sl:.2f} with +${bep_buf:.2f} cushion) - 100% RISK-FREE!")
                 self._dispatch_async(self.send_to_account(acc_num, {
                     "action": "MODIFY_POSITION",
                     "account_number": str(acc_num),
@@ -476,28 +480,34 @@ class LiveMT5BridgeCore:
 
             spread_val = max(0.20, round(self.latest_tick.get("ask", 0) - self.latest_tick.get("bid", 0), 2)) if self.latest_tick else 0.35
 
-            # 1. DEC-044 Auto-BEP Lock (>= +1.0R Running) & Sasuke Trailing (>= +2.0R)
+            # 1. DEC-045 Grand Champion Auto-BEP+ ($0.85 Cushion at >= +0.5R Running) & Sasuke Trailing (>= +2.0R)
             pts_diff = (cur_p - entry_p) if side == "BUY" else (entry_p - cur_p)
             sl_dist = max(abs(entry_p - pos.get("sl", entry_p - 3.0)), 0.5)
             r_running = pts_diff / sl_dist
 
             target_lock_r = None
+            is_bep_cushion = False
             if r_running >= 2.5:
                 target_lock_r = 1.5
             elif r_running >= 2.0:
                 target_lock_r = 1.0
-            elif r_running >= 1.0:
-                target_lock_r = 0.0  # DEC-044 Auto-BEP Lock at Entry Price
+            elif r_running >= 0.50:
+                target_lock_r = 0.0  # DEC-045 Auto-BEP+ with $0.85 anti-whipsaw cushion
+                is_bep_cushion = True
 
             if target_lock_r is not None:
-                new_trail_sl = round(entry_p + (target_lock_r * sl_dist if side == "BUY" else -target_lock_r * sl_dist), 2)
+                if is_bep_cushion:
+                    bep_buf = 0.85
+                    new_trail_sl = round(entry_p + (bep_buf if side == "BUY" else -bep_buf), 2)
+                else:
+                    new_trail_sl = round(entry_p + (target_lock_r * sl_dist if side == "BUY" else -target_lock_r * sl_dist), 2)
                 cur_sl = float(pos.get("sl", 0.0))
                 should_update = (cur_sl == 0.0) or (side == "BUY" and new_trail_sl > cur_sl) or (side == "SELL" and new_trail_sl < cur_sl)
 
                 if should_update:
                     acc_target = str(pos.get("account_number", ""))
-                    lock_desc = f"+{target_lock_r}R Locked" if target_lock_r > 0 else "BEP Zero-Risk Locked"
-                    logger.info(f"🛡️ [DEC-044 AUTO-BEP / SASUKE] {side} #{ticket} @ ${new_trail_sl:.2f} ({lock_desc} | Running: +{r_running:.2f}R)")
+                    lock_desc = f"+{target_lock_r}R Locked" if target_lock_r > 0 else "BEP+ ($0.85 Cushion) Locked"
+                    logger.info(f"🛡️ [DEC-045 AUTO-BEP+ / SASUKE] {side} #{ticket} @ ${new_trail_sl:.2f} ({lock_desc} | Running: +{r_running:.2f}R)")
                     self._dispatch_async(self.send_to_account(acc_target, {
                         "action": "MODIFY_POSITION",
                         "account_number": acc_target,
@@ -1411,16 +1421,44 @@ class LiveMT5BridgeCore:
                             logger.error(f"🛑 [DAILY HARD LOCKOUT] Account #{acc_num} ({acc_prof}) hit Daily Max Loss limit (-${max_loss_dollar:.2f}). Halted until 00:00 UTC!")
                             asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "account_number": acc_num, "magic": 1001}))
 
-                    # B. Cek Daily Profit Target & Pullback Lock
-                    if acc_daily["peak_daily_pnl"] >= daily_target_dollar:
-                        pullback_dollar = acc_daily["daily_start_equity"] * (pullback_lock_pct / 100.0)
-                        daily_floor_lock = daily_target_dollar * 0.60
-                        if daily_pnl <= (acc_daily["peak_daily_pnl"] - pullback_dollar) or daily_pnl <= daily_floor_lock:
+                    # B. Cek Daily Profit Target & Execution Persona Gating (DEC-045)
+                    daily_gating = p_cfg.get("daily_gating", "UNGATED")
+                    exec_persona = p_cfg.get("execution_persona", "")
+
+                    if daily_gating == "HARD_1PCT_HALT" or exec_persona == "SENTINEL_HARD_LOCK":
+                        # SENTINEL PROP FIRM: Instant hard lockout the moment daily target is hit!
+                        if daily_pnl >= daily_target_dollar or acc_daily["peak_daily_pnl"] >= daily_target_dollar:
                             if not acc_daily["daily_halted"]:
                                 acc_daily["daily_halted"] = True
-                                acc_daily["reason"] = f"Daily Profit Locked: PnL ${daily_pnl:+.2f} (Target +{daily_target_pct}% secured)"
-                                logger.info(f"🏆 [DAILY TARGET SECURED] Account #{acc_num} ({acc_prof}) secured daily profit (+${daily_pnl:.2f}). Trading finished for today!")
+                                acc_daily["reason"] = f"Sentinel 1% Locked: PnL ${daily_pnl:+.2f} (Target +{daily_target_pct}% secured - ZERO RISK)"
+                                logger.info(f"🏆 [SENTINEL 1% HARD LOCK] Account #{acc_num} ({acc_prof}) secured target (+${daily_pnl:.2f}). Trading halted until 00:00 UTC!")
                                 asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "account_number": acc_num, "magic": 1001}))
+                    elif daily_gating == "DYN_ACCEL" or exec_persona == "BALANCED_HOUSE_MONEY":
+                        # HOUSE MONEY (SWEET SPOT): Protect base 60% floor lock, but continue hunting with house money!
+                        if acc_daily["peak_daily_pnl"] >= daily_target_dollar:
+                            pullback_dollar = acc_daily["daily_start_equity"] * (pullback_lock_pct / 100.0)
+                            daily_floor_lock = daily_target_dollar * 0.60
+                            if daily_pnl <= (acc_daily["peak_daily_pnl"] - pullback_dollar) or daily_pnl <= daily_floor_lock:
+                                if not acc_daily["daily_halted"]:
+                                    acc_daily["daily_halted"] = True
+                                    acc_daily["reason"] = f"Daily Profit Locked: PnL ${daily_pnl:+.2f} (Target +{daily_target_pct}% secured)"
+                                    logger.info(f"🏆 [DAILY TARGET SECURED] Account #{acc_num} ({acc_prof}) secured daily profit (+${daily_pnl:.2f}). Trading finished for today!")
+                                    asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "account_number": acc_num, "magic": 1001}))
+                    elif daily_gating == "UNGATED" or "GREED" in exec_persona:
+                        # LEVIATHAN GREED / YOLO: Do NOT halt on hitting target! Let winners compound!
+                        # Only halt if hard daily max loss cut-off is hit.
+                        pass
+                    else:
+                        # Default fallback: pullback lock
+                        if acc_daily["peak_daily_pnl"] >= daily_target_dollar:
+                            pullback_dollar = acc_daily["daily_start_equity"] * (pullback_lock_pct / 100.0)
+                            daily_floor_lock = daily_target_dollar * 0.60
+                            if daily_pnl <= (acc_daily["peak_daily_pnl"] - pullback_dollar) or daily_pnl <= daily_floor_lock:
+                                if not acc_daily["daily_halted"]:
+                                    acc_daily["daily_halted"] = True
+                                    acc_daily["reason"] = f"Daily Profit Locked: PnL ${daily_pnl:+.2f} (Target +{daily_target_pct}% secured)"
+                                    logger.info(f"🏆 [DAILY TARGET SECURED] Account #{acc_num} ({acc_prof}) secured daily profit (+${daily_pnl:.2f}). Trading finished for today!")
+                                    asyncio.create_task(self.broadcast({"action": "CANCEL_PENDING", "symbol": "XAUUSD", "account_number": acc_num, "magic": 1001}))
 
                     if acc_daily["daily_halted"]:
                         continue
@@ -1703,8 +1741,19 @@ class LiveMT5BridgeCore:
                             else:
                                 tp_harvester = round(chosen_setup["tp_midpoint"], 2)
 
-                        # Whale Runner (L3 & L4): Swing 100% Boundary on Trend, or Strict Harvest on Counter-Trend
-                        tp_runner = tp_harvester if cand_is_counter else round(sw_high, 2)
+                        # Whale Runner (L3 & L4): Persona-Aware Target Boundary on Trend, or Strict Harvest on Counter-Trend
+                        r_target_type = p_cfg.get("runner_target", "SWING_100")
+                        if cand_is_counter:
+                            tp_runner = tp_harvester
+                        else:
+                            if r_target_type == "FIBO_127":
+                                tp_runner = round(sw_high + (span * 0.272), 2)
+                            elif r_target_type == "FIBO_161":
+                                tp_runner = round(sw_high + (span * 0.618), 2)
+                            elif r_target_type == "UNLIMITED":
+                                tp_runner = round(sw_high + (span * 2.000), 2)
+                            else:
+                                tp_runner = round(sw_high, 2)
 
                     else:
                         raw_levels = [
@@ -1727,8 +1776,19 @@ class LiveMT5BridgeCore:
                             else:
                                 tp_harvester = round(chosen_setup["tp_midpoint"] + spread_val, 2)
 
-                        # Whale Runner (L3 & L4): Swing 100% Boundary on Trend, or Strict Harvest on Counter-Trend
-                        tp_runner = tp_harvester if cand_is_counter else round(sw_low + spread_val, 2)
+                        # Whale Runner (L3 & L4): Persona-Aware Target Boundary on Trend, or Strict Harvest on Counter-Trend
+                        r_target_type = p_cfg.get("runner_target", "SWING_100")
+                        if cand_is_counter:
+                            tp_runner = tp_harvester
+                        else:
+                            if r_target_type == "FIBO_127":
+                                tp_runner = round(sw_low - (span * 0.272) + spread_val, 2)
+                            elif r_target_type == "FIBO_161":
+                                tp_runner = round(sw_low - (span * 0.618) + spread_val, 2)
+                            elif r_target_type == "UNLIMITED":
+                                tp_runner = round(sw_low - (span * 2.000) + spread_val, 2)
+                            else:
+                                tp_runner = round(sw_low + spread_val, 2)
 
                     # Filter valid layers:
                     # 1. Micro level depletion (skip spent layers)
