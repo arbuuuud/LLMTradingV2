@@ -1,13 +1,13 @@
 {
   "project_name": "LLMTradingV2",
   "version": "0.2.0",
-  "last_updated": "2026-11-20T05:59:40.637980+00:00",
+  "last_updated": "2026-11-20T06:25:50.568667+00:00",
   "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
-    "total_tasks": 32,
-    "completed_tasks": 23,
+    "total_tasks": 39,
+    "completed_tasks": 36,
     "in_progress_tasks": 1,
-    "pending_tasks": 8
+    "pending_tasks": 2
   },
   "phases": [
     {

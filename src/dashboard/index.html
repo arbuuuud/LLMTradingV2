@@ -128,8 +128,16 @@
                     <span><strong>Kuadran 75-100% Sell (Premium):</strong> Limit order ditebar berundak dari Lantai Bawah 75% ke Pucuk 100%.</span>
                   </li>
                   <li class="flex items-start gap-2">
-                    <i class="fa-solid fa-check text-indigo-400 mt-0.5"></i>
-                    <span><strong>Pyramid 20-30-50 Grid (DEC-028):</strong> 3 Limit Order serentak (L1: 20% Bibir, L2: 30% Mid, L3: 50% Dasar) untuk memaksimalkan harga diskon & meminimalisir jarak SL.</span>
+                    <i class="fa-solid fa-layer-group text-indigo-400 mt-0.5"></i>
+                    <span><strong>4-Layer Judas Grid (DEC-043):</strong> 4 Limit Order serentak (L1: 15% Bibir, L2: 25% Kedalaman, L3: 30% Dasar/Pucuk, L4: 30% Judas Catch pada -27.2%) untuk memaksimalkan harga diskon & memanen lonjakan R:R asimetris.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-shield-halved text-emerald-400 mt-0.5"></i>
+                    <span><strong>Smart Judas Fortress Stop Loss (DEC-043):</strong> Stop Loss berlabuh pada unmitigated Order Block terdekat (radius &lt;0.5x span &plusmn; 0.25), dengan fallback Fibo Judas -13% &plusmn; 0.25 untuk mengeliminasi premature wick stop-out.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-bolt text-amber-400 mt-0.5"></i>
+                    <span><strong>Reflex Active Guard (DEC-043):</strong> Pencegat badai via Velocity Gate 1.8x ATR (anti-freight train), Volatility Stand-Aside saat rasio ATR &ge; 1.3x, dan auto-purge pending order basi &gt;30 menit.</span>
                   </li>
                   <li class="flex items-start gap-2">
                     <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
@@ -168,6 +176,9 @@
               </span>
               <span id="badge-ct-unlock" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
                 <i class="fa-solid fa-shield-halved mr-1"></i> CT: STANDBY
+              </span>
+              <span id="badge-reflex-guard" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700" title="DEC-043 Reflex Active Guard Live Status">
+                <i class="fa-solid fa-bolt text-indigo-400 mr-1"></i> REFLEX: NOMINAL
               </span>
             </div>
           </div>
@@ -1635,10 +1646,10 @@
           <label class="block text-slate-400 mb-1">PAC Scalper Profile</label>
           <select id="form-risk-profile" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
             <option value="none">None (Disabled for PAC)</option>
-            <option value="prop_firm">Prop Firm (FTMO Ultra Safe - Quartet M1/M2/M3/M5)</option>
-            <option value="sweet_spot" selected>Sweet Spot (Balanced Growth - Quartet M1/M2/M3/M5)</option>
-            <option value="aggressive">Aggressive (High Compounding - Trio M1/M2/M3)</option>
-            <option value="yolo">YOLO (Apex Scalper - Trio M1/M2/M3)</option>
+            <option value="prop_firm">Prop Firm (FTMO Ultra Safe - Pentet M1/M2/M3/M5/M15)</option>
+            <option value="sweet_spot" selected>Sweet Spot (Balanced Growth - Pentet M1/M2/M3/M5/M15)</option>
+            <option value="aggressive">Aggressive (High Compounding - Pentet M1/M2/M3/M5/M15)</option>
+            <option value="yolo">YOLO (Apex Scalper - Pentet M1/M2/M3/M5/M15)</option>
           </select>
         </div>
         <div>
@@ -2529,6 +2540,31 @@
           }
           ctEl.className = `px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border transition ${ctColor}`;
           ctEl.innerHTML = `<i class="fa-solid ${ctIcon} mr-1"></i> CT: ${ctStatus}`;
+        }
+
+        // Render DEC-043 Reflex Active Guard Live Status Badge
+        const rg = data.reflex_guard || {};
+        const rgEl = document.getElementById('badge-reflex-guard');
+        if (rgEl) {
+          const rgStatus = rg.status || 'NOMINAL';
+          const isFreight = rg.is_freight_train || rgStatus === 'FREIGHT_TRAIN';
+          const isVolatile = rg.is_volatile_spike || rgStatus === 'VOLATILE_STAND_ASIDE';
+          let rgColor = 'bg-slate-800 text-slate-300 border-slate-700';
+          let rgIcon = 'fa-bolt text-indigo-400';
+          let rgText = 'REFLEX: NOMINAL';
+
+          if (isFreight) {
+            rgColor = 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse';
+            rgIcon = 'fa-train-subway text-rose-400';
+            rgText = `REFLEX: FREIGHT TRAIN (${rg.last_bar_range || 0} > ${rg.velocity_threshold || 0})`;
+          } else if (isVolatile) {
+            rgColor = 'bg-purple-500/20 text-purple-300 border-purple-500/50';
+            rgIcon = 'fa-tornado text-purple-400';
+            rgText = `REFLEX: VOLATILE STAND-ASIDE (${rg.atr_ratio || 1.3}x)`;
+          }
+
+          rgEl.className = `px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border transition ${rgColor}`;
+          rgEl.innerHTML = `<i class="fa-solid ${rgIcon} mr-1"></i> ${rgText}`;
         }
 
         renderRadarTimeframes(data.timeframes);

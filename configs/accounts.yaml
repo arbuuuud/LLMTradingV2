@@ -15,7 +15,7 @@ accounts:
     - M3
     - M5
     - M15
-    updated_at: '2026-11-20T09:06:59.053410'
+    updated_at: '2026-11-20T13:30:32.512645'
   ACC-5058996231:
     account_number: '5058996231'
     broker_name: MetaQuotes Ltd.
@@ -24,15 +24,15 @@ accounts:
     risk_profile: prop_firm
     active: true
     status: CONNECTED
-    balance: 100699.0
-    equity: 100691.24
+    balance: 100000.0
+    equity: 100000.0
     assigned_timeframes:
     - M1
     - M2
     - M3
     - M5
     - M15
-    updated_at: '2026-11-19T17:41:02'
+    updated_at: '2026-11-20T13:30:30.128886'
   ACC-5058995852:
     account_number: '5058995852'
     broker_name: MetaQuotes Ltd.
@@ -41,15 +41,15 @@ accounts:
     risk_profile: aggressive
     active: true
     status: CONNECTED
-    balance: 2509.84
-    equity: 2505.25
+    balance: 2479.31
+    equity: 2479.31
     assigned_timeframes:
     - M1
     - M2
     - M3
     - M5
     - M15
-    updated_at: '2026-11-19T17:39:20'
+    updated_at: '2026-11-20T13:08:00'
   ACC-115745717:
     account_number: '115745717'
     broker_name: MetaQuotes Ltd.
@@ -58,15 +58,15 @@ accounts:
     risk_profile: yolo
     active: true
     status: CONNECTED
-    balance: 491.45
-    equity: 491.45
+    balance: 501.47
+    equity: 501.47
     assigned_timeframes:
     - M1
     - M2
     - M3
     - M5
     - M15
-    updated_at: '2026-11-19T17:42:02'
+    updated_at: '2026-11-20T13:08:00'
   ACC-33848251:
     account_number: '33848251'
     broker_name: PU Prime Ltd
@@ -75,15 +75,15 @@ accounts:
     risk_profile: sweet_spot
     active: true
     status: CONNECTED
-    balance: 5011.95
-    equity: 5011.95
+    balance: 5000.99
+    equity: 5021.71
     assigned_timeframes:
     - M1
     - M2
     - M3
     - M5
     - M15
-    updated_at: '2026-11-19T17:41:47'
+    updated_at: '2026-11-20T13:08:00'
   ACC-113137266:
     account_number: '113137266'
     broker_name: MetaQuotes Ltd.
