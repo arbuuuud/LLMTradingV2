@@ -140,8 +140,8 @@
                     <span><strong>Reflex Active Guard (DEC-043):</strong> Pencegat badai via Velocity Gate 1.8x ATR (anti-freight train), Volatility Stand-Aside saat rasio ATR &ge; 1.3x, dan auto-purge pending order basi &gt;30 menit.</span>
                   </li>
                   <li class="flex items-start gap-2">
-                    <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
-                    <span><strong>Shared Single Hard TP:</strong> Seluruh order memiliki 1 target TP bersama di Midpoint 50%.</span>
+                    <i class="fa-solid fa-crosshairs text-emerald-400 mt-0.5"></i>
+                    <span><strong>Dual-Engine Asymmetric TP & Auto-BEP (DEC-044):</strong> Divisi Harvester (L1 & L2, 40%) panen profit cepat di Equilibrium 50% untuk mengamankan daily 1%, memicu pemindahan SL sisa runner (L3 & L4, 60%) ke BEP (Zero-Risk), yang kemudian berlari memanen 100% Swing Boundary Lawan (R:R melonjak ke 1:2.2+).</span>
                   </li>
                   <li class="flex items-start gap-2">
                     <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
@@ -2031,6 +2031,25 @@
           candleCtx.fillText(`── 50% EQUILIBRIUM TP ($${tfInfo.equilibrium.toFixed(2)})`, padLeft + chartW - 220, yEq - 5);
         }
 
+        // 2b. DEC-044 Whale Runner TP2 Line (100% Swing Boundary / Emerald)
+        const runnerPrice = (tfInfo.direction === 'BUY') ? tfInfo.swing_high : ((tfInfo.direction === 'SELL') ? tfInfo.swing_low : 0);
+        if (runnerPrice > 0) {
+          const yRunner = getY(runnerPrice);
+          candleCtx.save();
+          candleCtx.setLineDash([4, 3]);
+          candleCtx.strokeStyle = '#10b981';
+          candleCtx.lineWidth = 1.8;
+          candleCtx.beginPath();
+          candleCtx.moveTo(padLeft, yRunner);
+          candleCtx.lineTo(W - padRight, yRunner);
+          candleCtx.stroke();
+          candleCtx.restore();
+
+          candleCtx.fillStyle = '#10b981';
+          candleCtx.font = 'bold 10px ui-monospace, monospace';
+          candleCtx.fillText(`🚀 100% RUNNER TP2 ($${runnerPrice.toFixed(2)})`, padLeft + chartW - 220, (tfInfo.direction === 'BUY' ? yRunner - 5 : yRunner + 12));
+        }
+
         // 3. Hard SL Boundary Line (Crimson Solid/Dash)
         if (tfInfo.sl_hard && tfInfo.sl_hard > 0) {
           const ySl = getY(tfInfo.sl_hard);
@@ -2627,7 +2646,7 @@
           <div class="space-y-1 text-xs">
             <div class="text-slate-400">Score: <span class="text-white font-mono font-bold">${item.checklist_score}/10</span></div>
             <div class="text-slate-400 truncate">Quadrant: <span class="text-blue-300 font-mono">${item.quadrant.split(' ')[0]}</span></div>
-            <div class="text-slate-400">TP 50%: <span class="text-amber-400 font-mono">$${item.tp_midpoint.toFixed(2)}</span></div>
+            <div class="text-slate-400">TP: <span class="text-amber-400 font-mono" title="Harvester L1-L2 TP1 50%">$${item.tp_midpoint.toFixed(2)}</span> / <span class="text-emerald-400 font-mono" title="Whale Runner L3-L4 TP2 100%">$${(item.direction === 'BUY' ? item.swing_high : (item.direction === 'SELL' ? item.swing_low : item.tp_midpoint)).toFixed(2)}</span></div>
             <div class="text-slate-400">Guard: <span class="text-indigo-300 font-mono font-semibold">${guardText}</span></div>
             <div class="text-slate-400">Status: <span class="${statusColor} font-semibold">${item.status.replace('_', ' ')}</span></div>
           </div>

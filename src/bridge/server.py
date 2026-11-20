@@ -193,6 +193,15 @@ class LiveMT5BridgeCore:
             s = s[4:].strip()
         return s
 
+    def _dispatch_async(self, coro):
+        """Safely dispatches coroutine onto running event loop, or closes cleanly if in sync test."""
+        try:
+            loop = asyncio.get_running_loop()
+            return loop.create_task(coro)
+        except RuntimeError:
+            coro.close()
+            return None
+
     def _auto_register_account(self, acc_id: str, company: str, server: str, balance: float, equity: float):
         if not acc_id or not str(acc_id).strip():
             return
@@ -371,8 +380,60 @@ class LiveMT5BridgeCore:
                 self.completed_floor = self._current_sw_low
                 self.completed_roof = self._current_sw_high
                 logger.info(f"🏆 [TAKE PROFIT HARVEST] Take profit achieved for {trade_dir}! Zone (${self.completed_floor:.2f} - ${self.completed_roof:.2f}).")
+
+                # DEC-044 Auto-BEP Orchestration: Lock BEP for sister runner layers
+                self._orchestrate_auto_bep_for_account(acc_num, trade_dir)
         except Exception as e:
             logger.error(f"Failed to save closed trade record: {e}")
+
+    def _orchestrate_auto_bep_for_account(self, acc_num: str, trade_dir: str):
+        """
+        DEC-044 Auto-BEP Orchestrator:
+        When a harvester layer (L1 or L2) hits Take Profit, immediately examine
+        all remaining open positions for this account. If any runner layer (L3 or L4)
+        is open in the same direction, move its Stop Loss to entry price (Break-Even)
+        to lock in a 100% Risk-Free / Free Ride status!
+        """
+        open_positions = self.accounts_open_positions.get(acc_num, [])
+        for pos in open_positions:
+            pos_dir = str(pos.get("type") or pos.get("direction", "")).upper()
+            if pos_dir != trade_dir:
+                continue
+
+            ticket = int(pos.get("ticket", 0))
+            open_p = float(pos.get("open_price", 0.0) or pos.get("price_open", 0.0) or pos.get("entry_price", 0.0))
+            cur_sl = float(pos.get("sl", 0.0))
+            if ticket <= 0 or open_p <= 0.0:
+                continue
+
+            # Check if SL is not yet at BEP
+            needs_bep = False
+            if pos_dir == "BUY" and (cur_sl < open_p - 0.10):
+                needs_bep = True
+            elif pos_dir == "SELL" and (cur_sl == 0.0 or cur_sl > open_p + 0.10):
+                needs_bep = True
+
+            if needs_bep:
+                target_sl = round(open_p, 2)
+                logger.info(f"🛡️ [DEC-044 AUTO-BEP] Account #{acc_num} Position #{ticket} ({pos_dir} @ ${open_p:.2f}) SL moved to BEP (${target_sl:.2f}) - Position is now 100% RISK-FREE!")
+                self._dispatch_async(self.send_to_account(acc_num, {
+                    "action": "MODIFY_POSITION",
+                    "account_number": str(acc_num),
+                    "ticket": ticket,
+                    "sl": target_sl,
+                    "tp": float(pos.get("tp", 0.0))
+                }))
+                notif = {
+                    "id": int(time.time() * 1000),
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "title": "🛡️ Auto-BEP Risk-Free Locked!",
+                    "message": f"Account #{acc_num} {pos_dir} #{ticket} SL moved to BEP (${target_sl:.2f})",
+                    "type": "BEP",
+                    "price": target_sl
+                }
+                self.pending_notifications.append(notif)
+                if len(self.pending_notifications) > 10:
+                    self.pending_notifications.pop(0)
 
     def _update_account_equity(self, acc_id: str, balance: float, equity: float):
         if not acc_id or not str(acc_id).strip():
@@ -415,19 +476,18 @@ class LiveMT5BridgeCore:
 
             spread_val = max(0.20, round(self.latest_tick.get("ask", 0) - self.latest_tick.get("bid", 0), 2)) if self.latest_tick else 0.35
 
-            # 1. Sasuke Sharingan Greed Trailing (Pilar 2 Relaksasi)
+            # 1. DEC-044 Auto-BEP Lock (>= +1.0R Running) & Sasuke Trailing (>= +2.0R)
             pts_diff = (cur_p - entry_p) if side == "BUY" else (entry_p - cur_p)
             sl_dist = max(abs(entry_p - pos.get("sl", entry_p - 3.0)), 0.5)
             r_running = pts_diff / sl_dist
 
-            # Trailing Stepped Lock (Relaxed to avoid premature choking):
-            # >= +2.5R -> lock SL at +1.5R
-            # >= +2.0R -> lock SL at +1.0R
             target_lock_r = None
             if r_running >= 2.5:
                 target_lock_r = 1.5
             elif r_running >= 2.0:
                 target_lock_r = 1.0
+            elif r_running >= 1.0:
+                target_lock_r = 0.0  # DEC-044 Auto-BEP Lock at Entry Price
 
             if target_lock_r is not None:
                 new_trail_sl = round(entry_p + (target_lock_r * sl_dist if side == "BUY" else -target_lock_r * sl_dist), 2)
@@ -435,10 +495,12 @@ class LiveMT5BridgeCore:
                 should_update = (cur_sl == 0.0) or (side == "BUY" and new_trail_sl > cur_sl) or (side == "SELL" and new_trail_sl < cur_sl)
 
                 if should_update:
-                    logger.info(f"👁️ [SASUKE GREED TRAILING] Locking SL on {side} #{ticket} @ ${new_trail_sl:.2f} (+{target_lock_r}R Locked | Running: +{r_running:.2f}R)")
-                    asyncio.create_task(self.broadcast({
+                    acc_target = str(pos.get("account_number", ""))
+                    lock_desc = f"+{target_lock_r}R Locked" if target_lock_r > 0 else "BEP Zero-Risk Locked"
+                    logger.info(f"🛡️ [DEC-044 AUTO-BEP / SASUKE] {side} #{ticket} @ ${new_trail_sl:.2f} ({lock_desc} | Running: +{r_running:.2f}R)")
+                    self._dispatch_async(self.send_to_account(acc_target, {
                         "action": "MODIFY_POSITION",
-                        "account_number": str(pos.get("account_number", "")),
+                        "account_number": acc_target,
                         "ticket": ticket,
                         "sl": new_trail_sl,
                         "tp": pos.get("tp", 0.0)
@@ -447,8 +509,8 @@ class LiveMT5BridgeCore:
                     notif = {
                         "id": int(now * 1000),
                         "timestamp": datetime.now().strftime("%H:%M:%S"),
-                        "title": f"👁️ Sasuke Greed Trailing Lock!",
-                        "message": f"{side} #{ticket} locked at +{target_lock_r}R (${new_trail_sl:.2f})",
+                        "title": f"🛡️ {lock_desc}!",
+                        "message": f"{side} #{ticket} locked at ${new_trail_sl:.2f} (+{r_running:.2f}R)",
                         "type": "BEP",
                         "price": new_trail_sl
                     }
@@ -1619,7 +1681,7 @@ class LiveMT5BridgeCore:
                     if len(acc_matching_pending) >= 4:
                         continue
 
-                    # Pure Geometric S&D Levels (DEC-043 4-Layer Judas Grid)
+                    # Pure Geometric S&D Levels (DEC-043 4-Layer Judas Grid) & DEC-044 Dual-Engine Asymmetric TP
                     if dir_cmd == "BUY":
                         raw_levels = [
                             round(sw_low + span * 0.25, 2),  # L1: 25% Bibir
@@ -1630,16 +1692,20 @@ class LiveMT5BridgeCore:
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl - spread_val, 2)
                         
-                        # Asymmetric TP Assignment (HYBRID_4 Champion)
+                        # DEC-044 Dual-Engine Asymmetric TP Targets
+                        # Harvester (L1 & L2): Equilibrium 50% (or 38.2% shallow counter-trend)
                         if cand_is_counter and cand_tp_mode == "SHALLOW":
-                            tp = round(sw_low + (span * 0.382), 2)
+                            tp_harvester = round(sw_low + (span * 0.382), 2)
                         else:
-                            # Handover TP: check if nested in M15
                             m15_s = tf_dict.get("M15", {})
                             if m15_s.get("active_setup") and m15_s.get("direction") == "BUY":
-                                tp = round(max(chosen_setup["tp_midpoint"] + 2.0, m15_s["tp_midpoint"]), 2)
+                                tp_harvester = round(max(chosen_setup["tp_midpoint"] + 2.0, m15_s["tp_midpoint"]), 2)
                             else:
-                                tp = round(chosen_setup["tp_midpoint"], 2)
+                                tp_harvester = round(chosen_setup["tp_midpoint"], 2)
+
+                        # Whale Runner (L3 & L4): Swing 100% Boundary on Trend, or Strict Harvest on Counter-Trend
+                        tp_runner = tp_harvester if cand_is_counter else round(sw_high, 2)
+
                     else:
                         raw_levels = [
                             round(sw_low + span * 0.75, 2),  # L1: 75% Bibir
@@ -1650,15 +1716,19 @@ class LiveMT5BridgeCore:
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl + spread_val, 2)
                         
-                        # Asymmetric TP Assignment (HYBRID_4 Champion)
+                        # DEC-044 Dual-Engine Asymmetric TP Targets
+                        # Harvester (L1 & L2): Equilibrium 50% (or 61.8% shallow counter-trend)
                         if cand_is_counter and cand_tp_mode == "SHALLOW":
-                            tp = round(sw_low + (span * 0.618) + spread_val, 2)
+                            tp_harvester = round(sw_low + (span * 0.618) + spread_val, 2)
                         else:
                             m15_s = tf_dict.get("M15", {})
                             if m15_s.get("active_setup") and m15_s.get("direction") == "SELL":
-                                tp = round(min(chosen_setup["tp_midpoint"] - 2.0, m15_s["tp_midpoint"]) + spread_val, 2)
+                                tp_harvester = round(min(chosen_setup["tp_midpoint"] - 2.0, m15_s["tp_midpoint"]) + spread_val, 2)
                             else:
-                                tp = round(chosen_setup["tp_midpoint"] + spread_val, 2)
+                                tp_harvester = round(chosen_setup["tp_midpoint"] + spread_val, 2)
+
+                        # Whale Runner (L3 & L4): Swing 100% Boundary on Trend, or Strict Harvest on Counter-Trend
+                        tp_runner = tp_harvester if cand_is_counter else round(sw_low + spread_val, 2)
 
                     # Filter valid layers:
                     # 1. Micro level depletion (skip spent layers)
@@ -1708,6 +1778,9 @@ class LiveMT5BridgeCore:
                         if layer_lot <= 0.0:
                             layer_lot = active_adapter.spec.min_lot
 
+                        is_harvester = (lay_idx in (0, 1))
+                        assigned_tp = tp_harvester if is_harvester else tp_runner
+                        role_tag = "HAR" if is_harvester else "RUN"
                         ct_suffix = f"_CT_{'A' if cand_tp_mode=='EQ' else 'B'}" if cand_is_counter else ""
                         order_cmd = {
                             "action": "ORDER",
@@ -1717,24 +1790,24 @@ class LiveMT5BridgeCore:
                             "lots": layer_lot,
                             "price": limit_p,
                             "sl": sl,
-                            "tp": tp,
+                            "tp": assigned_tp,
                             "magic": 1001,
-                            "comment": f"{chosen_tf}{ct_suffix}_L{lay_idx+1}_{acc_prof.upper()[:3]}"
+                            "comment": f"{chosen_tf}{ct_suffix}_L{lay_idx+1}_{role_tag}_{acc_prof.upper()[:3]}"
                         }
 
-                        asyncio.create_task(self.broadcast(order_cmd))
+                        asyncio.create_task(self.send_to_account(acc_num, order_cmd))
                         # Optimistic in-flight record to immediately block double-dispatch in same sub-second loop
                         self.live_pending_orders.append({
                             "account_number": acc_num,
                             "type": side,
                             "price": limit_p,
                             "sl": sl,
-                            "tp": tp,
+                            "tp": assigned_tp,
                             "ticket": int(now_time * 1000) + lay_idx,
                             "magic": 1001,
                             "comment": order_cmd["comment"]
                         })
-                        dispatched_orders_summary.append(f"{acc_prof}_{chosen_tf}({layer_lot:.2f}L)")
+                        dispatched_orders_summary.append(f"{acc_prof}_{chosen_tf}L{lay_idx+1}({layer_lot:.2f}L)")
 
                 if dispatched_orders_summary:
                     summary_str = ", ".join(list(set(dispatched_orders_summary)))
@@ -1878,6 +1951,15 @@ class LiveMT5BridgeCore:
             self._last_radar_save = time.time()
         except Exception as e:
             logger.debug(f"Failed to persist radar state: {e}")
+
+    async def send_to_account(self, acc_num: str, message: Any):
+        """
+        Convenience helper to route a targeted message specifically to a given account.
+        Ensures 'account_number' is present and delegates to self.broadcast().
+        """
+        if isinstance(message, dict):
+            message["account_number"] = str(acc_num)
+        await self.broadcast(message)
 
     async def broadcast(self, message: Any):
         """
