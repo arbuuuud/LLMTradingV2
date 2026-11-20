@@ -640,6 +640,41 @@ void ProcessCommand(string cmdJson)
          // Prevents cross-position / cross-layer stop loss corruption!
       }
    }
+   else if(action == "PARTIAL_CLOSE")
+   {
+      string targetAcc = ExtractJsonString(cmdJson, "account_number");
+      if(targetAcc != "")
+      {
+         string myAcc = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+         if(targetAcc != myAcc)
+         {
+            return; // Targeted for a different MT5 terminal account - DO NOT TOUCH!
+         }
+      }
+
+      ulong ticket = (ulong)ExtractJsonDouble(cmdJson, "ticket");
+      double volumeToClose = ExtractJsonDouble(cmdJson, "volume");
+
+      bool partSuccess = false;
+      if(ticket > 0 && m_position.SelectByTicket(ticket))
+      {
+         double currentVol = m_position.Volume();
+         double minLot = SymbolInfoDouble(m_position.Symbol(), SYMBOL_VOLUME_MIN);
+
+         if(volumeToClose > 0.0 && volumeToClose < currentVol && (currentVol - volumeToClose) >= (minLot - 0.0001))
+         {
+            partSuccess = m_trade.PositionClosePartial(ticket, volumeToClose);
+            PrintFormat("[LLM Bridge] Position #%I64u Partial Close %.2f of %.2f (Result: %s)",
+                        ticket, volumeToClose, currentVol, partSuccess ? "OK" : "FAILED");
+         }
+         else if(volumeToClose >= currentVol)
+         {
+            partSuccess = m_trade.PositionClose(ticket);
+            PrintFormat("[LLM Bridge] Position #%I64u Full Close (Requested volume %.2f >= %.2f) (Result: %s)",
+                        ticket, volumeToClose, currentVol, partSuccess ? "OK" : "FAILED");
+         }
+      }
+   }
    else if(action == "CANCEL_PENDING")
    {
       string targetAcc = ExtractJsonString(cmdJson, "account_number");

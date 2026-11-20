@@ -15,7 +15,7 @@ accounts:
     - M3
     - M5
     - M15
-    updated_at: '2026-11-20T13:30:32.512645'
+    updated_at: '2026-11-20T19:35:47.576438'
   ACC-5058996231:
     account_number: '5058996231'
     broker_name: MetaQuotes Ltd.
@@ -32,7 +32,7 @@ accounts:
     - M3
     - M5
     - M15
-    updated_at: '2026-11-20T13:30:30.128886'
+    updated_at: '2026-11-20T19:35:45.321441'
   ACC-5058995852:
     account_number: '5058995852'
     broker_name: MetaQuotes Ltd.
@@ -196,7 +196,12 @@ risk_profiles:
     basket_mode: PENTET_ALL
     label: Prop Firm (FTMO/MFF Ultra Safe)
     mode_type: HARD_LOCK_1PCT
-    mode_badge: LOCK 1% (ULTRA SAFE)
+    mode_badge: SENTINEL (LOCK 1%)
+    execution_persona: SENTINEL_HARD_LOCK
+    daily_gating: HARD_1PCT_HALT
+    runner_target: FIBO_127
+    harvest_cut: 0.2
+    bep_buffer: 0.85
     risk_per_trade_pct: 0.25
     daily_target_pct: 1.0
     max_daily_loss_pct: 1.0
@@ -220,7 +225,12 @@ risk_profiles:
     basket_mode: PENTET_ALL
     label: Sweet Spot (Balanced Growth)
     mode_type: GREEDY_TRAILING
-    mode_badge: GREEDY RUNNER (STEPPED)
+    mode_badge: HOUSE MONEY (DYN ACCEL)
+    execution_persona: BALANCED_HOUSE_MONEY
+    daily_gating: DYN_ACCEL
+    runner_target: SWING_100
+    harvest_cut: 0.2
+    bep_buffer: 0.85
     risk_per_trade_pct: 0.5
     daily_target_pct: 2.5
     max_daily_loss_pct: 2.0
@@ -245,7 +255,12 @@ risk_profiles:
     basket_mode: PENTET_ALL
     label: Aggressive (High Velocity Compounding)
     mode_type: GREEDY_TRAILING
-    mode_badge: GREEDY COMPOUNDING
+    mode_badge: LEVIATHAN (MAX GREED)
+    execution_persona: LEVIATHAN_GREED
+    daily_gating: UNGATED
+    runner_target: FIBO_161
+    harvest_cut: 0.2
+    bep_buffer: 0.85
     risk_per_trade_pct: 1.0
     daily_target_pct: 4.0
     max_daily_loss_pct: 3.5
@@ -268,7 +283,12 @@ risk_profiles:
     basket_mode: PENTET_ALL
     label: YOLO (Apex Scalper / Max Compounding)
     mode_type: GREEDY_TRAILING
-    mode_badge: APEX MAX GREED
+    mode_badge: APEX GREED (UNBOUND)
+    execution_persona: APEX_MAX_GREED
+    daily_gating: UNGATED
+    runner_target: UNLIMITED
+    harvest_cut: 0.2
+    bep_buffer: 0.85
     risk_per_trade_pct: 2.0
     daily_target_pct: 8.0
     max_daily_loss_pct: 5.0
