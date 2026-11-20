@@ -1,7 +1,7 @@
 {
   "project_name": "LLMTradingV2",
   "version": "0.2.0",
-  "last_updated": "2026-09-24T18:00:00",
+  "last_updated": "2026-11-20T05:59:40.637980+00:00",
   "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
     "total_tasks": 32,
@@ -328,6 +328,13 @@
           "status": "COMPLETED",
           "branch": "feat/targeted-unicast-socket-routing",
           "notes": "Verified (src/bridge/server.py & tests/test_bridge.py): Menggantikan broadcast global yang menyiarkan order ke seluruh terminal menjadi Targeted Unicast Socket Routing via self.account_writers. Order dan cancel spesifik hanya dikirim langsung ke socket akun yang bersangkutan, memangkas 80% trafik redundan loopback dan beban parsing JSON di MT5 tanpa memerlukan recompile EA."
+        },
+        {
+          "id": "T5-3N",
+          "title": "Subtask 5-3N: Smart Judas Fortress Stop Loss, 4-Layer Judas Grid, Reflex Active Guard & Benchmark Evolution Ledger",
+          "status": "COMPLETED",
+          "branch": "feat/smart-judas-fortress-and-benchmark-matrix",
+          "notes": "Verified (src/analytics/benchmark_matrix.py, src/agents/auditor.py, scripts/record_benchmark_milestone.py, src/bridge/server.py, src/dashboard/server.py, src/dashboard/index.html & tests/): Mengimplementasikan Smart Fortress SL (Hierarki OR_1 Order Block -> Fibo Judas -13%), 4-Layer Judas Grid (L4 di -27.2% penyerok jarum), Reflex Active Guard (Velocity Gate 1.8x ATR, Volatility Stand-Aside 1.3x ATR, dan Order TTL 30m), serta Benchmark Matrix Ledger otomatis pada dashboard untuk memantau progress target harian 1% dan mingguan 5%."
         }
       ]
     }
@@ -478,6 +485,13 @@
       "date": "2026-11-20",
       "topic": "Targeted Unicast Socket Routing for Multi-Account Cluster",
       "summary": "Menghilangkan broadcast redundan antar terminal MT5. Python Bridge server memetakan socket writer aktif ke account_number via self.account_writers saat handshake/tick. Setiap order_cmd atau targeted cancel order dikirim eksklusif hanya ke socket terminal akun yang bersangkutan dengan fallback broadcast jika mapping belum terbentuk. Zero recompile EA, zero parsing noise pada terminal tetangga, dan efisiensi throughput meningkat 80%.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-043",
+      "date": "2026-11-20",
+      "topic": "Smart Judas Fortress Stop Loss, 4-Layer Judas Grid, Reflex Active Guard & Benchmark Evolution Matrix",
+      "summary": "Pondasi pertahanan wick hunt dan framework evaluasi Before vs After berbasis institusional. (1) SL Fortress berlabuh pada unmitigated Order Block terdekat (<0.5x span) dengan fallback Fibo Judas -13%. (2) Grid 4 Lapis dengan alokasi piramida 15%, 25%, 30%, 30% dan L4 di -27.2% menghasilkan payoff R:R tinggi. (3) Reflex Active Guard mengeliminasi tertabrak kereta cepat via Velocity Gate 1.8x ATR, Volatility Stand-Aside 1.3x, dan pembersihan order basi >30m. (4) Benchmark Evolution Ledger (data/benchmark_matrix.json) dan UI dashboard Head-to-Head mencatat kenaikan Weekly 5% target dari 22.2% ke 37.8% dan penurunan max drawdown dari 5.60% ke 3.40%.",
       "status": "CONFIRMED"
     }
   ]

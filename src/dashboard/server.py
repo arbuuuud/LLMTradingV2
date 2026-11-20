@@ -677,6 +677,20 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
             return
 
+        elif path == "/api/benchmark-matrix":
+            query = parse_qs(parsed.query)
+            m_id = query.get("milestone", [None])[0]
+            try:
+                from src.analytics.benchmark_matrix import get_benchmark_matrix_manager
+                mgr = get_benchmark_matrix_manager()
+                comp = mgr.get_comparison(candidate_milestone_id=m_id)
+                self._set_json_headers(200)
+                self.wfile.write(json.dumps(comp, indent=2).encode("utf-8"))
+            except Exception as e:
+                self._set_json_headers(500)
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+
         # 4. Project State & Forward Trades API
         elif path == "/api/state":
             if STATE_FILE.exists():
