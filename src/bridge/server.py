@@ -166,6 +166,18 @@ class LiveMT5BridgeCore:
         # Pending Order Birth Times (DEC-043: Order TTL Auto-Purge 30m)
         self.pending_order_birth_times: Dict[str, float] = {}
 
+        # Reflex Active Guard Telemetry (DEC-043)
+        self.latest_reflex_guard: Dict[str, Any] = {
+            "status": "NOMINAL",
+            "is_freight_train": False,
+            "is_volatile_spike": False,
+            "current_atr14": 0.50,
+            "last_bar_range": 0.0,
+            "base_atr100": 0.50,
+            "atr_ratio": 1.0,
+            "velocity_threshold": 0.90
+        }
+
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
 
@@ -1244,50 +1256,64 @@ class LiveMT5BridgeCore:
                 except Exception as e:
                     logger.error(f"Error loading accounts for dispatch: {e}")
 
-            if target_accounts:
+            # DEC-043 Reflex Active Guard: Velocity Gate & Volatility Ratio
+            is_freight_train = False
+            is_volatile_spike = False
+            current_atr14 = 0.50
+            last_bar_range = 0.0
+            base_atr100 = 0.50
+            atr_ratio = 1.0
+
+            if len(self.history_m1) >= 15:
+                recent_tr = [
+                    max(
+                        self.history_m1[k]["high"] - self.history_m1[k]["low"],
+                        abs(self.history_m1[k]["high"] - self.history_m1[k-1]["close"]),
+                        abs(self.history_m1[k]["low"] - self.history_m1[k-1]["close"])
+                    )
+                    for k in range(len(self.history_m1) - 14, len(self.history_m1))
+                ]
+                current_atr14 = float(np.mean(recent_tr)) if recent_tr else 0.50
+                last_bar_range = abs(self.history_m1[-1]["high"] - self.history_m1[-1]["low"])
+                if last_bar_range > (1.80 * current_atr14):
+                    is_freight_train = True
+
+            if len(self.history_m1) >= 100:
+                long_tr = [
+                    max(
+                        self.history_m1[k]["high"] - self.history_m1[k]["low"],
+                        abs(self.history_m1[k]["high"] - self.history_m1[k-1]["close"]),
+                        abs(self.history_m1[k]["low"] - self.history_m1[k-1]["close"])
+                    )
+                    for k in range(len(self.history_m1) - 100, len(self.history_m1))
+                ]
+                base_atr100 = float(np.mean(long_tr)) if long_tr else current_atr14
+                atr_ratio = float(current_atr14 / max(base_atr100, 0.20))
+                if atr_ratio >= 1.30:
+                    is_volatile_spike = True
+
+            reflex_status = "FREIGHT_TRAIN" if is_freight_train else ("VOLATILE_STAND_ASIDE" if is_volatile_spike else "NOMINAL")
+            self.latest_reflex_guard = {
+                "status": reflex_status,
+                "is_freight_train": is_freight_train,
+                "is_volatile_spike": is_volatile_spike,
+                "current_atr14": round(current_atr14, 2),
+                "last_bar_range": round(last_bar_range, 2),
+                "base_atr100": round(base_atr100, 2),
+                "atr_ratio": round(atr_ratio, 2),
+                "velocity_threshold": round(1.80 * current_atr14, 2)
+            }
+
+            if target_accounts and is_freight_train:
+                if not hasattr(self, "_last_train_warn") or (now_time - getattr(self, "_last_train_warn", 0) > 60.0):
+                    self._last_train_warn = now_time
+                    logger.warning(f"⚡ [ANTI-FREIGHT-TRAIN GATE] Suppressing limit order dispatch! Recent bar range ${last_bar_range:.2f} > 1.8x ATR14 (${current_atr14:.2f}). Standing clear of runaway news/breakout!")
+
+            if target_accounts and not is_freight_train:
                 dispatched_orders_summary = []
                 pyramid_weights = [0.15, 0.25, 0.30, 0.30]
                 spread_val = max(0.20, round(ask - bid, 2)) if (ask > bid > 0) else 0.35
                 d1_bias = getattr(self, "d1_trend", "NEUTRAL")
-
-                # DEC-043 Reflex Active Guard: Velocity Gate & Volatility Ratio
-                is_freight_train = False
-                is_volatile_spike = False
-                current_atr14 = 0.50
-                last_bar_range = 0.0
-
-                if len(self.history_m1) >= 15:
-                    recent_tr = [
-                        max(
-                            self.history_m1[k]["high"] - self.history_m1[k]["low"],
-                            abs(self.history_m1[k]["high"] - self.history_m1[k-1]["close"]),
-                            abs(self.history_m1[k]["low"] - self.history_m1[k-1]["close"])
-                        )
-                        for k in range(len(self.history_m1) - 14, len(self.history_m1))
-                    ]
-                    current_atr14 = float(np.mean(recent_tr)) if recent_tr else 0.50
-                    last_bar_range = abs(self.history_m1[-1]["high"] - self.history_m1[-1]["low"])
-                    if last_bar_range > (1.80 * current_atr14):
-                        is_freight_train = True
-
-                if len(self.history_m1) >= 100:
-                    long_tr = [
-                        max(
-                            self.history_m1[k]["high"] - self.history_m1[k]["low"],
-                            abs(self.history_m1[k]["high"] - self.history_m1[k-1]["close"]),
-                            abs(self.history_m1[k]["low"] - self.history_m1[k-1]["close"])
-                        )
-                        for k in range(len(self.history_m1) - 100, len(self.history_m1))
-                    ]
-                    base_atr100 = float(np.mean(long_tr)) if long_tr else current_atr14
-                    if (current_atr14 / max(base_atr100, 0.20)) >= 1.30:
-                        is_volatile_spike = True
-
-                if is_freight_train:
-                    if not hasattr(self, "_last_train_warn") or (now_time - getattr(self, "_last_train_warn", 0) > 60.0):
-                        self._last_train_warn = now_time
-                        logger.warning(f"⚡ [ANTI-FREIGHT-TRAIN GATE] Suppressing limit order dispatch! Recent bar range ${last_bar_range:.2f} > 1.8x ATR14 (${current_atr14:.2f}). Standing clear of runaway news/breakout!")
-                    return
 
                 for acc_k, acc_info in target_accounts.items():
                     acc_num = acc_info["account_number"]
@@ -1825,6 +1851,16 @@ class LiveMT5BridgeCore:
                 "option_b": ct_opsi_b,
                 "mode": "HYBRID_4"
             },
+            "reflex_guard": getattr(self, "latest_reflex_guard", {
+                "status": "NOMINAL",
+                "is_freight_train": False,
+                "is_volatile_spike": False,
+                "current_atr14": 0.50,
+                "last_bar_range": 0.0,
+                "base_atr100": 0.50,
+                "atr_ratio": 1.0,
+                "velocity_threshold": 0.90
+            }),
             "account_daily_guard": daily_guard_snapshot,
             "d1_trend": getattr(self, "d1_trend", "NEUTRAL"),
             "h4_trend": getattr(self, "h4_trend", "NEUTRAL"),

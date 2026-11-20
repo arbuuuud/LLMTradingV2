@@ -119,6 +119,8 @@ def test_tactical_radar_includes_m15_and_htf_bias():
     assert "M30" in radar["timeframes"], "Tactical radar must include M30"
     assert "htf_bias" in radar, "Tactical radar must include htf_bias"
     assert "counter_trend_unlock" in radar, "Tactical radar must include counter_trend_unlock metadata"
+    assert "reflex_guard" in radar, "Tactical radar must include reflex_guard telemetry (DEC-043)"
+    assert "status" in radar["reflex_guard"]
     assert "D1" in radar["htf_bias"]
     assert "H4" in radar["htf_bias"]
     assert "H1" in radar["htf_bias"]

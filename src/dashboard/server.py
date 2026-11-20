@@ -124,6 +124,16 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
                         "status": "STANDBY",
                         "mode": "HYBRID_4"
                     }),
+                    "reflex_guard": live_data.get("reflex_guard", {
+                        "status": "NOMINAL",
+                        "is_freight_train": False,
+                        "is_volatile_spike": False,
+                        "current_atr14": 0.50,
+                        "last_bar_range": 0.0,
+                        "base_atr100": 0.50,
+                        "atr_ratio": 1.0,
+                        "velocity_threshold": 0.90
+                    }),
                     "notifications": live_data.get("notifications", []),
                     "htf_bias": live_data.get("htf_bias", {
                         "D1": live_data.get("d1_trend", "NEUTRAL"),
@@ -354,6 +364,16 @@ def build_tactical_radar_pac() -> Dict[str, Any]:
             "counter_direction": "NONE",
             "status": "STANDBY",
             "mode": "HYBRID_4"
+        },
+        "reflex_guard": {
+            "status": "NOMINAL",
+            "is_freight_train": False,
+            "is_volatile_spike": False,
+            "current_atr14": 0.50,
+            "last_bar_range": 0.0,
+            "base_atr100": 0.50,
+            "atr_ratio": 1.0,
+            "velocity_threshold": 0.90
         },
         "account_daily_guard": {},
         "d1_trend": "STRONG_BULLISH",
