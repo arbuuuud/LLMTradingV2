@@ -149,14 +149,15 @@ async def test_inflight_order_dispatch_throttle_prevents_duplicate_orders():
 
 
 def test_timeframe_scanning_hierarchy_priority_m15_over_lower_tfs():
-    """Verify Scanning Priority Hierarchy: M15 setup strictly precedes M5, M3, and M1."""
-    user_tfs = ["M1", "M3", "M5", "M15"]
-    scan_order = [tf for tf in ["M15", "M5", "M3", "M1"] if tf in user_tfs]
+    """Verify Scanning Priority Hierarchy: M15 setup strictly precedes M5, M3, M2, and M1."""
+    user_tfs = ["M1", "M2", "M3", "M5", "M15"]
+    scan_order = [tf for tf in ["M15", "M5", "M3", "M2", "M1"] if tf in user_tfs]
 
     assert scan_order[0] == "M15", "M15 must be the top priority in scanning hierarchy"
     assert scan_order[1] == "M5", "M5 must be second priority"
     assert scan_order[2] == "M3", "M3 must be third priority"
-    assert scan_order[3] == "M1", "M1 must be fourth priority"
+    assert scan_order[3] == "M2", "M2 must be fourth priority"
+    assert scan_order[4] == "M1", "M1 must be fifth priority"
 
     # Verify when both M15 and M1 have active setups, M15 is selected first
     tf_setups = {
@@ -165,7 +166,7 @@ def test_timeframe_scanning_hierarchy_priority_m15_over_lower_tfs():
     }
 
     chosen = None
-    for scan_tf in ["M15", "M5", "M3", "M1"]:
+    for scan_tf in ["M15", "M5", "M3", "M2", "M1"]:
         if scan_tf in tf_setups and tf_setups[scan_tf].get("active_setup"):
             chosen = scan_tf
             break
