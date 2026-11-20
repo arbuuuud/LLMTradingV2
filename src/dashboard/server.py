@@ -909,7 +909,7 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
                 "status": payload.get("status", existing_acc.get("status", "CONNECTED")),
                 "balance": float(payload.get("balance", existing_acc.get("balance", 10000.0))),
                 "equity": float(payload.get("equity", existing_acc.get("equity", 10000.0))),
-                "assigned_timeframes": payload.get("assigned_timeframes", existing_acc.get("assigned_timeframes", ["M1", "M2", "M3", "M5"])),
+                "assigned_timeframes": payload.get("assigned_timeframes", existing_acc.get("assigned_timeframes", ["M1", "M2", "M3", "M5", "M15"])),
                 "updated_at": datetime.now().isoformat()
             }
             cfg.setdefault("accounts", {})[acc_id] = account_data

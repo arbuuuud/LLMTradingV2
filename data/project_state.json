@@ -314,6 +314,13 @@
           "status": "COMPLETED",
           "branch": "feat/daily-weekly-pnl-ledger-and-hud",
           "notes": "Verified (src/analytics/performance_ledger.py & tests/test_performance_ledger.py): Menghitung otomatis saldo awal sebelum trading, realisasi PnL hari ini & minggu ini via MT5 broker deal history (HistorySelect), menampilkan di chart comment MT5 baris ke-3 & 4, serta menyajikan tab dedicated 'Target & Riwayat PnL' dengan hero cards progress bar target 1% & 5% dan tabel riwayat harian serta mingguan di Web Dashboard."
+        },
+        {
+          "id": "T5-3L",
+          "title": "Subtask 5-3L: Full 5-Timeframe Basket Harmonization (M1, M2, M3, M5, M15) across Fleet",
+          "status": "COMPLETED",
+          "branch": "feat/harmonize-all-timeframes-m1-to-m15",
+          "notes": "Verified (src/bridge/server.py & tests/test_multi_tf_handover.py): Menyelaraskan seluruh profil akun (Prop Firm, Sweet Spot, Aggressive, YOLO) ke 5-timeframe basket penuh (M1, M2, M3, M5, M15), memasukkan M2 ke dalam scanning hierarchy loop (M15 -> M5 -> M3 -> M2 -> M1), serta memperbarui konfigurasi dashboard dan accounts.yaml."
         }
       ]
     }
@@ -450,6 +457,13 @@
       "date": "2026-11-19",
       "topic": "Automated Daily (1%) and Weekly (5%) Profit Objective Ledger & Starting Balance Tracking",
       "summary": "Menghilangkan pencatatan manual saldo awal. MT5 EA menghitung otomatis saldo awal hari ini & minggu ini dari deal history broker, lalu menampilkannya di chart comment dan memancarkannya ke Python Brain via TICK telemetry. Python menyimpannya ke data/performance_ledger.json dan Web Dashboard menyajikan tab dedicated Target & Riwayat PnL dengan progress bar target 1% harian & 5% mingguan serta tabel riwayat harian dan mingguan lengkap.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-041",
+      "date": "2026-11-19",
+      "topic": "Harmonized 5-Timeframe Scanning Hierarchy (M15 -> M5 -> M3 -> M2 -> M1)",
+      "summary": "Seluruh profil armada (Prop Firm, Sweet Spot, Aggressive, YOLO) diselaraskan ke 5 Timeframe Basket (M1, M2, M3, M5, M15). Urutan pemindaian setup dipastikan memindai secara bertingkat dari timeframe tertinggi ke terendah (M15 -> M5 -> M3 -> M2 -> M1) agar akun terhindar dari noise micro M1 dan dapat memanfaatkan setup berkualitas tinggi di M5 dan M15 dengan mekanisme Handover otomatis.",
       "status": "CONFIRMED"
     }
   ]
