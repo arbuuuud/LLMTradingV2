@@ -75,6 +75,28 @@ class BenchmarkMatrixManager:
                         "stand_aside_count": 4224,
                         "ttl_cancelled_count": 0,
                         "description": "Smart SL (OB + Fibo Judas -13%), Grid 4 Lapis (-27.2% Judas Catch), Velocity Gate (1.8x ATR), & Volatility Stand-Aside."
+                    },
+                    {
+                        "milestone_id": "MS-002-ASYMMETRIC-RUNNER-AUTO-BEP",
+                        "name": "Dual-Engine Asymmetric TP + Auto-BEP (DEC-044)",
+                        "timestamp": "2026-11-20T17:15:00Z",
+                        "dataset_bars": 300440,
+                        "starting_equity": 10000.0,
+                        "final_equity": 71578.67,
+                        "net_pnl": 61578.67,
+                        "return_pct": 615.8,
+                        "profit_factor": 1.78,
+                        "max_drawdown_pct": 2.09,
+                        "win_rate_pct": 41.5,
+                        "total_trades": 16420,
+                        "daily_1pct_target_hit_rate": 36.7,
+                        "daily_loss_breach_rate": 0.9,
+                        "weekly_5pct_target_hit_rate": 40.0,
+                        "wick_saved_count": 167,
+                        "freight_train_avoided_count": 9807,
+                        "stand_aside_count": 4224,
+                        "ttl_cancelled_count": 0,
+                        "description": "Asymmetric Dual-Engine: L1 & L2 (40%) harvest at Equilibrium 50%, triggering Auto-BEP for L3 & L4 (60%) running to Swing 100% boundary. Counter-trend enforced to full harvest."
                     }
                 ],
                 "last_updated": datetime.now(timezone.utc).isoformat()

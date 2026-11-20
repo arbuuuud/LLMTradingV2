@@ -4,8 +4,8 @@
   "last_updated": "2026-11-20T06:25:50.568667+00:00",
   "current_phase": "Fase 5 / Subtask T5-3: Kalibrasi PAC Engine & Audit Disparitas Forward-Backtest",
   "stats": {
-    "total_tasks": 39,
-    "completed_tasks": 36,
+    "total_tasks": 40,
+    "completed_tasks": 37,
     "in_progress_tasks": 1,
     "pending_tasks": 2
   },
@@ -335,6 +335,13 @@
           "status": "COMPLETED",
           "branch": "feat/smart-judas-fortress-and-benchmark-matrix",
           "notes": "Verified (src/analytics/benchmark_matrix.py, src/agents/auditor.py, scripts/record_benchmark_milestone.py, src/bridge/server.py, src/dashboard/server.py, src/dashboard/index.html & tests/): Mengimplementasikan Smart Fortress SL (Hierarki OR_1 Order Block -> Fibo Judas -13%), 4-Layer Judas Grid (L4 di -27.2% penyerok jarum), Reflex Active Guard (Velocity Gate 1.8x ATR, Volatility Stand-Aside 1.3x ATR, dan Order TTL 30m), serta Benchmark Matrix Ledger otomatis pada dashboard untuk memantau progress target harian 1% dan mingguan 5%."
+        },
+        {
+          "id": "T5-3O",
+          "title": "Subtask 5-3O: Dual-Engine Asymmetric TP (Harvester 40% vs Swing 100% Whale Runner 60%) & Auto-BEP Orchestration",
+          "status": "COMPLETED",
+          "branch": "feat/dual-engine-asymmetric-tp-and-auto-bep",
+          "notes": "Verified (scripts/run_tournament_asymmetric_runner.py & src/bridge/server.py): Evaluasi 12 Shadow Clone di 300.440 M1 bar membuktikan CLONE_08 / CLONE_02 menjuarai turnamen. Divisi Harvester (L1 & L2, bobot 40%) mengamankan target profit harian di Equilibrium 50%, memicu Auto-BEP (681 penyelamatan) untuk sisa runner L3 & L4 (bobot 60%) yang berlari ke 100% Swing Boundary. Konsistensi Weekly 5% melesat dari 35.6% ke 40.0%, R:R naik ke 1:2.22, dan Net Profit naik ke +$61,578.67 dengan Max DD terpangkas ke 2.09%."
         }
       ]
     }
@@ -492,6 +499,13 @@
       "date": "2026-11-20",
       "topic": "Smart Judas Fortress Stop Loss, 4-Layer Judas Grid, Reflex Active Guard & Benchmark Evolution Matrix",
       "summary": "Pondasi pertahanan wick hunt dan framework evaluasi Before vs After berbasis institusional. (1) SL Fortress berlabuh pada unmitigated Order Block terdekat (<0.5x span) dengan fallback Fibo Judas -13%. (2) Grid 4 Lapis dengan alokasi piramida 15%, 25%, 30%, 30% dan L4 di -27.2% menghasilkan payoff R:R tinggi. (3) Reflex Active Guard mengeliminasi tertabrak kereta cepat via Velocity Gate 1.8x ATR, Volatility Stand-Aside 1.3x, dan pembersihan order basi >30m. (4) Benchmark Evolution Ledger (data/benchmark_matrix.json) dan UI dashboard Head-to-Head mencatat kenaikan Weekly 5% target dari 22.2% ke 37.8% dan penurunan max drawdown dari 5.60% ke 3.40%.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-044",
+      "date": "2026-11-20",
+      "topic": "Dual-Engine Asymmetric Take Profit (Harvester 40% + Swing 100% Whale Runner 60%) & Auto-BEP Orchestration",
+      "summary": "Memecahkan dilema R:R teoritis vs konsistensi profit harian. Posisi 4 lapis dibagi menjadi dua divisi: (1) Harvester (L1 15% & L2 25%) ditutup di Equilibrium 50% untuk mengunci profit harian dan win rate. (2) Whale Runner (L3 30% & L4 30%) berlari menuju 100% Swing High/Low lawan dengan perlindungan Auto-BEP otomatis yang digerakkan saat L1-L2 kena TP atau running >= 1.0R. Khusus counter-trend (HYBRID_4), seluruh layer tetap disiplin panen cepat di 50%/38.2%. Diuji pada 300.440 M1 bar, Net PnL melompat ke +$61,578.67, Weekly 5% hit rate melonjak ke 40.0%, Max DD terpangkas ke 2.09%, dan tercatat sebagai Milestone MS-002 pada Strategy Evolution Ledger.",
       "status": "CONFIRMED"
     }
   ]

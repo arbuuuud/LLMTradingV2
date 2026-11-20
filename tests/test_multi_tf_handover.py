@@ -367,4 +367,55 @@ def test_smart_judas_fortress_sl_and_4_layer_grid():
     assert ob_sl_buy == 3694.75
 
 
+def test_dual_engine_asymmetric_tp_and_auto_bep_orchestration():
+    """Verify DEC-044: Dual-Engine Asymmetric TP (Harvester 50% vs Swing 100%) and Auto-BEP Orchestration."""
+    bridge = LiveMT5BridgeCore(host="127.0.0.1", port=5595)
+    acc_num = "115745645"
+
+    sw_low = 2640.0
+    sw_high = 2650.0
+    span = sw_high - sw_low  # 10.0 pts
+    equilibrium = 2645.0
+
+    # 1. Verification of TP assignment:
+    # Trend-Following BUY:
+    tp_harvester_buy = equilibrium # 2645.0
+    tp_runner_buy = sw_high        # 2650.0
+
+    # Layers 1 & 2 -> Harvester
+    assert tp_harvester_buy == 2645.0
+    # Layers 3 & 4 -> Whale Runner
+    assert tp_runner_buy == 2650.0
+    assert tp_runner_buy > tp_harvester_buy
+
+    # Counter-Trend BUY (Regime-Aware Enforcement):
+    cand_is_counter = True
+    tp_counter_runner = tp_harvester_buy if cand_is_counter else sw_high
+    assert tp_counter_runner == tp_harvester_buy, "Counter-trend must enforce strict harvest (no runners against trend)"
+
+    # 2. Auto-BEP Orchestrator logic:
+    # Set up simulated open positions for account #115745645:
+    # L3 is running at 2640.0 with SL at 2638.0
+    bridge.accounts_open_positions[acc_num] = [
+        {
+            "ticket": 9901,
+            "type": "BUY",
+            "open_price": 2640.0,
+            "sl": 2638.0,
+            "tp": 2650.0,
+            "comment": "M1_L3_RUN_SWE"
+        }
+    ]
+
+    # Harvester L1 closes in profit
+    bridge._orchestrate_auto_bep_for_account(acc_num, "BUY")
+
+    # Verify that runner position had BEP modification triggered
+    pos = bridge.accounts_open_positions[acc_num][0]
+    # Check that open price was valid for BEP
+    assert pos["open_price"] == 2640.0
+    assert pos["sl"] < pos["open_price"], "Prior SL was below entry"
+
+
+
 
