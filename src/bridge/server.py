@@ -16,6 +16,7 @@ import logging
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Set
+from collections import defaultdict
 import numpy as np
 
 from src.data.adapter import BrokerAdapter, BrokerSpec
@@ -55,6 +56,8 @@ class LiveMT5BridgeCore:
         self.port = port
         self.server: Optional[asyncio.Server] = None
         self.active_writers: List[asyncio.StreamWriter] = []
+        # Targeted Unicast Socket Routing (DEC-042): acc_number -> set of active writers
+        self.account_writers: Dict[str, Set[asyncio.StreamWriter]] = defaultdict(set)
         self.history_m1: List[Dict[str, Any]] = []
         self.latest_tick: Optional[Dict[str, Any]] = None
         self.active_account_id = ""
@@ -162,6 +165,18 @@ class LiveMT5BridgeCore:
 
         # Buffer incoming bar batches
         self._pending_sync_bars: List[Dict[str, Any]] = []
+
+    @staticmethod
+    def _normalize_account_id(acc_id: Any) -> str:
+        """
+        Standardizes account IDs so 'ACC-115745645', '115745645', and 115745645 map to identical key.
+        """
+        if not acc_id:
+            return ""
+        s = str(acc_id).strip()
+        if s.startswith("ACC-"):
+            s = s[4:].strip()
+        return s
 
     def _auto_register_account(self, acc_id: str, company: str, server: str, balance: float, equity: float):
         if not acc_id or not str(acc_id).strip():
@@ -556,7 +571,9 @@ class LiveMT5BridgeCore:
                         msg = json.loads(line)
                         acc_msg = msg.get("account_id") or (msg.get("data", {}).get("account_number") if isinstance(msg.get("data"), dict) else None)
                         if acc_msg:
-                            connected_acc_id = str(acc_msg)
+                            norm_acc = self._normalize_account_id(acc_msg)
+                            connected_acc_id = norm_acc
+                            self.account_writers[norm_acc].add(writer)
                         await self._dispatch_message(msg, writer)
                     except Exception as err:
                         logger.error(f"Error parsing incoming JSON: {err} | Raw: {line[:120]}")
@@ -565,9 +582,13 @@ class LiveMT5BridgeCore:
         except Exception as e:
             logger.error(f"Client connection error: {e}")
         finally:
-            logger.info(f"🔴 MT5 Client disconnected: {client_addr}")
+            logger.info(f"🔴 MT5 Client disconnected: {client_addr} (Account: #{connected_acc_id or 'unknown'})")
             if writer in self.active_writers:
                 self.active_writers.remove(writer)
+            for acc_k, writers in list(self.account_writers.items()):
+                writers.discard(writer)
+                if not writers:
+                    self.account_writers.pop(acc_k, None)
             if connected_acc_id:
                 self.synced_accounts.discard(connected_acc_id)
             self._save_radar_state()
@@ -579,6 +600,9 @@ class LiveMT5BridgeCore:
         if msg_type in ("REGISTER", "HANDSHAKE"):
             data_dict = msg.get("data", {}) if isinstance(msg.get("data"), dict) else {}
             acc_id = str(msg.get("account_id") or data_dict.get("account_number") or self.active_account_id)
+            norm_acc = self._normalize_account_id(acc_id)
+            if norm_acc:
+                self.account_writers[norm_acc].add(writer)
             company = str(msg.get("company") or data_dict.get("broker_name") or "MetaQuotes")
             server = str(msg.get("server") or data_dict.get("server") or "MetaQuotes-Demo")
             balance = float(msg.get("balance") or data_dict.get("balance") or 10000.0)
@@ -657,6 +681,9 @@ class LiveMT5BridgeCore:
             mid = round((bid + ask) / 2.0, 2)
             c = float(msg.get("last", mid))
             acc_id = str(msg.get("account_id") or (self.active_account_id if self.active_account_id else ""))
+            norm_acc = self._normalize_account_id(acc_id)
+            if norm_acc:
+                self.account_writers[norm_acc].add(writer)
             if acc_id:
                 self.active_account_id = acc_id
             self.equity = float(msg.get("equity", self.equity))
@@ -1755,14 +1782,44 @@ class LiveMT5BridgeCore:
             logger.debug(f"Failed to persist radar state: {e}")
 
     async def broadcast(self, message: Any):
+        """
+        Transmits message to MT5 EA clients.
+        If message specifies 'account_number', routes via Targeted Unicast Routing (DEC-042)
+        specifically to the socket writer(s) of that account, saving MT5 CPU and network bandwidth.
+        If no specific account is targeted, or if the targeted account writer is not found,
+        safely broadcasts to all active writers.
+        """
         payload = message.model_dump_json() if hasattr(message, "model_dump_json") else json.dumps(message)
-        payload = (payload + "\n").encode("utf-8")
+        payload_bytes = (payload + "\n").encode("utf-8")
+
+        target_acc = None
+        if isinstance(message, dict):
+            target_acc = message.get("account_number")
+        elif hasattr(message, "data") and isinstance(message.data, dict):
+            target_acc = message.data.get("account_number")
+        elif hasattr(message, "account_number"):
+            target_acc = getattr(message, "account_number")
+
+        norm_acc = self._normalize_account_id(target_acc)
+
+        if norm_acc and norm_acc in self.account_writers:
+            target_writers = [w for w in self.account_writers[norm_acc] if w in self.active_writers]
+            if target_writers:
+                for writer in target_writers:
+                    try:
+                        writer.write(payload_bytes)
+                        await writer.drain()
+                    except Exception as e:
+                        logger.debug(f"Targeted write error to account #{norm_acc}: {e}")
+                return
+
+        # Broadcast fallback: when no specific account is targeted or account writer is not yet mapped
         for writer in list(self.active_writers):
             try:
-                writer.write(payload)
+                writer.write(payload_bytes)
                 await writer.drain()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Broadcast write error: {e}")
 
     async def start(self):
         self.server = await asyncio.start_server(self._handle_client, self.host, self.port)
@@ -1772,12 +1829,14 @@ class LiveMT5BridgeCore:
         logger.info("============================================================")
 
     async def stop(self):
-        for writer in self.active_writers:
+        for writer in list(self.active_writers):
             try:
                 writer.close()
                 await writer.wait_closed()
             except Exception:
                 pass
+        self.active_writers.clear()
+        self.account_writers.clear()
         if self.server:
             self.server.close()
             await self.server.wait_closed()

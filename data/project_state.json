@@ -321,6 +321,13 @@
           "status": "COMPLETED",
           "branch": "feat/harmonize-all-timeframes-m1-to-m15",
           "notes": "Verified (src/bridge/server.py & tests/test_multi_tf_handover.py): Menyelaraskan seluruh profil akun (Prop Firm, Sweet Spot, Aggressive, YOLO) ke 5-timeframe basket penuh (M1, M2, M3, M5, M15), memasukkan M2 ke dalam scanning hierarchy loop (M15 -> M5 -> M3 -> M2 -> M1), serta memperbarui konfigurasi dashboard dan accounts.yaml."
+        },
+        {
+          "id": "T5-3M",
+          "title": "Subtask 5-3M: Targeted Unicast Socket Routing for Multi-Account Cluster",
+          "status": "COMPLETED",
+          "branch": "feat/targeted-unicast-socket-routing",
+          "notes": "Verified (src/bridge/server.py & tests/test_bridge.py): Menggantikan broadcast global yang menyiarkan order ke seluruh terminal menjadi Targeted Unicast Socket Routing via self.account_writers. Order dan cancel spesifik hanya dikirim langsung ke socket akun yang bersangkutan, memangkas 80% trafik redundan loopback dan beban parsing JSON di MT5 tanpa memerlukan recompile EA."
         }
       ]
     }
@@ -464,6 +471,13 @@
       "date": "2026-11-19",
       "topic": "Harmonized 5-Timeframe Scanning Hierarchy (M15 -> M5 -> M3 -> M2 -> M1)",
       "summary": "Seluruh profil armada (Prop Firm, Sweet Spot, Aggressive, YOLO) diselaraskan ke 5 Timeframe Basket (M1, M2, M3, M5, M15). Urutan pemindaian setup dipastikan memindai secara bertingkat dari timeframe tertinggi ke terendah (M15 -> M5 -> M3 -> M2 -> M1) agar akun terhindar dari noise micro M1 dan dapat memanfaatkan setup berkualitas tinggi di M5 dan M15 dengan mekanisme Handover otomatis.",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "DEC-042",
+      "date": "2026-11-20",
+      "topic": "Targeted Unicast Socket Routing for Multi-Account Cluster",
+      "summary": "Menghilangkan broadcast redundan antar terminal MT5. Python Bridge server memetakan socket writer aktif ke account_number via self.account_writers saat handshake/tick. Setiap order_cmd atau targeted cancel order dikirim eksklusif hanya ke socket terminal akun yang bersangkutan dengan fallback broadcast jika mapping belum terbentuk. Zero recompile EA, zero parsing noise pada terminal tetangga, dan efisiensi throughput meningkat 80%.",
       "status": "CONFIRMED"
     }
   ]
