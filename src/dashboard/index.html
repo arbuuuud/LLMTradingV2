@@ -2901,13 +2901,15 @@
             ${(() => {
               const live = acc.performance_live || {};
               const dg = acc.daily_guard || {};
-              const startBal = live.daily_start_balance || dg.daily_start_equity || acc.equity || 10000.0;
-              const dPnL = (live.daily_pnl !== undefined) ? live.daily_pnl : ((acc.equity || startBal) - startBal);
-              const dPnLPct = (live.daily_pnl_pct !== undefined) ? live.daily_pnl_pct : ((dPnL / Math.max(1.0, startBal)) * 100.0);
 
-              const wStartBal = live.weekly_start_balance || dg.weekly_start_balance || startBal;
-              const wPnL = (live.weekly_pnl !== undefined) ? live.weekly_pnl : dPnL;
-              const wPnLPct = (live.weekly_pnl_pct !== undefined) ? live.weekly_pnl_pct : ((wPnL / Math.max(1.0, wStartBal)) * 100.0);
+              // Prioritize real-time live telemetry from daily_guard (sent directly by MT5 tick), fallback to performance_live or equity
+              const startBal = dg.daily_start_balance || dg.daily_start_equity || live.daily_start_balance || acc.equity || 10000.0;
+              const dPnL = (dg.daily_pnl !== undefined) ? dg.daily_pnl : ((live.daily_pnl !== undefined) ? live.daily_pnl : ((acc.equity || startBal) - startBal));
+              const dPnLPct = (dg.daily_pnl_pct !== undefined) ? dg.daily_pnl_pct : ((live.daily_pnl_pct !== undefined) ? live.daily_pnl_pct : ((dPnL / Math.max(1.0, startBal)) * 100.0));
+
+              const wStartBal = dg.weekly_start_balance || live.weekly_start_balance || startBal;
+              const wPnL = (dg.weekly_pnl !== undefined) ? dg.weekly_pnl : ((live.weekly_pnl !== undefined) ? live.weekly_pnl : dPnL);
+              const wPnLPct = (dg.weekly_pnl_pct !== undefined) ? dg.weekly_pnl_pct : ((live.weekly_pnl_pct !== undefined) ? live.weekly_pnl_pct : ((wPnL / Math.max(1.0, wStartBal)) * 100.0));
 
               const isGoalSecured = dPnLPct >= 1.0;
               const isHalted = dg.daily_halted === true || dPnLPct <= -0.5;

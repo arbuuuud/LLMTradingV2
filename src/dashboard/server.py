@@ -669,10 +669,30 @@ class InstitutionalDashboardHandler(BaseHTTPRequestHandler):
 
             for acc_id, acc_data in acc_dict.items():
                 acc_num = str(acc_data.get("account_number", acc_id))
-                if acc_num in daily_guard:
-                    acc_data["daily_guard"] = daily_guard[acc_num]
-                if acc_num in ledg_accs:
-                    acc_data["performance_live"] = ledg_accs[acc_num].get("live", {})
+                dg_acc = daily_guard.get(acc_num)
+                if dg_acc:
+                    acc_data["daily_guard"] = dg_acc
+                
+                # Retrieve or initialize performance_live
+                perf_live = dict(ledg_accs.get(acc_num, {}).get("live", {}))
+                
+                # If real-time daily_guard is available, sync performance_live so both fields are consistently fresh
+                if dg_acc:
+                    perf_live["daily_pnl"] = dg_acc.get("daily_pnl", perf_live.get("daily_pnl", 0.0))
+                    perf_live["daily_pnl_pct"] = dg_acc.get("daily_pnl_pct", perf_live.get("daily_pnl_pct", 0.0))
+                    perf_live["daily_start_balance"] = dg_acc.get("daily_start_balance", perf_live.get("daily_start_balance", dg_acc.get("daily_start_equity", 10000.0)))
+                    perf_live["weekly_pnl"] = dg_acc.get("weekly_pnl", perf_live.get("weekly_pnl", 0.0))
+                    perf_live["weekly_pnl_pct"] = dg_acc.get("weekly_pnl_pct", perf_live.get("weekly_pnl_pct", 0.0))
+                    perf_live["weekly_start_balance"] = dg_acc.get("weekly_start_balance", perf_live.get("weekly_start_balance", 10000.0))
+                    perf_live["daily_target_hit"] = float(perf_live["daily_pnl_pct"]) >= 1.0
+                    perf_live["weekly_target_hit"] = float(perf_live["weekly_pnl_pct"]) >= 5.0
+                    if "equity" in acc_data:
+                        perf_live["equity"] = float(acc_data["equity"])
+                    if "balance" in acc_data:
+                        perf_live["balance"] = float(acc_data["balance"])
+                
+                if perf_live:
+                    acc_data["performance_live"] = perf_live
 
             self._set_json_headers(200)
             self.wfile.write(json.dumps({

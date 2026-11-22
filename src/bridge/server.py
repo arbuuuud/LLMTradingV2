@@ -65,6 +65,7 @@ class LiveMT5BridgeCore:
         self.balance = 0.0
         self.equity = 0.0
         self._last_radar_save = 0.0
+        self._last_ledger_save = 0.0
 
         # Live Order Dispatching & Notification State
         self.last_dispatched_order: Optional[Dict[str, Any]] = None
@@ -864,6 +865,15 @@ class LiveMT5BridgeCore:
             now = time.time()
             if now - self._last_radar_save >= 0.5:
                 self._save_radar_state()
+
+            # Persist performance ledger telemetry to disk periodically (every 10 seconds)
+            if now - self._last_ledger_save >= 10.0:
+                self._last_ledger_save = now
+                try:
+                    from src.analytics.performance_ledger import get_performance_ledger
+                    get_performance_ledger().save()
+                except Exception as e:
+                    logger.debug(f"Periodic performance ledger save error: {e}")
 
     def _save_radar_state(self):
         if not self.history_m1 and not self.latest_tick:
