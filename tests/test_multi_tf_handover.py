@@ -357,14 +357,16 @@ def test_smart_judas_fortress_sl_and_4_layer_grid():
     assert sell_levels[2] == 3720.0
     assert sell_levels[3] == 3725.44
 
-    # 3. Smart Judas Fortress SL: OB Fallback to Fibo -13%
-    fibo_sl_buy = round(sw_low - (span * 0.130) - 0.25, 2)
-    assert fibo_sl_buy == round(3700.0 - 2.60 - 0.25, 2) # 3697.15
+    # 3. Smart Judas Fortress SL: Stop Loss must lie strictly beyond L4 (-27.2%) to guarantee valid broker stops
+    fibo_sl_buy = round(sw_low - (span * 0.382) - 0.25, 2)
+    assert fibo_sl_buy == round(3700.0 - 7.64 - 0.25, 2) # 3692.11
+    assert fibo_sl_buy < buy_levels[3], "SL must be strictly below L4 Buy Entry!"
 
-    # If OB bottom at 3695.00 is within 0.5x span (10 pts from 3700)
-    ob_bot = 3695.00
+    # If OB bottom at 3690.00 is beyond L4 (within 0.75x span from 3700)
+    ob_bot = 3690.00
     ob_sl_buy = round(ob_bot - 0.25, 2)
-    assert ob_sl_buy == 3694.75
+    assert ob_sl_buy == 3689.75
+    assert ob_sl_buy < buy_levels[3], "OB SL must be strictly below L4 Buy Entry!"
 
 
 def test_dual_engine_asymmetric_tp_and_auto_bep_orchestration():
@@ -415,6 +417,71 @@ def test_dual_engine_asymmetric_tp_and_auto_bep_orchestration():
     # Check that open price was valid for BEP
     assert pos["open_price"] == 2640.0
     assert pos["sl"] < pos["open_price"], "Prior SL was below entry"
+
+
+def test_unused_area_filtering_skips_penetrated_levels():
+    """Verify that SMC Unused Area check skips limit levels already penetrated by prior candles in swing descent."""
+    raw_levels = [3705.0, 3702.5, 3700.0, 3694.56] # L1, L2, L3, L4
+    spent_set = set()
+    existing_p_prices = []
+    bid = 3707.0 # Live bid currently bounced up to 3707.0
+    pullback_low = 3703.0 # Candle low previously penetrated through L1 (3705.0) down to 3703.0
+
+    valid_layers = []
+    dir_cmd = "BUY"
+    for lay_i, limit_p in enumerate(raw_levels):
+        if lay_i in spent_set:
+            continue
+        # SMC Unused Area check: Skip levels already penetrated during pullback
+        if dir_cmd == "BUY" and pullback_low <= (limit_p - 0.20):
+            continue
+        if dir_cmd == "BUY" and limit_p >= (bid - 0.10):
+            continue
+        valid_layers.append((lay_i, limit_p))
+
+    # L1 (3705.0) must be skipped because pullback_low (3703.0) already penetrated below 3705.0 - 0.20!
+    # L2 (3702.5), L3 (3700.0), L4 (3694.56) are fresh unused depth areas.
+    assert len(valid_layers) == 3
+    assert valid_layers[0] == (1, 3702.5) # L2 is first valid layer
+    assert valid_layers[1] == (2, 3700.0) # L3
+    assert valid_layers[2] == (3, 3694.56) # L4
+
+
+@pytest.mark.asyncio
+async def test_l4_depletion_detection_and_timeframe_isolation(tmp_path, monkeypatch):
+    """Verify that comment with _L4 marks layer index 3 as spent, and does not leak to other TFs."""
+    monkeypatch.setattr("src.bridge.server.PROJECT_ROOT", tmp_path)
+    (tmp_path / "data").mkdir(parents=True, exist_ok=True)
+    bridge = LiveMT5BridgeCore(host="127.0.0.1", port=5597)
+    bridge.tf_depletion["M1"] = {
+        "spent_layers": set(),
+        "roof": 2650.0,
+        "floor": 2640.0,
+        "direction": "BUY"
+    }
+    bridge.tf_depletion["M15"] = {
+        "spent_layers": set(),
+        "roof": 2680.0,
+        "floor": 2620.0,
+        "direction": "BUY"
+    }
+
+    # Simulate M1 Layer 4 Take Profit trade deal
+    data = {
+        "trade_id": "test-deal-99999",
+        "symbol": "XAUUSD",
+        "account_number": "115745645",
+        "direction": "BUY",
+        "pnl": 45.0,
+        "comment": "M1_L4_RUN_LEV"
+    }
+    bridge._record_closed_trade(data)
+
+    # Layer 4 (index 3) must be in M1 spent_layers
+    assert 3 in bridge.tf_depletion["M1"]["spent_layers"], "Layer 4 (index 3) should be marked spent on M1"
+    # M15 must remain untouched (timeframe isolation)
+    assert len(bridge.tf_depletion["M15"]["spent_layers"]) == 0, "M15 depletion should remain untouched by M1 trade"
+
 
 
 
