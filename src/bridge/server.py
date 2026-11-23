@@ -1245,6 +1245,10 @@ class LiveMT5BridgeCore:
                 "grid_levels": buy_grid_levels if dir_label == "BUY" else sell_grid_levels,
                 "deepest_pullback_low": deepest_pullback_low,
                 "highest_rally_high": highest_rally_high,
+                "floor_deepest_touch": selected_floor.deepest_touch_price if selected_floor else None,
+                "roof_deepest_touch": selected_roof.deepest_touch_price if selected_roof else None,
+                "floor_is_mitigated": selected_floor.is_mitigated if selected_floor else False,
+                "roof_is_mitigated": selected_roof.is_mitigated if selected_roof else False,
                 "buy_zone": {
                     "bottom": buy_zone_bottom,
                     "top": buy_zone_top,
@@ -1873,15 +1877,26 @@ class LiveMT5BridgeCore:
                     pullback_low = chosen_setup.get("deepest_pullback_low", mid)
                     rally_high = chosen_setup.get("highest_rally_high", mid)
 
+                    # Consolidated Effective Penetration (incorporating SMC POI historical touches)
+                    floor_touch = chosen_setup.get("floor_deepest_touch")
+                    roof_touch = chosen_setup.get("roof_deepest_touch")
+                    eff_pullback_low = min(pullback_low, floor_touch) if floor_touch is not None else pullback_low
+                    eff_rally_high = max(rally_high, roof_touch) if roof_touch is not None else rally_high
+                    is_virgin_depth_mode = (chosen_setup.get("retest_mode") == "VIRGIN_DEPTH_ONLY")
+
                     valid_layers = []
                     for lay_i, limit_p in enumerate(raw_levels):
                         if lay_i in spent_set:
                             continue
 
-                        # SMC Unused Area check: Skip levels already penetrated/absorbed in current swing
-                        if dir_cmd == "BUY" and pullback_low <= (limit_p - 0.20):
+                        # Mode VIRGIN_DEPTH_ONLY: Skip shallow Layer 1 (25% / 75%) to enforce pure depth (>50% penetration)
+                        if is_virgin_depth_mode and lay_i == 0:
+                            continue
+
+                        # SMC Unused Area check: Skip levels already penetrated/absorbed in current swing or POI lifecycle
+                        if dir_cmd == "BUY" and eff_pullback_low <= (limit_p - 0.20):
                             continue # Liquidity at this level already absorbed during pullback
-                        if dir_cmd == "SELL" and rally_high >= (limit_p + 0.20):
+                        if dir_cmd == "SELL" and eff_rally_high >= (limit_p + 0.20):
                             continue # Liquidity at this level already absorbed during rally
 
                         if dir_cmd == "BUY" and limit_p >= (bid - 0.10):

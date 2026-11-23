@@ -27,6 +27,8 @@ class SelectedPOIAnchor:
     mean_threshold: float
     is_virgin: bool
     touch_count: int
+    deepest_touch_price: Optional[float] = None
+    is_mitigated: bool = False
     proximity_merged: bool = False
     merged_description: str = ""
     original_sources: List[str] = field(default_factory=list)
@@ -79,6 +81,8 @@ class POIPrioritizer:
                     "mt": ob.mean_threshold,
                     "virgin": (ob.touch_count == 0),
                     "touches": ob.touch_count,
+                    "deepest_touch": ob.deepest_touch_price,
+                    "mitigated": ob.is_mitigated,
                     "desc": f"{'Continuation DBD' if is_dbd else 'Reversal RBD OB'} (${ob.bottom:.2f} - ${ob.top:.2f})"
                 })
 
@@ -95,6 +99,8 @@ class POIPrioritizer:
                     "mt": (conf.overlap_top + conf.overlap_bottom) / 2.0,
                     "virgin": True,
                     "touches": 0,
+                    "deepest_touch": None,
+                    "mitigated": False,
                     "desc": f"FVG+iFVG Cluster (${conf.overlap_bottom:.2f} - ${conf.overlap_top:.2f})"
                 })
 
@@ -111,6 +117,8 @@ class POIPrioritizer:
                     "mt": (fvg.top + fvg.bottom) / 2.0,
                     "virgin": True,
                     "touches": 0,
+                    "deepest_touch": fvg.deepest_touch_price,
+                    "mitigated": fvg.is_mitigated,
                     "desc": f"Bearish FVG (${fvg.bottom:.2f} - ${fvg.top:.2f})"
                 })
 
@@ -127,6 +135,8 @@ class POIPrioritizer:
                 mean_threshold=(top_p + btm_p) / 2.0,
                 is_virgin=True,
                 touch_count=0,
+                deepest_touch_price=None,
+                is_mitigated=False,
                 proximity_merged=False,
                 merged_description=f"Fallback Swing High Peak at ${top_p:.2f}"
             )
@@ -145,6 +155,8 @@ class POIPrioritizer:
             mean_threshold=best_candidate["mt"],
             is_virgin=best_candidate["virgin"],
             touch_count=best_candidate["touches"],
+            deepest_touch_price=best_candidate.get("deepest_touch"),
+            is_mitigated=best_candidate.get("mitigated", False),
             proximity_merged=best_candidate.get("merged", False),
             merged_description=best_candidate["desc"]
         )
@@ -186,6 +198,8 @@ class POIPrioritizer:
                     "mt": ob.mean_threshold,
                     "virgin": (ob.touch_count == 0),
                     "touches": ob.touch_count,
+                    "deepest_touch": ob.deepest_touch_price,
+                    "mitigated": ob.is_mitigated,
                     "desc": f"{'Continuation RBR' if is_rbr else 'Reversal DBR OB'} (${ob.bottom:.2f} - ${ob.top:.2f})"
                 })
 
@@ -202,6 +216,8 @@ class POIPrioritizer:
                     "mt": (conf.overlap_top + conf.overlap_bottom) / 2.0,
                     "virgin": True,
                     "touches": 0,
+                    "deepest_touch": None,
+                    "mitigated": False,
                     "desc": f"FVG+iFVG Cluster (${conf.overlap_bottom:.2f} - ${conf.overlap_top:.2f})"
                 })
 
@@ -218,6 +234,8 @@ class POIPrioritizer:
                     "mt": (fvg.top + fvg.bottom) / 2.0,
                     "virgin": True,
                     "touches": 0,
+                    "deepest_touch": fvg.deepest_touch_price,
+                    "mitigated": fvg.is_mitigated,
                     "desc": f"Bullish FVG (${fvg.bottom:.2f} - ${fvg.top:.2f})"
                 })
 
@@ -234,6 +252,8 @@ class POIPrioritizer:
                 mean_threshold=(top_p + btm_p) / 2.0,
                 is_virgin=True,
                 touch_count=0,
+                deepest_touch_price=None,
+                is_mitigated=False,
                 proximity_merged=False,
                 merged_description=f"Fallback Swing Low Base at ${btm_p:.2f}"
             )
@@ -250,6 +270,8 @@ class POIPrioritizer:
             mean_threshold=best_candidate["mt"],
             is_virgin=best_candidate["virgin"],
             touch_count=best_candidate["touches"],
+            deepest_touch_price=best_candidate.get("deepest_touch"),
+            is_mitigated=best_candidate.get("mitigated", False),
             proximity_merged=best_candidate.get("merged", False),
             merged_description=best_candidate["desc"]
         )
@@ -275,6 +297,13 @@ class POIPrioritizer:
         c_btm = min(c["bottom"] for c in nearby)
         merged_desc = f"{winner['type']} Winner (merged with {len(nearby)-1} adjacent zones): ${c_btm:.2f} - ${c_top:.2f}"
 
+        # Consolidate deepest touch across cluster
+        touches = [c["deepest_touch"] for c in nearby if c.get("deepest_touch") is not None]
+        if touches:
+            cluster_deepest_touch = max(touches) if is_roof else min(touches)
+        else:
+            cluster_deepest_touch = None
+
         return {
             "tier": winner["tier"],
             "score": winner["score"],
@@ -285,6 +314,8 @@ class POIPrioritizer:
             "mt": (c_top + c_btm) / 2.0,
             "virgin": any(c["virgin"] for c in nearby),
             "touches": min(c["touches"] for c in nearby),
+            "deepest_touch": cluster_deepest_touch,
+            "mitigated": any(c.get("mitigated", False) for c in nearby),
             "merged": True,
             "desc": merged_desc
         }

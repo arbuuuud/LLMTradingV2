@@ -32,9 +32,16 @@ class AuditorAgent:
     def audit_and_rank_clones(self, results: List[ShadowCloneResult]) -> List[ShadowCloneResult]:
         """
         Filters and ranks clones based on institutional metrics.
-        Disqualifies clones suffering from analysis paralysis (< 30 trades/month).
+        Disqualifies clones suffering from analysis paralysis (< 30 trades/month)
+        or mathematical anomalies (e.g. inverted stop loss specs).
         """
         for r in results:
+            # Check 0: Mathematical Integrity & Inverted Stops Audit (INCIDENT-001 Anti-Corruption Gate)
+            if getattr(r.spec, "hard_sl_pct", -20.0) >= 0.0:
+                r.is_disqualified = True
+                r.disqualification_reason = f"MATH_ANOMALY: Inverted Stop Loss pct ({r.spec.hard_sl_pct}% >= 0.0% floor)"
+                continue
+
             # Check 1: Inactivity / Analysis paralysis filter
             if r.avg_trades_per_day < 1.0 or r.total_trades < self.min_trades:
                 r.is_disqualified = True
