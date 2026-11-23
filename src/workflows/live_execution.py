@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.core.types import (
     MarketStateSnapshot,
@@ -44,6 +44,32 @@ class OrderDispatchCommand(BaseModel):
     comment: str
     magic: int = 123456
     created_at: datetime = Field(default_factory=datetime.now)
+
+    @model_validator(mode="after")
+    def validate_broker_stops_invariant(self):
+        """
+        Enforces absolute broker order invariants before dispatching to MT5.
+        Prevents MT5 TRADE_RETCODE_INVALID_STOPS (10016) errors on initial orders.
+        Allows SL+ (Auto-BEP / Trailing Stop) during position modifications.
+        """
+        if self.action in ("ORDER_SEND", "ORDER"):
+            if "BUY_LIMIT" in self.order_type:
+                if self.sl > 0.0 and self.sl >= (self.price - 0.20):
+                    raise ValueError(f"CRITICAL INVALID STOPS: BUY_LIMIT SL ({self.sl}) must be strictly below Entry ({self.price})")
+                if self.tp > 0.0 and self.tp <= (self.price + 0.20):
+                    raise ValueError(f"CRITICAL INVALID STOPS: BUY_LIMIT TP ({self.tp}) must be strictly above Entry ({self.price})")
+            elif "SELL_LIMIT" in self.order_type:
+                if self.sl > 0.0 and self.sl <= (self.price + 0.20):
+                    raise ValueError(f"CRITICAL INVALID STOPS: SELL_LIMIT SL ({self.sl}) must be strictly above Entry ({self.price})")
+                if self.tp > 0.0 and self.tp >= (self.price - 0.20):
+                    raise ValueError(f"CRITICAL INVALID STOPS: SELL_LIMIT TP ({self.tp}) must be strictly below Entry ({self.price})")
+            elif self.order_type == "BUY":
+                if self.sl > 0.0 and self.sl >= self.price:
+                    raise ValueError(f"CRITICAL INVALID STOPS: Market BUY initial SL ({self.sl}) must be below Entry ({self.price})")
+            elif self.order_type == "SELL":
+                if self.sl > 0.0 and self.sl <= self.price:
+                    raise ValueError(f"CRITICAL INVALID STOPS: Market SELL initial SL ({self.sl}) must be above Entry ({self.price})")
+        return self
 
 
 class CircuitBreakerSentinel:

@@ -430,6 +430,9 @@ class BacktestEngine:
 
                     # BUY TRIGGER
                     if l <= trigger_buy_ceiling and c > current_floor:
+                        prior_deepest = deepest_touch
+                        deepest_touch = min(deepest_touch, l) if deepest_touch > 0.0 else l
+
                         # 3. VWAP Gate for BUY: e.g. BUY only below VWAP (true institutional discount)
                         if vwap_values is not None and spec.vwap_filter_mode == "BUY_BELOW_VWAP":
                             if c >= vwap_values[i]:
@@ -451,14 +454,23 @@ class BacktestEngine:
 
                         num_layers = max(1, spec.limit_layers)
                         # Spacing: from 25% (Lantai Atas Buy) down to 0% (Lantai Bawah Buy)
-                        depth_pcts = [0.25] if num_layers == 1 else [0.25 - (i * 0.25 / (num_layers - 1)) for i in range(num_layers)]
+                        depth_pcts = [0.25] if num_layers == 1 else [0.25 - (lay_i * 0.25 / (num_layers - 1)) for lay_i in range(num_layers)]
 
                         # Risk allocation per layer based on grid_weight_mode
                         total_risk = self.initial_capital * (self.base_risk_pct / 100.0)
                         grid_mode = getattr(spec, "grid_weight_mode", "EQUAL")
 
+                        # Absolute Guard: Hard SL must be strictly below all Buy levels
+                        min_grid_level = current_floor + span * min(depth_pcts)
+                        hard_sl = min(hard_sl, min_grid_level - 0.25)
+
                         for lay_idx, dp in enumerate(depth_pcts):
                             order_level = current_floor + span * dp
+
+                            # SMC Unused Area check: Skip levels already penetrated/absorbed prior to this bar
+                            if prior_deepest > 0.0 and prior_deepest <= (order_level - 0.20):
+                                continue
+
                             # BUY enters at ASK = order_level + spread
                             if l <= (order_level + slippage) and len(open_trades) < spec.limit_layers:
                                 # Check if already entered this layer
@@ -489,6 +501,9 @@ class BacktestEngine:
 
                     # SELL TRIGGER
                     elif h >= trigger_sell_floor and c < current_roof:
+                        prior_deepest = deepest_touch
+                        deepest_touch = max(deepest_touch, h) if deepest_touch > 0.0 else h
+
                         # 3. VWAP Gate for SELL: e.g. SELL only above VWAP (true institutional premium)
                         if vwap_values is not None and spec.vwap_filter_mode == "SELL_ABOVE_VWAP":
                             if c <= vwap_values[i]:
@@ -510,13 +525,22 @@ class BacktestEngine:
 
                         num_layers = max(1, spec.limit_layers)
                         # Spacing: from 75% (Lantai Bawah Sell) up to 100% (Lantai Atas Sell)
-                        depth_pcts = [0.75] if num_layers == 1 else [0.75 + (i * 0.25 / (num_layers - 1)) for i in range(num_layers)]
+                        depth_pcts = [0.75] if num_layers == 1 else [0.75 + (lay_i * 0.25 / (num_layers - 1)) for lay_i in range(num_layers)]
 
                         total_risk = self.initial_capital * (self.base_risk_pct / 100.0)
                         grid_mode = getattr(spec, "grid_weight_mode", "EQUAL")
 
+                        # Absolute Guard: Hard SL must be strictly above all Sell levels
+                        max_grid_level = current_floor + span * max(depth_pcts)
+                        hard_sl = max(hard_sl, max_grid_level + 0.25)
+
                         for lay_idx, dp in enumerate(depth_pcts):
                             order_level = current_floor + span * dp
+
+                            # SMC Unused Area check: Skip levels already penetrated/absorbed prior to this bar
+                            if prior_deepest > 0.0 and prior_deepest >= (order_level + 0.20):
+                                continue
+
                             # SELL enters at BID = order_level
                             if (h + spread) >= (order_level - slippage) and len(open_trades) < spec.limit_layers:
                                 # Check if already entered this layer
