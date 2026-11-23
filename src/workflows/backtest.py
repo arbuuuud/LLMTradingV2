@@ -201,7 +201,8 @@ class BacktestEngine:
                     tr.exit_time = t
                     tr.exit_price = tr.hard_tp_price
                     tr.exit_reason = "HARD_TP"
-                    r_gain = (tr.hard_tp_price - tr.entry_price) / max(tr.entry_price - tr.sl_price, 0.1)
+                    sl_dist = max(abs(tr.entry_price - tr.sl_price), 0.50)
+                    r_gain = (tr.hard_tp_price - tr.entry_price) / sl_dist
                     tr.r_multiple = max(r_gain, 1.0)
                     tr.pnl = tr.risk_amount * tr.r_multiple
                     tr.is_closed = True
@@ -215,7 +216,8 @@ class BacktestEngine:
                     tr.exit_time = t
                     tr.exit_price = tr.hard_tp_price
                     tr.exit_reason = "HARD_TP"
-                    r_gain = (tr.entry_price - tr.hard_tp_price) / max(tr.sl_price - tr.entry_price, 0.1)
+                    sl_dist = max(abs(tr.sl_price - tr.entry_price), 0.50)
+                    r_gain = (tr.entry_price - tr.hard_tp_price) / sl_dist
                     tr.r_multiple = max(r_gain, 1.0)
                     tr.pnl = tr.risk_amount * tr.r_multiple
                     tr.is_closed = True
@@ -403,6 +405,9 @@ class BacktestEngine:
                 sell_zone_floor = current_floor + span * 0.75
                 sell_zone_depth_50 = current_floor + span * 0.875 # 50% penetration of 75-100% zone
 
+                trigger_buy_ceiling = buy_zone_depth_50 if spec.pac_retest_mode == PACRetestMode.VIRGIN_DEPTH_ONLY else buy_zone_ceiling
+                trigger_sell_floor = sell_zone_depth_50 if spec.pac_retest_mode == PACRetestMode.VIRGIN_DEPTH_ONLY else sell_zone_floor
+
                 mid_eq = current_floor + span * (spec.hard_tp_pct / 100.0)
 
                 # Check Session eligibility
@@ -424,7 +429,7 @@ class BacktestEngine:
                             continue
 
                     # BUY TRIGGER
-                    if l <= buy_zone_ceiling and c > current_floor:
+                    if l <= trigger_buy_ceiling and c > current_floor:
                         # 3. VWAP Gate for BUY: e.g. BUY only below VWAP (true institutional discount)
                         if vwap_values is not None and spec.vwap_filter_mode == "BUY_BELOW_VWAP":
                             if c >= vwap_values[i]:
@@ -483,7 +488,7 @@ class BacktestEngine:
                                 open_trades.append(tr)
 
                     # SELL TRIGGER
-                    elif h >= sell_zone_floor and c < current_roof:
+                    elif h >= trigger_sell_floor and c < current_roof:
                         # 3. VWAP Gate for SELL: e.g. SELL only above VWAP (true institutional premium)
                         if vwap_values is not None and spec.vwap_filter_mode == "SELL_ABOVE_VWAP":
                             if c <= vwap_values[i]:

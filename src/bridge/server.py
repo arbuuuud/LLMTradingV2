@@ -346,6 +346,32 @@ class LiveMT5BridgeCore:
             else:
                 cd_seconds = 25 * 60.0
 
+            # Micro Level Depletion (Pilar 3: Virgin Depth Preservation)
+            t_comm = str(data.get("comment", "")).upper()
+            spent_lay = None
+            if "_L1" in t_comm or "L1" in t_comm:
+                spent_lay = 0
+            elif "_L2" in t_comm or "L2" in t_comm:
+                spent_lay = 1
+            elif "_L3" in t_comm or "L3" in t_comm:
+                spent_lay = 2
+            elif "_L4" in t_comm or "L4" in t_comm:
+                spent_lay = 3
+
+            comm_tf = None
+            for tf_cand in ["M1", "M2", "M3", "M4", "M5", "M15", "M30"]:
+                if t_comm.startswith(tf_cand + "_") or f"_{tf_cand}_" in t_comm:
+                    comm_tf = tf_cand
+                    break
+
+            if spent_lay is not None:
+                target_tfs = [comm_tf] if (comm_tf and comm_tf in self.tf_depletion) else list(self.tf_depletion.keys())
+                for dep_tf in target_tfs:
+                    dep_data = self.tf_depletion.get(dep_tf, {})
+                    if dep_data.get("direction") == trade_dir:
+                        dep_data.setdefault("spent_layers", set()).add(spent_lay)
+                        logger.info(f"🛡️ [MICRO DEPLETION] {dep_tf} Layer {spent_lay+1} marked as SPENT. Deeper virgin layers remain active!")
+
             if trade_pnl < 0:
                 if trade_dir == "BUY":
                     self.consecutive_buy_losses += 1
@@ -361,19 +387,6 @@ class LiveMT5BridgeCore:
                     self.consecutive_buy_losses = 0
                 elif trade_dir == "SELL":
                     self.consecutive_sell_losses = 0
-
-                # Micro Level Depletion (Pilar 3: Virgin Depth Preservation)
-                t_comm = str(data.get("comment", "")).upper()
-                spent_lay = 0
-                if "_L2" in t_comm or "L2" in t_comm:
-                    spent_lay = 1
-                elif "_L3" in t_comm or "L3" in t_comm:
-                    spent_lay = 2
-
-                for dep_tf, dep_data in self.tf_depletion.items():
-                    if dep_data.get("direction") == trade_dir:
-                        dep_data.setdefault("spent_layers", set()).add(spent_lay)
-                        logger.info(f"🏆 [MICRO DEPLETION] {dep_tf} Layer {spent_lay+1} marked as SPENT upon Take Profit. Deeper virgin layers remain active!")
 
                 # Mark active structural zone as COMPLETED / SPENT upon Take Profit (DEC-035)
                 self.zone_completed = True
@@ -986,36 +999,70 @@ class LiveMT5BridgeCore:
             total_range = max(1.0, sw_high - sw_low)
             equilibrium = round((sw_high + sw_low) / 2.0, 2)
 
-            # Institutional PAC Quadrants
-            buy_zone_top = round(sw_low + (total_range * 0.25), 2)
-            buy_zone_bottom = sw_low
-            sell_zone_bottom = round(sw_low + (total_range * 0.75), 2)
-            sell_zone_top = sw_high
+            # Institutional PAC Quadrants (Preserve prioritized RBR/DBD POI base boundaries if present)
+            if not floor_is_rbr:
+                buy_zone_top = round(sw_low + (total_range * 0.25), 2)
+                buy_zone_bottom = sw_low
+            if not roof_is_dbd:
+                sell_zone_bottom = round(sw_low + (total_range * 0.75), 2)
+                sell_zone_top = sw_high
 
             in_discount = mid <= buy_zone_top
             in_premium = mid >= sell_zone_bottom
 
             # Calculate Untouched / Fresh Depth Boundary for Visual Chart (>50% Penetration)
-            untouched_buy_top = round(sw_low + (total_range * 0.125), 2)
-            untouched_sell_bottom = round(sw_low + (total_range * 0.875), 2)
+            if floor_is_rbr:
+                untouched_buy_top = round(buy_zone_bottom + ((buy_zone_top - buy_zone_bottom) * 0.50), 2)
+            else:
+                untouched_buy_top = round(sw_low + (total_range * 0.125), 2)
+
+            if roof_is_dbd:
+                untouched_sell_bottom = round(sell_zone_bottom + ((sell_zone_top - sell_zone_bottom) * 0.50), 2)
+            else:
+                untouched_sell_bottom = round(sw_low + (total_range * 0.875), 2)
 
             # 4-Layer Judas Grid Target Levels for this TF (DEC-043 Champion: Judas Catch at -27.2%)
-            buy_grid_levels = [
-                round(buy_zone_top, 2),                   # L1: 25% Lantai Atas Buy
-                round(sw_low + (total_range * 0.125), 2), # L2: 12.5% Kedalaman Murni
-                round(sw_low, 2),                          # L3: 0% Dasar Lantai
-                round(sw_low - (total_range * 0.272), 2)  # L4: -27.2% Judas Catch
-            ]
-            sell_grid_levels = [
-                round(sell_zone_bottom, 2),               # L1: 75% Lantai Bawah Sell
-                round(sw_low + (total_range * 0.875), 2), # L2: 87.5% Kedalaman Murni
-                round(sw_high, 2),                         # L3: 100% Pucuk Atap
-                round(sw_high + (total_range * 0.272), 2) # L4: +27.2% Judas Catch
-            ]
+            if floor_is_rbr:
+                rbr_span = max(0.50, buy_zone_top - buy_zone_bottom)
+                buy_grid_levels = [
+                    round(buy_zone_top, 2),                              # L1: Bibir Atas Base
+                    round(buy_zone_bottom + (rbr_span * 0.50), 2),       # L2: Tengah Base
+                    round(buy_zone_bottom, 2),                           # L3: Dasar Base
+                    round(buy_zone_bottom - (total_range * 0.272), 2)    # L4: -27.2% Judas Catch
+                ]
+            else:
+                buy_grid_levels = [
+                    round(buy_zone_top, 2),                   # L1: 25% Lantai Atas Buy
+                    round(sw_low + (total_range * 0.125), 2), # L2: 12.5% Kedalaman Murni
+                    round(sw_low, 2),                          # L3: 0% Dasar Lantai
+                    round(sw_low - (total_range * 0.272), 2)  # L4: -27.2% Judas Catch
+                ]
 
-            # Smart Judas Fortress SL (DEC-043: Hierarki OR_1 Unmitigated OB -> Fibo Judas -13%)
-            valid_bull_ob = [ob for ob in active_obs if ob.ob_type in ("DBR", "RBR") and ob.bottom < sw_low and (sw_low - ob.bottom) <= (0.50 * total_range)]
-            valid_bear_ob = [ob for ob in active_obs if ob.ob_type in ("RBD", "DBD") and ob.top > sw_high and (ob.top - sw_high) <= (0.50 * total_range)]
+            if roof_is_dbd:
+                dbd_span = max(0.50, sell_zone_top - sell_zone_bottom)
+                sell_grid_levels = [
+                    round(sell_zone_bottom, 2),                          # L1: Bibir Bawah Base
+                    round(sell_zone_bottom + (dbd_span * 0.50), 2),      # L2: Tengah Base
+                    round(sell_zone_top, 2),                             # L3: Atap Base
+                    round(sell_zone_top + (total_range * 0.272), 2)      # L4: +27.2% Judas Catch
+                ]
+            else:
+                sell_grid_levels = [
+                    round(sell_zone_bottom, 2),               # L1: 75% Lantai Bawah Sell
+                    round(sw_low + (total_range * 0.875), 2), # L2: 87.5% Kedalaman Murni
+                    round(sw_high, 2),                         # L3: 100% Pucuk Atap
+                    round(sw_high + (total_range * 0.272), 2) # L4: +27.2% Judas Catch
+                ]
+
+            # Smart Judas Fortress SL: Stop Loss MUST lie strictly beyond L4 Judas Catch (-27.2% / +27.2%)
+            # to guarantee valid broker stops and eliminate MT5 TRADE_RETCODE_INVALID_STOPS rejections!
+            l4_buy_level = buy_grid_levels[3]
+            fibo_sl_buy = round(sw_low - (total_range * 0.382) - 0.25, 2)
+            valid_bull_ob = [ob for ob in active_obs if ob.ob_type in ("DBR", "RBR") and ob.bottom < l4_buy_level and (sw_low - ob.bottom) <= (0.75 * total_range)]
+
+            l4_sell_level = sell_grid_levels[3]
+            fibo_sl_sell = round(sw_high + (total_range * 0.382) + 0.25, 2)
+            valid_bear_ob = [ob for ob in active_obs if ob.ob_type in ("RBD", "DBD") and ob.top > l4_sell_level and (ob.top - sw_high) <= (0.75 * total_range)]
 
             if in_discount:
                 dir_label = "BUY"
@@ -1025,7 +1072,9 @@ class LiveMT5BridgeCore:
                     ob_bot = max(ob.bottom for ob in valid_bull_ob)
                     hard_sl = round(ob_bot - 0.25, 2)
                 else:
-                    hard_sl = round(sw_low - (total_range * 0.130) - 0.25, 2)
+                    hard_sl = fibo_sl_buy
+                # Absolute invariant: Hard SL must be strictly below L4 Buy Entry
+                hard_sl = min(hard_sl, round(l4_buy_level - 0.50, 2))
                 soft_sl = round(sw_low - 0.5, 2)
                 is_active = True
                 score = 9.2
@@ -1037,7 +1086,9 @@ class LiveMT5BridgeCore:
                     ob_top = min(ob.top for ob in valid_bear_ob)
                     hard_sl = round(ob_top + 0.25, 2)
                 else:
-                    hard_sl = round(sw_high + (total_range * 0.130) + 0.25, 2)
+                    hard_sl = fibo_sl_sell
+                # Absolute invariant: Hard SL must be strictly above L4 Sell Entry
+                hard_sl = max(hard_sl, round(l4_sell_level + 0.50, 2))
                 soft_sl = round(sw_high + 0.5, 2)
                 is_active = True
                 score = 9.0
@@ -1053,6 +1104,10 @@ class LiveMT5BridgeCore:
             # Find specific anchor/base candles for Roof (Swing High) and Floor (Swing Low)
             roof_idx = max(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["high"]) if lookback_sw else None
             floor_idx = min(range(len(lookback_sw)), key=lambda i: lookback_sw[i]["low"]) if lookback_sw else None
+
+            # Calculate post-anchor deepest penetration to distinguish unused vs already penetrated levels
+            deepest_pullback_low = min((b["low"] for b in lookback_sw[roof_idx + 1:]), default=mid) if (roof_idx is not None and roof_idx < len(lookback_sw) - 1) else mid
+            highest_rally_high = max((b["high"] for b in lookback_sw[floor_idx + 1:]), default=mid) if (floor_idx is not None and floor_idx < len(lookback_sw) - 1) else mid
 
             roof_anchor = lookback_sw[roof_idx] if roof_idx is not None else None
             floor_anchor = lookback_sw[floor_idx] if floor_idx is not None else None
@@ -1188,6 +1243,8 @@ class LiveMT5BridgeCore:
                 "poi_reasoning": poi_reasoning,
                 "market_structure": market_structure_points,
                 "grid_levels": buy_grid_levels if dir_label == "BUY" else sell_grid_levels,
+                "deepest_pullback_low": deepest_pullback_low,
+                "highest_rally_high": highest_rally_high,
                 "buy_zone": {
                     "bottom": buy_zone_bottom,
                     "top": buy_zone_top,
@@ -1667,8 +1724,10 @@ class LiveMT5BridgeCore:
                             "floor": cand_setup["swing_low"],
                             "direction": c_dir
                         })
-                        # Reset if structure shifted >= 1.0 pt or direction flipped
-                        if abs(cand_setup["swing_high"] - dep_info["roof"]) >= 1.0 or abs(cand_setup["swing_low"] - dep_info["floor"]) >= 1.0 or c_dir != dep_info["direction"]:
+                        # Reset if structure shifted >= 2.0 pt or direction flipped
+                        cand_span = max(1.0, cand_setup["swing_high"] - cand_setup["swing_low"])
+                        shift_threshold = max(2.0, cand_span * 0.15)
+                        if abs(cand_setup["swing_high"] - dep_info["roof"]) >= shift_threshold or abs(cand_setup["swing_low"] - dep_info["floor"]) >= shift_threshold or c_dir != dep_info["direction"]:
                             dep_info["spent_layers"].clear()
                             dep_info["roof"] = cand_setup["swing_high"]
                             dep_info["floor"] = cand_setup["swing_low"]
@@ -1731,7 +1790,7 @@ class LiveMT5BridgeCore:
 
                     # Pure Geometric S&D Levels (DEC-043 4-Layer Judas Grid) & DEC-044 Dual-Engine Asymmetric TP
                     if dir_cmd == "BUY":
-                        raw_levels = [
+                        raw_levels = chosen_setup.get("grid_levels") or [
                             round(sw_low + span * 0.25, 2),  # L1: 25% Bibir
                             round(sw_low + span * 0.125, 2), # L2: 12.5% Tengah
                             round(sw_low, 2),                 # L3: 0% Dasar
@@ -1739,6 +1798,8 @@ class LiveMT5BridgeCore:
                         ]
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl - spread_val, 2)
+                        # Absolute hard barrier: SL must be strictly below all Buy Limit levels
+                        sl = min(sl, round(min(raw_levels) - 0.50, 2))
                         
                         # DEC-044 Dual-Engine Asymmetric TP Targets
                         # Harvester (L1 & L2): Equilibrium 50% (or 38.2% shallow counter-trend)
@@ -1766,7 +1827,7 @@ class LiveMT5BridgeCore:
                                 tp_runner = round(sw_high, 2)
 
                     else:
-                        raw_levels = [
+                        raw_levels = chosen_setup.get("grid_levels") or [
                             round(sw_low + span * 0.75, 2),  # L1: 75% Bibir
                             round(sw_low + span * 0.875, 2), # L2: 87.5% Tengah
                             round(sw_high, 2),                # L3: 100% Pucuk
@@ -1774,6 +1835,8 @@ class LiveMT5BridgeCore:
                         ]
                         base_sl = chosen_setup["sl_hard"]
                         sl = round(base_sl + spread_val, 2)
+                        # Absolute hard barrier: SL must be strictly above all Sell Limit levels
+                        sl = max(sl, round(max(raw_levels) + 0.50, 2))
                         
                         # DEC-044 Dual-Engine Asymmetric TP Targets
                         # Harvester (L1 & L2): Equilibrium 50% (or 61.8% shallow counter-trend)
@@ -1802,15 +1865,25 @@ class LiveMT5BridgeCore:
 
                     # Filter valid layers:
                     # 1. Micro level depletion (skip spent layers)
-                    # 2. Broker limit price check (BUY_LIMIT < bid, SELL_LIMIT > ask)
-                    # 3. Proximity coalescing (no duplicate within 1.5 pts of existing pending order)
+                    # 2. SMC Unused Area check: Skip levels already penetrated/used by past candles during this swing
+                    # 3. Broker limit price check (BUY_LIMIT < bid, SELL_LIMIT > ask)
+                    # 4. Proximity coalescing (no duplicate within 1.5 pts of existing pending order)
                     spent_set = self.tf_depletion.get(chosen_tf, {}).get("spent_layers", set())
                     existing_p_prices = [float(o.get("price", 0.0)) for o in acc_matching_pending]
+                    pullback_low = chosen_setup.get("deepest_pullback_low", mid)
+                    rally_high = chosen_setup.get("highest_rally_high", mid)
 
                     valid_layers = []
                     for lay_i, limit_p in enumerate(raw_levels):
                         if lay_i in spent_set:
                             continue
+
+                        # SMC Unused Area check: Skip levels already penetrated/absorbed in current swing
+                        if dir_cmd == "BUY" and pullback_low <= (limit_p - 0.20):
+                            continue # Liquidity at this level already absorbed during pullback
+                        if dir_cmd == "SELL" and rally_high >= (limit_p + 0.20):
+                            continue # Liquidity at this level already absorbed during rally
+
                         if dir_cmd == "BUY" and limit_p >= (bid - 0.10):
                             continue # Already penetrated below this level
                         if dir_cmd == "SELL" and limit_p <= (ask + 0.10):
